@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test"
-import { parseFlags } from "./task"
+import { parseFlags, formatResult } from "./task"
 
 describe("parseFlags", () => {
   test("single flag with value", () => {
@@ -49,6 +49,33 @@ describe("parseFlags", () => {
       "--status": "ready",
     })
   })
+
+  test("collects positional args under _", () => {
+    expect(parseFlags(["packet", "session", "--limit", "5"])).toEqual({
+      _: ["packet", "session"],
+      "--limit": "5",
+    })
+  })
+})
+
+describe("formatResult", () => {
+  test("formats default output as JSON", () => {
+    expect(formatResult({ ok: true }, {})).toBe('{"ok":true}')
+  })
+
+  test("formats arrays as JSONL when --jsonl is set", () => {
+    expect(formatResult([{ id: 1 }, { id: 2 }], { "--jsonl": "true" })).toBe(
+      '{"id":1}\n{"id":2}'
+    )
+  })
+
+  test("formats empty arrays as empty JSONL output", () => {
+    expect(formatResult([], { "--jsonl": "true" })).toBe("")
+  })
+
+  test("leaves non-array results as JSON even with --jsonl", () => {
+    expect(formatResult({ ok: true }, { "--jsonl": "true" })).toBe('{"ok":true}')
+  })
 })
 
 describe("task subprocess", () => {
@@ -64,6 +91,8 @@ describe("task subprocess", () => {
     const stdout = result.stdout.toString()
     expect(stdout).toContain("task")
     expect(stdout).toContain("Commands:")
+    expect(stdout).toContain("related")
+    expect(stdout).toContain("search")
   })
 
   test("-h exits 0 same as --help", () => {

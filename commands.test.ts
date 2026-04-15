@@ -2,7 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { issueCreate, issueShow, issueList, issueClose, issueMetaSet, issueMetaGet, updateArrayField, storeSet, storeGet, storeKeys, resolveIssue, requireFlag } from "./commands"
+import { issueCreate, issueShow, issueList, issueSearch, issueChildren, issueParents, issueRelated, issueClose, issueMetaSet, issueMetaGet, updateArrayField, storeSet, storeGet, storeKeys, storeDelete, resolveIssue, requireFlag } from "./commands"
 
 type IssueResult = { id: string; [k: string]: unknown }
 
@@ -41,6 +41,7 @@ describe("issueCreate", () => {
     expect(result.description).toBe("")
     expect(result.refs).toEqual([])
     expect(result.created).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(String(result.updated)).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     expect(result).not.toHaveProperty("path")
 
     // Verify file on disk via resolveIssue
@@ -153,7 +154,50 @@ describe("issueShow", () => {
     await storeSet({ "--id": created.id, "--store": "tasks", "--key": "02-impl.md" }, fakeStdin("content"), root)
 
     const result = await issueShow({ "--id": created.id }, root)
-    expect(result.stores.tasks).toEqual(["01-setup.md", "02-impl.md"])
+    expect(result.stores?.tasks).toEqual(["01-setup.md", "02-impl.md"])
+  })
+
+  test("--summary omits stores", async () => {
+    const created = (await issueCreate({ "--title": "Summary Show" }, root)) as IssueResult
+    const result = await issueShow({ "--id": created.id, "--summary": "true" }, root)
+    expect(result.metadata.title).toBe("Summary Show")
+    expect(result).not.toHaveProperty("stores")
+  })
+
+  test("--compact returns agent-friendly metadata and omits stores", async () => {
+    const created = (await issueCreate({ "--title": "Compact Show" }, root)) as IssueResult
+    const result = await issueShow({ "--id": created.id, "--compact": "true" }, root)
+    expect(result.metadata).toEqual({
+      title: "Compact Show",
+      status: "open",
+      phase: "research",
+      priority: 2,
+      created: expect.any(String),
+      updated: expect.any(String),
+      refs: [],
+      labels: [],
+    })
+    expect(result).not.toHaveProperty("stores")
+  })
+
+  test("--fields narrows metadata and omits stores by default", async () => {
+    const created = (await issueCreate({ "--title": "Field Show" }, root)) as IssueResult
+    const result = await issueShow({ "--id": created.id, "--fields": "title,phase" }, root)
+    expect(result.metadata).toEqual({ title: "Field Show", phase: "research" })
+    expect(result).not.toHaveProperty("stores")
+  })
+
+  test("--fields with --include-stores keeps stores", async () => {
+    const created = (await issueCreate({ "--title": "Field Show Stores" }, root)) as IssueResult
+    const fakeStdin = (s: string) => () => Promise.resolve(s)
+    await storeSet({ "--id": created.id, "--store": "research", "--key": "summary" }, fakeStdin("content"), root)
+
+    const result = await issueShow(
+      { "--id": created.id, "--fields": "title", "--include-stores": "true" },
+      root
+    )
+    expect(result.metadata).toEqual({ title: "Field Show Stores" })
+    expect(result.stores?.research).toEqual(["summary"])
   })
 
   test("throws for unknown ID", async () => {
@@ -178,8 +222,12 @@ describe("issueList", () => {
 
   beforeAll(async () => {
     listRoot = join(root, "list-test")
-    await issueCreate({ "--title": "Open One" }, listRoot)
-    await issueCreate({ "--title": "Open Two" }, listRoot)
+    const openOne = (await issueCreate(
+      { "--title": "Open One", "--description": "Replace new packet session page", "--label": "ui" },
+      listRoot
+    )) as IssueResult
+    await updateArrayField({ "--id": openOne.id, "--add": "epic1" }, "refs", listRoot)
+    await issueCreate({ "--title": "Open Two", "--label": ["backend", "packet"] }, listRoot)
     const toClose = (await issueCreate({ "--title": "Closed One" }, listRoot)) as IssueResult
     await issueClose({ "--id": toClose.id }, listRoot)
   })
@@ -189,6 +237,18 @@ describe("issueList", () => {
     const titles = result.map((i) => i.title as string)
     expect(titles).toContain("Open One")
     expect(titles).toContain("Open Two")
+  })
+
+  test("list is compact by default", async () => {
+    const result = await issueList({}, listRoot)
+    expect(Object.keys(result[0] ?? {}).sort()).toEqual([
+      "id",
+      "phase",
+      "priority",
+      "refs",
+      "status",
+      "title",
+    ])
   })
 
   test("excludes archived by default", async () => {
@@ -216,6 +276,70 @@ describe("issueList", () => {
       expect(item.status).toBe("open")
       expect(item.phase).toBe("research")
     }
+  })
+
+  test("--text filters across title, description, refs, and labels", async () => {
+    expect((await issueList({ "--text": "packet session" }, listRoot)).map((i) => i.title)).toEqual([
+      "Open One",
+    ])
+    expect((await issueList({ "--text": "epic1" }, listRoot)).map((i) => i.title)).toEqual([
+      "Open One",
+    ])
+    expect((await issueList({ "--text": "backend" }, listRoot)).map((i) => i.title)).toEqual([
+      "Open Two",
+    ])
+  })
+
+  test("--fields projects returned issue objects", async () => {
+    const result = await issueList({ "--fields": "id,title,status", "--limit": "1" }, listRoot)
+    expect(Object.keys(result[0] ?? {}).sort()).toEqual(["id", "status", "title"])
+  })
+
+  test("--compact projects a compact issue shape", async () => {
+    const result = await issueList({ "--compact": "true", "--limit": "1" }, listRoot)
+    expect(Object.keys(result[0] ?? {}).sort()).toEqual([
+      "id",
+      "phase",
+      "priority",
+      "refs",
+      "status",
+      "title",
+    ])
+  })
+
+  test("--full returns full issue objects", async () => {
+    const result = await issueList({ "--full": "true", "--limit": "1" }, listRoot)
+    expect(result[0]).toHaveProperty("description")
+    expect(result[0]).toHaveProperty("labels")
+    expect(result[0]).toHaveProperty("updated")
+  })
+
+  test("--sort updated orders by most recently updated first", async () => {
+    const sortRoot = join(root, "updated-sort-test")
+    const first = (await issueCreate({ "--title": "First" }, sortRoot)) as IssueResult
+    const second = (await issueCreate({ "--title": "Second" }, sortRoot)) as IssueResult
+    await Bun.sleep(5)
+    await issueMetaSet({ "--id": first.id, "--key": "phase", "--value": "ready-to-code" }, sortRoot)
+
+    const result = await issueList({ "--sort": "updated", "--full": "true" }, sortRoot)
+    expect(result.map((i) => i.title)).toEqual(["First", "Second"])
+  })
+
+  test("invalid --sort throws", async () => {
+    await expect(issueList({ "--sort": "created" }, listRoot)).rejects.toThrow(
+      "--sort must be one of: priority, updated"
+    )
+  })
+
+  test("--limit caps result count", async () => {
+    const result = await issueList({ "--limit": "1" }, listRoot)
+    expect(result).toHaveLength(1)
+  })
+
+  test("invalid --limit throws", async () => {
+    await expect(issueList({ "--limit": "0" }, listRoot)).rejects.toThrow(
+      "--limit must be a positive integer"
+    )
   })
 
   test("results sorted by priority ascending", async () => {
@@ -247,6 +371,133 @@ describe("issueList", () => {
   })
 })
 
+describe("issueSearch", () => {
+  test("search uses positional query text", async () => {
+    const searchRoot = join(root, "search-test")
+    await issueCreate({ "--title": "Packet Session Work" }, searchRoot)
+    await issueCreate({ "--title": "Something Else" }, searchRoot)
+
+    const result = await issueSearch({ _: ["packet", "session"] }, searchRoot)
+    expect(result.map((i) => i.title)).toEqual(["Packet Session Work"])
+  })
+
+  test("search accepts --text and is compact by default", async () => {
+    const searchRoot = join(root, "search-flag-test")
+    await issueCreate({ "--title": "Target Issue" }, searchRoot)
+
+    const result = await issueSearch({ "--text": "target" }, searchRoot)
+    expect(result).toHaveLength(1)
+    expect(Object.keys(result[0] ?? {}).sort()).toEqual([
+      "id",
+      "phase",
+      "priority",
+      "refs",
+      "status",
+      "title",
+    ])
+  })
+
+  test("search requires a query", async () => {
+    await expect(issueSearch({}, root)).rejects.toThrow(
+      "search query is required (pass positional text or --text)"
+    )
+  })
+})
+
+describe("issueChildren / issueParents / issueRelated", () => {
+  test("children finds issues that reference the parent and supports field projection", async () => {
+    const relationRoot = join(root, "relation-test")
+    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
+    const child = (await issueCreate({ "--title": "Child One" }, relationRoot)) as IssueResult
+    const other = (await issueCreate({ "--title": "Other" }, relationRoot)) as IssueResult
+
+    await updateArrayField({ "--id": child.id, "--add": parent.id }, "refs", relationRoot)
+    await updateArrayField({ "--id": other.id, "--add": "external-ref" }, "refs", relationRoot)
+
+    const children = await issueChildren(
+      { "--id": parent.id, "--fields": "id,title,phase,status" },
+      relationRoot
+    )
+    expect(children).toEqual([
+      {
+        id: child.id,
+        title: "Child One",
+        phase: "research",
+        status: "open",
+      },
+    ])
+  })
+
+  test("parents resolves local refs and ignores external refs", async () => {
+    const relationRoot = join(root, "relation-test-parents")
+    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
+    const child = (await issueCreate({ "--title": "Child One" }, relationRoot)) as IssueResult
+
+    await updateArrayField({ "--id": child.id, "--add": [parent.id, "https://example.com/123"] }, "refs", relationRoot)
+
+    const parents = await issueParents(
+      { "--id": child.id, "--fields": "id,title,phase,status" },
+      relationRoot
+    )
+    expect(parents).toEqual([
+      {
+        id: parent.id,
+        title: "Parent Epic",
+        phase: "research",
+        status: "open",
+      },
+    ])
+  })
+
+  test("related combines parent and child relationships and supports compact mode", async () => {
+    const relationRoot = join(root, "relation-test-related")
+    const target = (await issueCreate({ "--title": "Target" }, relationRoot)) as IssueResult
+    const parent = (await issueCreate({ "--title": "Parent" }, relationRoot)) as IssueResult
+    const child = (await issueCreate({ "--title": "Child" }, relationRoot)) as IssueResult
+
+    await updateArrayField({ "--id": target.id, "--add": parent.id }, "refs", relationRoot)
+    await updateArrayField({ "--id": child.id, "--add": target.id }, "refs", relationRoot)
+
+    const related = await issueRelated({ "--id": target.id, "--compact": "true" }, relationRoot)
+    expect(related).toHaveLength(2)
+    expect(related).toEqual(
+      expect.arrayContaining([
+        {
+          id: parent.id,
+          title: "Parent",
+          status: "open",
+          phase: "research",
+          priority: 2,
+          relation: "parent",
+        },
+        {
+          id: child.id,
+          title: "Child",
+          status: "open",
+          phase: "research",
+          priority: 2,
+          relation: "child",
+        },
+      ])
+    )
+  })
+
+  test("related marks both when an issue is both parent and child", async () => {
+    const relationRoot = join(root, "relation-test-both")
+    const target = (await issueCreate({ "--title": "Target" }, relationRoot)) as IssueResult
+    const both = (await issueCreate({ "--title": "Both" }, relationRoot)) as IssueResult
+
+    await updateArrayField({ "--id": target.id, "--add": both.id }, "refs", relationRoot)
+    await updateArrayField({ "--id": both.id, "--add": target.id }, "refs", relationRoot)
+
+    const related = await issueRelated(
+      { "--id": target.id, "--fields": "id,title,relation" },
+      relationRoot
+    )
+    expect(related).toEqual([{ id: both.id, title: "Both", relation: "both" }])
+  })
+})
+
 describe("issueClose", () => {
   test("moves dir to archive and sets status=closed", async () => {
     const created = (await issueCreate({ "--title": "To Close" }, root)) as IssueResult
@@ -268,21 +519,23 @@ describe("issueClose", () => {
 describe("meta", () => {
   test("issueMetaSet adds a new key and returns full issue.json contents", async () => {
     const created = (await issueCreate({ "--title": "Meta Test" }, root)) as IssueResult
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "architect" }, root)) as Record<string, any>
-    expect(result.phase).toBe("architect")
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "spec" }, root)) as Record<string, any>
+    expect(result.phase).toBe("spec")
     expect(result.title).toBe("Meta Test")
 
     // Verify on disk
     const { path } = resolveIssue(created.id, root)
     const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
-    expect(data.phase).toBe("architect")
+    expect(data.phase).toBe("spec")
   })
 
   test("issueMetaSet overwrites an existing key", async () => {
     const created = (await issueCreate({ "--title": "Meta Overwrite" }, root)) as IssueResult
-    await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "architect" }, root)
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "implement" }, root)) as Record<string, any>
-    expect(result.phase).toBe("implement")
+    await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "spec" }, root)
+    const beforeUpdate = String((await issueShow({ "--id": created.id, "--full": "true" }, root)).metadata.updated)
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "ready-to-code" }, root)) as Record<string, any>
+    expect(result.phase).toBe("ready-to-code")
+    expect(String(result.updated) >= beforeUpdate).toBe(true)
   })
 
   test("issueMetaSet on archived issue works", async () => {
@@ -466,6 +719,51 @@ describe("store", () => {
     expect(result).toEqual({ keys: [] })
   })
 
+  test("storeDelete removes a single key", async () => {
+    const created = (await issueCreate({ "--title": "Store Delete Key" }, root)) as IssueResult
+    await storeSet({ "--id": created.id, "--store": "docs", "--key": "alpha" }, fakeStdin("a"), root)
+    await storeSet({ "--id": created.id, "--store": "docs", "--key": "beta" }, fakeStdin("b"), root)
+
+    const result = await storeDelete({ "--id": created.id, "--store": "docs", "--key": "alpha" }, root)
+    expect(result).toEqual({ deleted: true, kind: "key" })
+    expect(await storeGet({ "--id": created.id, "--store": "docs", "--key": "alpha" }, root)).toEqual({ value: null })
+    expect(await storeKeys({ "--id": created.id, "--store": "docs" }, root)).toEqual({ keys: ["beta"] })
+  })
+
+  test("storeDelete removes empty store after deleting its last key", async () => {
+    const created = (await issueCreate({ "--title": "Store Delete Last Key" }, root)) as IssueResult
+    await storeSet({ "--id": created.id, "--store": "docs", "--key": "only" }, fakeStdin("a"), root)
+
+    const result = await storeDelete({ "--id": created.id, "--store": "docs", "--key": "only" }, root)
+    expect(result).toEqual({ deleted: true, kind: "key", removedEmptyStore: true })
+    expect(await storeKeys({ "--id": created.id, "--store": "docs" }, root)).toEqual({ keys: [] })
+
+    const shown = await issueShow({ "--id": created.id }, root)
+    expect(shown.stores).toEqual({})
+  })
+
+  test("storeDelete removes an entire store when --key is omitted", async () => {
+    const created = (await issueCreate({ "--title": "Store Delete Store" }, root)) as IssueResult
+    await storeSet({ "--id": created.id, "--store": "docs", "--key": "alpha" }, fakeStdin("a"), root)
+    await storeSet({ "--id": created.id, "--store": "docs", "--key": "beta" }, fakeStdin("b"), root)
+
+    const result = await storeDelete({ "--id": created.id, "--store": "docs" }, root)
+    expect(result).toEqual({ deleted: true, kind: "store" })
+    expect(await storeKeys({ "--id": created.id, "--store": "docs" }, root)).toEqual({ keys: [] })
+  })
+
+  test("storeDelete is idempotent for missing targets", async () => {
+    const created = (await issueCreate({ "--title": "Store Delete Missing" }, root)) as IssueResult
+    expect(await storeDelete({ "--id": created.id, "--store": "docs", "--key": "nope" }, root)).toEqual({
+      deleted: false,
+      kind: "key",
+    })
+    expect(await storeDelete({ "--id": created.id, "--store": "docs" }, root)).toEqual({
+      deleted: false,
+      kind: "store",
+    })
+  })
+
   test("store values round-trip unchanged (arbitrary content)", async () => {
     const created = (await issueCreate({ "--title": "Store Roundtrip" }, root)) as IssueResult
     const content = "line1\nline2\n\ttabbed\n🎉 emoji\nnull bytes: \x00"
@@ -549,6 +847,9 @@ describe("store", () => {
     ).rejects.toThrow("--id is required")
     await expect(
       storeKeys({ "--id": "xxxx" }, root),
+    ).rejects.toThrow("--store is required")
+    await expect(
+      storeDelete({ "--id": "xxxx" }, root),
     ).rejects.toThrow("--store is required")
   })
 })

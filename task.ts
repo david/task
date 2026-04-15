@@ -5,6 +5,7 @@ export type ParsedFlags = Record<string, string | string[] | undefined>
 
 export function parseFlags(argv: string[]): ParsedFlags {
   const flags: ParsedFlags = {}
+  const positional: string[] = []
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg.startsWith("--")) {
@@ -29,9 +30,23 @@ export function parseFlags(argv: string[]): ParsedFlags {
       } else {
         flags[arg] = [existing, value]
       }
+    } else {
+      positional.push(arg)
     }
   }
+  if (positional.length === 1) {
+    flags._ = positional[0]
+  } else if (positional.length > 1) {
+    flags._ = positional
+  }
   return flags
+}
+
+export function formatResult(result: unknown, flags: ParsedFlags): string {
+  if (flags["--jsonl"] !== undefined && Array.isArray(result)) {
+    return result.map((item) => JSON.stringify(item)).join("\n")
+  }
+  return JSON.stringify(result)
 }
 
 function printHelp(): void {
@@ -50,14 +65,23 @@ function printHelp(): void {
   lines.push("")
   lines.push("Common workflows:")
   lines.push("  task show --id ab12                                          # Read an issue")
+  lines.push("  task show --id ab12 --summary                                # Read metadata only")
   lines.push("  task list                                                    # List open issues")
   lines.push("  task list --where phase=research                             # Filter by metadata")
+  lines.push("  task list --text \"packet session\"                            # Compact search")
   lines.push("  task list --label cli                                        # Filter by label")
+  lines.push("  task children --id m85s                                      # List child issues")
+  lines.push("  task parents --id ab12                                       # List parent issues")
+  lines.push("  task related --id ab12                                       # List all related issues")
+  lines.push("  task search packet session                                   # Search by query text")
   lines.push("  task update label --id ab12 --add cli                        # Add a label")
   lines.push("  task update refs --id ab12 --add m85s                        # Add a ref")
   lines.push("  task store get --id ab12 --store research --key summary      # Get stored research")
   lines.push('  task store set --id ab12 --store research --key summary --value "..."  # Save research')
-  lines.push("  task meta set --id ab12 --key phase --value architect        # Update issue phase")
+  lines.push("  task store keys --id ab12 --store research                    # List stored keys")
+  lines.push("  task store delete --id ab12 --store research --key summary   # Delete one stored value")
+  lines.push("  task store delete --id ab12 --store research                 # Delete an entire store")
+  lines.push("  task meta set --id ab12 --key phase --value ready-to-code    # Update issue phase")
   lines.push("")
   lines.push('Run "task <command> --help" for details.')
   console.log(lines.join("\n"))
@@ -141,7 +165,7 @@ async function main(): Promise<void> {
 
   const flags = parseFlags(args.slice(flagStart))
   const result = await cmd.run(flags)
-  process.stdout.write(JSON.stringify(result))
+  process.stdout.write(formatResult(result, flags))
 }
 
 main().catch((err: Error) => {
