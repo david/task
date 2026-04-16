@@ -1,5 +1,6 @@
 import { describe, test, expect } from "bun:test"
-import { parseFlags, formatResult } from "./task"
+import { parseFlags, formatResult, normalizeCommandFlags } from "./task"
+import type { Command } from "./types"
 
 describe("parseFlags", () => {
   test("single flag with value", () => {
@@ -55,6 +56,49 @@ describe("parseFlags", () => {
       _: ["packet", "session"],
       "--limit": "5",
     })
+  })
+})
+
+describe("normalizeCommandFlags", () => {
+  const positionalIdCommand: Command = {
+    description: "Show issue details",
+    usage: "task show <id>",
+    flags: {},
+    examples: [],
+    positionalId: true,
+    run: async () => ({ ok: true }),
+  }
+
+  test("maps a single positional arg to --id for positional-id commands", () => {
+    expect(normalizeCommandFlags("show", positionalIdCommand, { _: "ab12", "--summary": "true" })).toEqual({
+      "--id": "ab12",
+      "--summary": "true",
+    })
+  })
+
+  test("leaves positional args alone for commands without positional-id support", () => {
+    const searchCommand: Command = {
+      description: "Search issues",
+      usage: "task search <query>",
+      flags: {},
+      examples: [],
+      run: async () => ({ ok: true }),
+    }
+    expect(normalizeCommandFlags("search", searchCommand, { _: ["packet", "session"] })).toEqual({
+      _: ["packet", "session"],
+    })
+  })
+
+  test("rejects mixing positional id with --id", () => {
+    expect(() =>
+      normalizeCommandFlags("show", positionalIdCommand, { _: "ab12", "--id": "cd34" })
+    ).toThrow("Do not pass both a positional issue ID and --id for 'show'")
+  })
+
+  test("rejects multiple positional args for positional-id commands", () => {
+    expect(() =>
+      normalizeCommandFlags("show", positionalIdCommand, { _: ["ab12", "extra"] })
+    ).toThrow("Command 'show' accepts exactly one positional issue ID")
   })
 })
 
