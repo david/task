@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "typecheck": "tsgo --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "build:legacy": "bun build ./task.ts --compile --outfile ./dist/task-legacy"
   },
   "devDependencies": {
     "@types/bun": "latest"

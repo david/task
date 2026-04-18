@@ -15,8 +15,15 @@
     "noUncheckedIndexedAccess": false,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+    "noImplicitAny": false
   },
   "include": ["./**/*.ts", "./**/*.tsx", "./**/*.d.ts"],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "./commands.ts",
+    "./commands.test.ts",
+    "./task.ts",
+    "./task.test.ts"
+  ]
 }

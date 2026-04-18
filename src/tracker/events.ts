@@ -1,4 +1,4 @@
-import type { DomainEvent, StoredEvent } from "../packages/esther/src/index.ts"
+import type { DomainEvent, StoredEvent } from "../../packages/esther/src/index.ts"
 
 export type IssueMetadata = {
   title: string

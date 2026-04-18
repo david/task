@@ -8,7 +8,7 @@ import {
   writeFileSync,
 } from "node:fs"
 import { join } from "node:path"
-import type { StoredEvent } from "../packages/esther/src/index.ts"
+import type { StoredEvent } from "../../packages/esther/src/index.ts"
 import { foldIssue, issueBoundaryTag, issueCreatedEvent, type IssueMetadata, type IssueRecord, storedEventSchema } from "./events"
 import { materializeHierarchyLink } from "./hierarchy"
 import { getTrackerHandles, listCanonicalIssueIds, listProjectedIssueIds } from "./root"

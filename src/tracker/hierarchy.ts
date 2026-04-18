@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
-import type { StoredEvent } from "../packages/esther/src/index.ts"
+import type { StoredEvent } from "../../packages/esther/src/index.ts"
 import { parseIssueCreatedPayload, storedEventSchema } from "./events"
 import { getTrackerHandles, listProjectedIssueIds } from "./root"
 
