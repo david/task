@@ -40,6 +40,7 @@ Default to category 4 unless you can justify otherwise.
 
 ## CLI-specific conventions
 
+- Treat `packages/esther/` as off-limits during root `task` CLI work unless the user explicitly asks for Esther changes.
 - Keep `task.ts` focused on parsing, dispatch, help text, and output formatting.
 - Keep command behavior and storage logic in `commands.ts`.
 - Return JSON-compatible data structures from command handlers.

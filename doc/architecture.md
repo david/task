@@ -1,6 +1,6 @@
 # Architecture
 
-Root scope: this document covers the `task` CLI in the repository root. `packages/esther/` is a separate nested project with its own docs and should not be treated as part of the root CLI architecture.
+Root scope: this document covers the `task` CLI in the repository root. `packages/esther/` is a separate nested project with its own docs and should not be treated as part of the root CLI architecture. Do not modify `packages/esther/` from root-task work unless the user explicitly asks for Esther changes.
 
 ## What this project is
 
@@ -82,6 +82,7 @@ Open this doc first when you need to:
 - change JSON output contracts
 - understand where active vs archived issues come from
 - avoid drifting into `packages/esther/` by mistake
+- confirm the user explicitly wants Esther work before touching `packages/esther/`
 
 ## If you add a command
 
