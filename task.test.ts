@@ -123,9 +123,9 @@ describe("formatResult", () => {
 })
 
 describe("task subprocess", () => {
-  const repoRoot = import.meta.dir + "/.."
+  const repoRoot = import.meta.dir
   const run = (...args: string[]) =>
-    Bun.spawnSync(["bun", "task/task.ts", ...args], {
+    Bun.spawnSync(["bun", "task.ts", ...args], {
       cwd: repoRoot,
     })
 
@@ -153,6 +153,7 @@ describe("task subprocess", () => {
     const stdout = result.stdout.toString()
     expect(stdout).toContain("Flags:")
     expect(stdout).toContain("--title")
+    expect(stdout).toContain("--parent")
   })
 
   test("unknown command exits 1 with error JSON", () => {
