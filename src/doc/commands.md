@@ -34,12 +34,17 @@ Commands resolve tracker data from the current repo. If you run from a subdirect
 
 `store set` is append-only in canonical history. The visible store view always returns the latest current content for each store/key, while earlier finalized revisions remain in `.task/events/`.
 
+### One-time migration
+
+- `task legacy import --source <path>` — import a legacy tracker root into the
+  current repo’s `.task/` event store
+
 ## CLI grammar rules
 
 - Flags must be space-separated: use `--flag value`, not `--flag=value`.
 - Repeated flags are allowed for commands like `--label`, `--where`, `--add`, and `--remove`.
 - Many issue commands accept either `task show ab12` or `task show --id ab12`.
-- Two-word commands are real command names: `phase next`, `phase set`, `meta set`, `meta get`, `update label`, `update refs`, `store set`, `store get`, `store keys`, `store delete`.
+- Two-word commands are real command names: `legacy import`, `phase next`, `phase set`, `meta set`, `meta get`, `update label`, `update refs`, `store set`, `store get`, `store keys`, `store delete`.
 
 ## Output rules
 
@@ -53,6 +58,7 @@ Commands resolve tracker data from the current repo. If you run from a subdirect
 ```bash
 task create --title "Fix login bug" --priority 0 --label cli --label bug
 task create --title "Follow-up parser fix" --parent ab12
+task legacy import --source /tmp/old-issues
 task show ab12 --summary
 task phase next ab12
 task phase set ab12 --value ready-to-code
@@ -72,6 +78,10 @@ task close ab12
 - `task meta set` writes raw strings and rejects reserved keys like `status`, `phase`, and `parentId`.
 - Prefer `update label` and `update refs` for arrays instead of editing those fields through `meta set`.
 - Use `create --parent <id>` for local hierarchy. `children`, `parents`, and `related` read hierarchy state, not `refs`.
+- `task legacy import` is a one-time migration path, not a daily workflow command.
+- `task legacy import` refuses when the target repo already has canonical tracker data (`target_already_initialized`).
+- During `task legacy import`, exactly one local legacy ref becomes the parent link; more than one aborts with `ambiguous_legacy_parent`; external refs remain refs.
+- Imported store files are materialized as finalized revision 1 in the issue’s current phase.
 - Be careful with `priority`: `create --priority` stores a number, but `meta set --key priority --value 0` stores the string `"0"`, which changes sort behavior.
 - Later `task store set` calls for the same store/key create new revisions after a phase change instead of mutating finalized history.
 - Store names and keys are restricted to safe path characters (`A-Z`, `a-z`, `0-9`, `_`, `.`, `-`) and may not contain `..`.

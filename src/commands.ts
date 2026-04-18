@@ -19,6 +19,7 @@ import {
   updateTrackedIssueArrayField,
 } from "./tracker/issues"
 import { listHierarchyChildren, listHierarchyParents } from "./tracker/hierarchy"
+import { importLegacyTracker } from "./tracker/migrate"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -508,6 +509,14 @@ export async function issuePhaseSet(
   return setTrackedIssuePhase(root, basename(path), value)
 }
 
+export async function legacyImport(
+  args: Record<string, string | string[] | undefined>,
+  root: string
+): Promise<Record<string, unknown>> {
+  const source = requireFlag(args, "--source")
+  return importLegacyTracker(root, source)
+}
+
 // ---------------------------------------------------------------------------
 // Array field update
 // ---------------------------------------------------------------------------
@@ -823,6 +832,17 @@ export const commands: Record<string, Command> = {
     ],
     positionalId: true,
     run: (args) => issuePhaseSet(args, detectRepoRoot(process.cwd())),
+  },
+  "legacy import": {
+    description: "Import a legacy tracker snapshot into the repo-local .task event store",
+    usage: "task legacy import --source <path>",
+    flags: {
+      "--source": { description: "Path to the legacy tracker root", required: true },
+    },
+    examples: [
+      "task legacy import --source /tmp/old-issues",
+    ],
+    run: (args) => legacyImport(args, detectRepoRoot(process.cwd())),
   },
   "meta set": {
     description: "Set a non-reserved metadata field on an issue",

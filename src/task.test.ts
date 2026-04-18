@@ -139,6 +139,7 @@ describe("task subprocess", () => {
     expect(stdout).toContain("search")
     expect(stdout).toContain("phase next")
     expect(stdout).toContain("phase set")
+    expect(stdout).toContain("legacy import")
     expect(stdout).toContain("owner")
   })
 
@@ -157,6 +158,14 @@ describe("task subprocess", () => {
     expect(stdout).toContain("Flags:")
     expect(stdout).toContain("--title")
     expect(stdout).toContain("--parent")
+  })
+
+  test("legacy import --help exits 0 and shows flags", () => {
+    const result = run("legacy", "import", "--help")
+    expect(result.exitCode).toBe(0)
+    const stdout = result.stdout.toString()
+    expect(stdout).toContain("--source")
+    expect(stdout).toContain("legacy tracker")
   })
 
   test("unknown command exits 1 with error JSON", () => {
@@ -188,5 +197,14 @@ describe("task subprocess", () => {
     expect(err.error).toContain("Unknown command 'phase'")
     expect(err.error).toContain("phase next")
     expect(err.error).toContain("phase set")
+  })
+
+  test("partial legacy command lists legacy subcommands", () => {
+    const result = run("legacy")
+    expect(result.exitCode).toBe(1)
+    const stderr = result.stderr.toString()
+    const err = JSON.parse(stderr)
+    expect(err.error).toContain("Unknown command 'legacy'")
+    expect(err.error).toContain("legacy import")
   })
 })
