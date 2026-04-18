@@ -15,6 +15,7 @@ import {
   issueMetaGet,
   issuePhaseNext,
   issuePhaseSet,
+  legacyImport,
   updateArrayField,
   storeSet,
   storeGet,
@@ -57,6 +58,28 @@ function expectRecordWithFields(
       Object.entries(expected).every(([key, value]) => record[key] === value)
     )
   ).toBe(true)
+}
+
+function writeLegacyIssue(
+  legacyRoot: string,
+  issueId: string,
+  metadata: Record<string, unknown>,
+  stores: Record<string, Record<string, string>> = {},
+  archived = false
+): void {
+  const issueDir = archived
+    ? join(legacyRoot, ".archive", issueId)
+    : join(legacyRoot, issueId)
+  mkdirSync(issueDir, { recursive: true })
+  writeFileSync(join(issueDir, "issue.json"), `${JSON.stringify(metadata, null, 2)}\n`)
+
+  for (const [store, keys] of Object.entries(stores)) {
+    const storeDir = join(issueDir, store)
+    mkdirSync(storeDir, { recursive: true })
+    for (const [key, content] of Object.entries(keys)) {
+      writeFileSync(join(storeDir, key), content)
+    }
+  }
 }
 
 let root: string
@@ -450,6 +473,198 @@ describe("repo-local tracker isolation", () => {
 
     const eventDir = join(repoA, ".task", "events", "by-issue", created.id)
     expect(readdirSync(eventDir).some((entry) => entry.endsWith(".json"))).toBe(true)
+  })
+})
+
+describe("legacy import", () => {
+  test("imports legacy issues, stores, refs, hierarchy, and closed state into canonical .task events", async () => {
+    const legacyRoot = join(root, "legacy-import-source")
+    const targetRoot = join(root, "legacy-import-target")
+
+    writeLegacyIssue(
+      legacyRoot,
+      "aaaa-parent-epic",
+      {
+        title: "Parent Epic",
+        description: "Imported parent",
+        status: "open",
+        phase: "research",
+        priority: 1,
+        created: "2024-01-01",
+        updated: "2024-01-01T10:00:00.000Z",
+        refs: ["external-parent-ref"],
+        labels: ["epic"],
+        github_issue: 101,
+      },
+      {
+        research: { summary: "parent summary" },
+      }
+    )
+
+    writeLegacyIssue(
+      legacyRoot,
+      "bbbb-child-task",
+      {
+        title: "Child Task",
+        description: "Imported child",
+        status: "open",
+        phase: "ready-to-code",
+        priority: 0,
+        created: "2024-01-02",
+        updated: "2024-01-02T12:00:00.000Z",
+        refs: ["aaaa-parent-epic", "external-child-ref"],
+        labels: ["backend"],
+        owner: "backend",
+      },
+      {
+        research: { summary: "child summary" },
+        tasks: { plan: "child plan" },
+      }
+    )
+
+    writeLegacyIssue(
+      legacyRoot,
+      "cccc-closed-task",
+      {
+        title: "Closed Task",
+        description: "Imported closed issue",
+        status: "closed",
+        phase: "done",
+        priority: 3,
+        created: "2024-01-03",
+        updated: "2024-01-03T15:00:00.000Z",
+        refs: ["external-closed-ref"],
+        labels: ["done"],
+      },
+      {
+        notes: { summary: "closed summary" },
+      },
+      true
+    )
+
+    await expect(legacyImport({ "--source": legacyRoot }, targetRoot)).resolves.toEqual({
+      imported: true,
+      source: legacyRoot,
+      issueCount: 3,
+      storeCount: 4,
+    })
+
+    await expect(issueList({ "--fields": "id,title,status" }, targetRoot)).resolves.toEqual([
+      { id: "bbbb-child-task", title: "Child Task", status: "open" },
+      { id: "aaaa-parent-epic", title: "Parent Epic", status: "open" },
+    ])
+
+    const allIssues = await issueList({ "--all": "true", "--fields": "id,title,status" }, targetRoot)
+    expectRecordWithFields(allIssues, { id: "cccc-closed-task", title: "Closed Task", status: "closed" })
+
+    const child = await issueShow({ "--id": "bbbb-child-task", "--summary": "true" }, targetRoot)
+    expect(child.metadata).toMatchObject({
+      title: "Child Task",
+      phase: "ready-to-code",
+      owner: "backend",
+      refs: ["external-child-ref"],
+      labels: ["backend"],
+    })
+
+    const parent = await issueShow({ "--id": "aaaa-parent-epic", "--summary": "true" }, targetRoot)
+    expect(parent.metadata).toMatchObject({
+      title: "Parent Epic",
+      github_issue: 101,
+      refs: ["external-parent-ref"],
+    })
+
+    const closed = await issueShow({ "--id": "cccc-closed-task", "--summary": "true" }, targetRoot)
+    expect(closed.metadata).toMatchObject({
+      title: "Closed Task",
+      status: "closed",
+      phase: "done",
+    })
+
+    await expect(
+      issueChildren({ "--id": "aaaa-parent-epic", "--fields": "id,title,status" }, targetRoot)
+    ).resolves.toEqual([
+      { id: "bbbb-child-task", title: "Child Task", status: "open" },
+    ])
+
+    await expect(
+      issueParents({ "--id": "bbbb-child-task", "--fields": "id,title,status" }, targetRoot)
+    ).resolves.toEqual([
+      { id: "aaaa-parent-epic", title: "Parent Epic", status: "open" },
+    ])
+
+    await expect(
+      storeGet({ "--id": "bbbb-child-task", "--store": "research", "--key": "summary" }, targetRoot)
+    ).resolves.toEqual({ value: "child summary" })
+    await expect(
+      storeGet({ "--id": "bbbb-child-task", "--store": "tasks", "--key": "plan" }, targetRoot)
+    ).resolves.toEqual({ value: "child plan" })
+
+    const searchResults = await issueSearch({ "--text": "external-child-ref" }, targetRoot)
+    expect(searchResults.map((issue) => issue.id)).toEqual(["bbbb-child-task"])
+
+    expect(existsSync(join(targetRoot, ".task", "events", "by-issue", "aaaa-parent-epic"))).toBe(true)
+    expect(existsSync(join(targetRoot, ".task", "events", "by-issue", "bbbb-child-task"))).toBe(true)
+    expect(existsSync(join(targetRoot, ".task", "events", "by-issue", "cccc-closed-task"))).toBe(true)
+
+    const childEvents = readCanonicalEvents(targetRoot, "bbbb-child-task")
+    expect(childEvents).toHaveLength(6)
+    expect(childEvents.map((event) => event.type)).toEqual(
+      expect.arrayContaining([
+        "IssueCreated",
+        "IssueMetadataSet",
+        "StoreRevisionSaved",
+        "StoreRevisionFinalized",
+      ])
+    )
+
+    const closedEvents = readCanonicalEvents(targetRoot, "cccc-closed-task")
+    expect(closedEvents.map((event) => event.type)).toContain("IssueClosed")
+  })
+
+  test("aborts ambiguous legacy parent inference without importing partial state", async () => {
+    const legacyRoot = join(root, "legacy-import-ambiguous-source")
+    const targetRoot = join(root, "legacy-import-ambiguous-target")
+
+    writeLegacyIssue(legacyRoot, "aaaa-first-parent", {
+      title: "First Parent",
+      description: "",
+      status: "open",
+      phase: "research",
+      priority: 1,
+      created: "2024-02-01",
+      updated: "2024-02-01T00:00:00.000Z",
+      refs: [],
+      labels: [],
+    })
+    writeLegacyIssue(legacyRoot, "bbbb-second-parent", {
+      title: "Second Parent",
+      description: "",
+      status: "open",
+      phase: "research",
+      priority: 1,
+      created: "2024-02-01",
+      updated: "2024-02-01T00:00:00.000Z",
+      refs: [],
+      labels: [],
+    })
+    writeLegacyIssue(legacyRoot, "cccc-child", {
+      title: "Ambiguous Child",
+      description: "",
+      status: "open",
+      phase: "research",
+      priority: 1,
+      created: "2024-02-01",
+      updated: "2024-02-01T00:00:00.000Z",
+      refs: ["aaaa-first-parent", "bbbb-second-parent"],
+      labels: [],
+    })
+
+    await expect(legacyImport({ "--source": legacyRoot }, targetRoot)).rejects.toThrow(
+      "ambiguous_legacy_parent"
+    )
+
+    await expect(issueList({ "--all": "true" }, targetRoot)).resolves.toEqual([])
+    expect(existsSync(join(targetRoot, ".task", "events", "by-issue"))).toBe(false)
   })
 })
 

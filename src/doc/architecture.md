@@ -16,6 +16,7 @@ Staged scope: this document covers the in-progress `src/` rewrite of the `task` 
 - `src/tracker/events.ts` — task event shapes and issue-state folding helpers.
 - `src/tracker/issues.ts` — tracker-backed create/show/list/search helpers.
 - `src/tracker/hierarchy.ts` — hierarchy projection/materialization and relationship queries.
+- `src/tracker/migrate.ts` — one-time legacy tracker importer that emits canonical `.task` events.
 - `src/commands.test.ts` — issue storage and command behavior tests.
 - `src/task.test.ts` — flag parsing, help text, and subprocess CLI tests.
 
@@ -29,6 +30,12 @@ Staged scope: this document covers the in-progress `src/` rewrite of the `task` 
 6. Core issue creation and reads go through tracker helpers backed by Esther event files under `.task/`.
 7. `src/task.ts` serializes the result to JSON, or JSONL for array results when `--jsonl` is set.
 8. Errors are emitted as JSON on stderr and the process exits with status 1.
+
+One-time migration flow:
+- `task legacy import --source <path>` reads the old mutable tracker layout,
+  infers parentage from exactly one local ref, emits canonical issue/store events
+  into the current repo’s `.task/`, and then relies on the normal projectors and
+  read paths for all later reads.
 
 ## Storage model
 
@@ -73,6 +80,31 @@ Important: the code does not enforce a full metadata schema. New or modified beh
 - Tracker resolution is repo-local: commands operate on the current repo, not on a shared home-directory store.
 - Hierarchy is explicit: parent/child relationships come from canonical issue events and hierarchy projections, not from `refs`.
 - Closing an issue appends `IssueClosed` and leaves the issue in place; the project does not have a separate delete command for issues.
+
+## Migration and rollout
+
+Migration is intentionally separate from day-to-day issue commands.
+
+- The source is a legacy tracker root in the old mutable layout.
+- The target is the current repo’s `.task/` tracker.
+- Import is one-time only: if canonical events or issue projections already
+  exist in the target, `task legacy import` refuses with
+  `target_already_initialized`.
+- Legacy local refs are interpreted only during import:
+  - `0` local issue refs → import as a root issue
+  - `1` local issue ref → import as a child of that issue and drop that ref from
+    the migrated `refs` array
+  - `>1` local issue refs → abort with `ambiguous_legacy_parent`
+- Imported store files become canonical `StoreRevisionSaved` +
+  `StoreRevisionFinalized` revision 1 entries in the issue’s current phase.
+- After import, normal CLI reads use only canonical `.task/events/` plus
+  rebuildable projections.
+
+Rollout order remains:
+1. implement the repo-local tracker
+2. implement rebuildable projections/materializers
+3. run the legacy import
+4. dogfood the new tracker
 
 ## When changing behavior
 

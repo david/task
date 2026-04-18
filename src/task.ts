@@ -65,6 +65,7 @@ function printHelp(): void {
   lines.push("")
   lines.push("Common workflows:")
   lines.push("  task create --title \"Child work\" --parent ab12                 # Create a child issue")
+  lines.push("  task legacy import --source /tmp/old-issues                  # One-time legacy migration")
   lines.push("  task show ab12                                               # Read an issue")
   lines.push("  task show ab12 --summary                                     # Read metadata only")
   lines.push("  task list                                                    # List open issues")
