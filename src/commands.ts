@@ -13,10 +13,18 @@ import type { Command } from "./types"
 import { detectRepoRoot, getArchiveRoot, getIssueRoot, listCanonicalIssueIds } from "./tracker/root"
 import {
   createTrackedIssue,
+  deleteTrackedStore,
+  getTrackedIssueNextPhase,
+  getTrackedStoreValue,
   listTrackedIssues,
+  listTrackedStoreKeys,
   loadArchivedTrackedIssue,
   loadTrackedIssue,
+  saveTrackedStoreValue,
   searchTrackedIssues,
+  setTrackedIssueMetadata,
+  setTrackedIssuePhase,
+  updateTrackedIssueArrayField,
 } from "./tracker/issues"
 import { listHierarchyChildren, listHierarchyParents } from "./tracker/hierarchy"
 
@@ -505,27 +513,41 @@ export async function issueMetaSet(
   const value = requireFlag(args, "--value")
   const { path: issuePath } = resolveIssue(id, root)
 
-  const jsonPath = join(issuePath, "issue.json")
-  const data = JSON.parse(readFileSync(jsonPath, "utf-8"))
-  data[key] = value
-  touchIssueMetadata(data)
-  writeFileSync(jsonPath, JSON.stringify(data, null, 2))
-
-  return data
+  return setTrackedIssueMetadata(root, basename(issuePath), key, value)
 }
 
 export async function issueMetaGet(
   args: Record<string, string | string[] | undefined>,
   root: string
-): Promise<{ value: string | null }> {
+): Promise<{ value: unknown | null }> {
   const id = requireFlag(args, "--id")
   const key = requireFlag(args, "--key")
-  const { path: issuePath } = resolveIssue(id, root)
+  const { path, archived } = resolveIssue(id, root)
+  const issue = archived
+    ? loadArchivedTrackedIssue(root, basename(path))
+    : await loadTrackedIssue(root, basename(path))
 
-  const jsonPath = join(issuePath, "issue.json")
-  const data = JSON.parse(readFileSync(jsonPath, "utf-8"))
-  const val = data[key]
+  const val = issue.metadata[key]
   return { value: val !== undefined ? val : null }
+}
+
+export async function issuePhaseNext(
+  args: Record<string, string | string[] | undefined>,
+  root: string
+): Promise<{ value: string }> {
+  const id = requireFlag(args, "--id")
+  const { path } = resolveIssue(id, root)
+  return { value: await getTrackedIssueNextPhase(root, basename(path)) }
+}
+
+export async function issuePhaseSet(
+  args: Record<string, string | string[] | undefined>,
+  root: string
+): Promise<Record<string, unknown>> {
+  const id = requireFlag(args, "--id")
+  const value = requireFlag(args, "--value")
+  const { path } = resolveIssue(id, root)
+  return setTrackedIssuePhase(root, basename(path), value)
 }
 
 // ---------------------------------------------------------------------------
@@ -545,27 +567,15 @@ export async function updateArrayField(
     throw new Error("At least one of --add or --remove is required")
   }
 
-  const toAdd = addRaw ? (Array.isArray(addRaw) ? addRaw : [addRaw]) : []
-  const toRemove = removeRaw ? (Array.isArray(removeRaw) ? removeRaw : [removeRaw]) : []
-
-  const { path: issuePath } = resolveIssue(id, root)
-  const jsonPath = join(issuePath, "issue.json")
-  const data = JSON.parse(readFileSync(jsonPath, "utf-8"))
-
-  let values: string[] = Array.isArray(data[field]) ? data[field] : []
-
-  // Remove first, then add
-  const removeSet = new Set(toRemove)
-  values = values.filter((v: string) => !removeSet.has(v))
-  for (const v of toAdd) {
-    if (!values.includes(v)) values.push(v)
+  if (field !== "labels" && field !== "refs") {
+    throw new Error(`Unsupported array field '${field}'`)
   }
 
-  data[field] = values
-  touchIssueMetadata(data)
-  writeFileSync(jsonPath, JSON.stringify(data, null, 2))
+  const toAdd = addRaw ? (Array.isArray(addRaw) ? addRaw : [addRaw]) : []
+  const toRemove = removeRaw ? (Array.isArray(removeRaw) ? removeRaw : [removeRaw]) : []
+  const { path: issuePath } = resolveIssue(id, root)
 
-  return { id: basename(issuePath), field, values }
+  return updateTrackedIssueArrayField(root, basename(issuePath), field, toAdd, toRemove)
 }
 
 // ---------------------------------------------------------------------------
@@ -603,9 +613,7 @@ export async function storeSet(
   validateStoreName(store)
   validateStoreKey(key)
 
-  const { path: issuePath } = resolveIssue(id, root)
-  const storeDir = join(issuePath, store)
-  mkdirSync(storeDir, { recursive: true })
+  const { path } = resolveIssue(id, root)
 
   const valueFlag = args["--value"]
   const fileFlag = args["--file"]
@@ -618,14 +626,8 @@ export async function storeSet(
   } else {
     content = await readStdin()
   }
-  writeFileSync(join(storeDir, key), content)
 
-  const jsonPath = join(issuePath, "issue.json")
-  const data = JSON.parse(readFileSync(jsonPath, "utf-8"))
-  touchIssueMetadata(data)
-  writeFileSync(jsonPath, JSON.stringify(data, null, 2))
-
-  return { stored: true }
+  return saveTrackedStoreValue(root, basename(path), store, key, content)
 }
 
 export async function storeGet(
@@ -638,11 +640,8 @@ export async function storeGet(
   validateStoreName(store)
   validateStoreKey(key)
 
-  const { path: issuePath } = resolveIssue(id, root)
-  const filePath = join(issuePath, store, key)
-
-  if (!existsSync(filePath)) return { value: null }
-  return { value: readFileSync(filePath, "utf-8") }
+  const { path } = resolveIssue(id, root)
+  return { value: await getTrackedStoreValue(root, basename(path), store, key) }
 }
 
 export async function storeKeys(
@@ -653,11 +652,8 @@ export async function storeKeys(
   const store = requireFlag(args, "--store")
   validateStoreName(store)
 
-  const { path: issuePath } = resolveIssue(id, root)
-  const storeDir = join(issuePath, store)
-
-  if (!existsSync(storeDir)) return { keys: [] }
-  return { keys: readdirSync(storeDir).sort() }
+  const { path } = resolveIssue(id, root)
+  return { keys: await listTrackedStoreKeys(root, basename(path), store) }
 }
 
 export async function storeDelete(
@@ -672,35 +668,8 @@ export async function storeDelete(
   const key = keyRaw !== undefined ? (Array.isArray(keyRaw) ? keyRaw[0] : keyRaw) : undefined
   if (key !== undefined) validateStoreKey(key)
 
-  const { path: issuePath } = resolveIssue(id, root)
-  const storeDir = join(issuePath, store)
-
-  if (key === undefined) {
-    if (!existsSync(storeDir)) return { deleted: false, kind: "store" }
-    rmSync(storeDir, { recursive: true, force: true })
-    const jsonPath = join(issuePath, "issue.json")
-    const data = JSON.parse(readFileSync(jsonPath, "utf-8"))
-    touchIssueMetadata(data)
-    writeFileSync(jsonPath, JSON.stringify(data, null, 2))
-    return { deleted: true, kind: "store" }
-  }
-
-  const keyPath = join(storeDir, key)
-  if (!existsSync(keyPath)) return { deleted: false, kind: "key" }
-
-  rmSync(keyPath, { force: true })
-
-  const jsonPath = join(issuePath, "issue.json")
-  const data = JSON.parse(readFileSync(jsonPath, "utf-8"))
-  touchIssueMetadata(data)
-  writeFileSync(jsonPath, JSON.stringify(data, null, 2))
-
-  if (existsSync(storeDir) && readdirSync(storeDir).length === 0) {
-    rmSync(storeDir, { recursive: true, force: true })
-    return { deleted: true, kind: "key", removedEmptyStore: true }
-  }
-
-  return { deleted: true, kind: "key" }
+  const { path } = resolveIssue(id, root)
+  return deleteTrackedStore(root, basename(path), store, key)
 }
 
 // ---------------------------------------------------------------------------
@@ -873,8 +842,32 @@ export const commands: Record<string, Command> = {
     positionalId: true,
     run: (args) => issueClose(args, detectRepoRoot(process.cwd())),
   },
+  "phase next": {
+    description: "Get the next configured phase for an issue",
+    usage: "task phase next <id>",
+    flags: {
+      "--id": { description: "Issue ID (or pass as the first positional argument)" },
+    },
+    examples: ["task phase next ab12", "task phase next --id ab12"],
+    positionalId: true,
+    run: (args) => issuePhaseNext(args, detectRepoRoot(process.cwd())),
+  },
+  "phase set": {
+    description: "Advance an issue to a configured phase",
+    usage: "task phase set <id> --value <phase>",
+    flags: {
+      "--id": { description: "Issue ID (or pass as the first positional argument)" },
+      "--value": { description: "Next phase", required: true },
+    },
+    examples: [
+      "task phase set 0ov2 --value ready-to-code",
+      "task phase set --id 0ov2 --value ready-to-code",
+    ],
+    positionalId: true,
+    run: (args) => issuePhaseSet(args, detectRepoRoot(process.cwd())),
+  },
   "meta set": {
-    description: "Set a metadata field on an issue",
+    description: "Set a non-reserved metadata field on an issue",
     usage: "task meta set <id> --key <key> --value <value>",
     flags: {
       "--id": { description: "Issue ID (or pass as the first positional argument)" },
@@ -882,8 +875,8 @@ export const commands: Record<string, Command> = {
       "--value": { description: "Metadata value", required: true },
     },
     examples: [
-      "task meta set 0ov2 --key phase --value ready-to-code",
-      "task meta set --id 0ov2 --key phase --value ready-to-code",
+      "task meta set 0ov2 --key owner --value backend",
+      "task meta set --id 0ov2 --key owner --value backend",
     ],
     positionalId: true,
     run: (args) => issueMetaSet(args, detectRepoRoot(process.cwd())),

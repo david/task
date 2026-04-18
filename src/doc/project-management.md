@@ -28,16 +28,18 @@ Recommended standard fields:
 2. Keep high-signal summary fields in `issue.json`.
 3. Put larger notes, plans, or research into stores.
 4. Use `task create --parent <id>` for local parent/child hierarchy. Keep `refs` for external or non-hierarchy links.
-5. Close issues with `task close`; do not manually move directories.
+5. Advance workflow with `task phase next` / `task phase set`, not `meta set --key phase`.
+6. Close issues with `task close`; do not manually move directories.
 
 ## Phase conventions
 
-`phase` is not schema-enforced, so consistency is a team rule. Current examples in the codebase use:
+Workflow phases come from `.task/settings.json`:
 
-- `research`
-- `ready-to-code`
+- `defaultPhase` chooses the phase for newly created issues
+- `phases` declares the allowed phase names
+- `transitions` declares which next phases are valid from each current phase
 
-If you introduce more phase names, keep them deliberate and reusable instead of inventing one-off values.
+Use `task phase next <id>` to read the configured next phase and `task phase set <id> --value <phase>` to advance an issue. `meta set` must not be used for reserved workflow fields like `phase`.
 
 ## Priority conventions
 
@@ -77,6 +79,13 @@ Use stores for content that is too large or too structured for metadata fields, 
 
 A store is a directory inside the issue directory. A key is a file inside that store.
 
+Store writes are append-only in canonical history:
+
+- `task store set` writes a draft revision for the issue’s current phase
+- `task phase set` finalizes every open draft revision on that issue
+- later `task store set` calls for the same store/key create a new revision in the new phase instead of mutating finalized content
+- `task store get` and `task store keys` show only the latest current view
+
 Example:
 
 ```bash
@@ -97,6 +106,7 @@ Do not bypass these rules with manual file writes.
 The CLI expects a stable on-disk layout. Prefer commands over hand-editing files, especially for:
 
 - archiving issues
+- changing phase
 - updating labels or refs
 - writing store contents
 
