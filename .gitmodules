@@ -1,0 +1,3 @@
+[submodule "packages/esther"]
+	path = packages/esther
+	url = https://github.com/david/esther.git
