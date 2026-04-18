@@ -1,6 +1,6 @@
 # Architecture
 
-Root scope: this document covers the `task` CLI in the repository root. `packages/esther/` is a separate nested project with its own docs and should not be treated as part of the root CLI architecture. Do not modify `packages/esther/` from root-task work unless the user explicitly asks for Esther changes.
+Staged scope: this document covers the in-progress `src/` rewrite of the `task` CLI. The legacy CLI still lives in the repository root while the new in-repo tracker work is being developed under `src/`. `packages/esther/` is a separate nested project with its own docs and should not be treated as part of the root CLI architecture. Do not modify `packages/esther/` from root-task work unless the user explicitly asks for Esther changes.
 
 ## What this project is
 
@@ -8,25 +8,26 @@ Root scope: this document covers the `task` CLI in the repository root. `package
 
 ## Repository layout
 
-- `task.ts` — CLI entrypoint: help text, argv parsing, command dispatch, output formatting, process exit behavior.
-- `commands.ts` — all issue operations and command registration.
-- `types.ts` — command metadata types used by the dispatcher.
-- `bin/task` — shell wrapper that runs `bun task.ts`.
-- `tracker/root.ts` — repo-local tracker resolution plus Esther event/checkpoint store handles.
-- `tracker/events.ts` — task event shapes and issue-state folding helpers.
-- `tracker/issues.ts` — tracker-backed create/show/list/search helpers.
-- `commands.test.ts` — issue storage and command behavior tests.
-- `task.test.ts` — flag parsing, help text, and subprocess CLI tests.
+- `src/task.ts` — CLI entrypoint: help text, argv parsing, command dispatch, output formatting, process exit behavior.
+- `src/commands.ts` — all issue operations and command registration.
+- `src/types.ts` — command metadata types used by the dispatcher.
+- `src/bin/task` — shell wrapper that runs `bun src/task.ts`.
+- `src/tracker/root.ts` — repo-local tracker resolution plus Esther event/checkpoint store handles.
+- `src/tracker/events.ts` — task event shapes and issue-state folding helpers.
+- `src/tracker/issues.ts` — tracker-backed create/show/list/search helpers.
+- `src/tracker/hierarchy.ts` — hierarchy projection/materialization and relationship queries.
+- `src/commands.test.ts` — issue storage and command behavior tests.
+- `src/task.test.ts` — flag parsing, help text, and subprocess CLI tests.
 
 ## Runtime flow
 
-1. `bin/task` invokes `bun task.ts`.
-2. `task.ts` parses argv into a flag map.
+1. `src/bin/task` invokes `bun src/task.ts`.
+2. `src/task.ts` parses argv into a flag map.
 3. It resolves either a one-word command (`list`) or two-word command (`meta set`).
 4. It normalizes positional issue IDs into `--id` for commands that support them.
-5. The command implementation in `commands.ts` resolves the repo-local tracker from the working directory and returns plain JSON-compatible data.
+5. The command implementation in `src/commands.ts` resolves the repo-local tracker from the working directory and returns plain JSON-compatible data.
 6. Core issue creation and reads go through tracker helpers backed by Esther event files under `.task/`.
-7. `task.ts` serializes the result to JSON, or JSONL for array results when `--jsonl` is set.
+7. `src/task.ts` serializes the result to JSON, or JSONL for array results when `--jsonl` is set.
 8. Errors are emitted as JSON on stderr and the process exits with status 1.
 
 ## Storage model
@@ -59,7 +60,7 @@ Standard fields currently used by the CLI:
 - `priority` (number, lower is more urgent; default `2`)
 - `created`
 - `updated`
-- `refs` (parent links or external references)
+- `refs` (external references or non-hierarchy links)
 - `labels`
 - `github_issue` (optional number)
 
@@ -68,9 +69,10 @@ Important: the code does not enforce a full metadata schema. New or modified beh
 ## Design constraints
 
 - The CLI is intentionally machine-oriented: output is JSON first, not pretty terminal prose.
-- The root command layer is thin; most behavior belongs in `commands.ts` helpers rather than in `task.ts`.
+- The command layer is thin; most behavior belongs in `src/commands.ts` helpers rather than in `src/task.ts`.
 - File-system interactions are the main boundary. Path safety and predictable file layout matter more than API convenience.
 - Tracker resolution is repo-local: commands operate on the current repo, not on a shared home-directory store.
+- Hierarchy is explicit: parent/child relationships come from canonical issue events and hierarchy projections, not from `refs`.
 - Closing an issue archives it; the project does not have a separate delete command for issues.
 
 ## When changing behavior
@@ -88,7 +90,7 @@ Open this doc first when you need to:
 
 Update all of these together:
 
-- implementation in `commands.ts`
+- implementation in `src/commands.ts`
 - registration in the exported `commands` map
 - help text / examples exposed through the command metadata
-- tests in `commands.test.ts` and/or `task.test.ts`
+- tests in `src/commands.test.ts` and/or `src/task.test.ts`
