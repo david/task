@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto"
 import {
   mkdirSync,
   readFileSync,
@@ -10,10 +9,16 @@ import {
   existsSync,
 } from "node:fs"
 import { join, basename } from "node:path"
-import { homedir } from "node:os"
 import type { Command } from "./types"
-
-const ISSUE_ROOT = join(homedir(), ".local", "share", "issues")
+import { detectRepoRoot, getArchiveRoot, getIssueRoot, listCanonicalIssueIds } from "./tracker/root"
+import {
+  createTrackedIssue,
+  listTrackedIssues,
+  loadArchivedTrackedIssue,
+  loadTrackedIssue,
+  searchTrackedIssues,
+} from "./tracker/issues"
+import { listHierarchyChildren, listHierarchyParents } from "./tracker/hierarchy"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -26,24 +31,6 @@ export function requireFlag(
   const val = args[flag]
   if (val === undefined) throw new Error(`${flag} is required`)
   return Array.isArray(val) ? val[0] : val
-}
-
-function generateId(root: string): string {
-  const chars = "abcdefghijklmnopqrstuvwxyz0123456789"
-  for (let attempt = 0; attempt < 100; attempt++) {
-    const bytes = randomBytes(4)
-    let id = ""
-    for (let i = 0; i < 4; i++) {
-      id += chars[bytes[i] % chars.length]
-    }
-    // Check uniqueness in both active and archive
-    const activeMatches = listDirsWithPrefix(root, id)
-    const archiveMatches = listDirsWithPrefix(join(root, ".archive"), id)
-    if (activeMatches.length === 0 && archiveMatches.length === 0) {
-      return id
-    }
-  }
-  throw new Error("Failed to generate unique ID after 100 attempts")
 }
 
 function listDirsWithPrefix(dir: string, prefix: string): string[] {
@@ -69,14 +56,6 @@ const COMPACT_RELATED_FIELDS = ["id", "title", "status", "phase", "priority", "r
 
 type SortMode = "priority" | "updated"
 
-function slugify(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 40)
-}
-
 export function resolveIssue(
   id: string,
   root: string
@@ -88,12 +67,22 @@ export function resolveIssue(
   // Extract the short prefix (everything before the first hyphen) for matching
   const prefix = id.split("-")[0]
 
-  const activeMatches = listDirsWithPrefix(root, prefix).map((d) => ({
-    path: join(root, d),
+  const issueRoot = getIssueRoot(root)
+  const archiveDir = getArchiveRoot(root)
+
+  const archivedIds = new Set<string>(listDirsWithPrefix(archiveDir, prefix))
+  const activeIds = new Set<string>(listDirsWithPrefix(issueRoot, prefix))
+  for (const issueId of listCanonicalIssueIds(root)) {
+    if (issueId.startsWith(prefix + "-") && !archivedIds.has(issueId)) {
+      activeIds.add(issueId)
+    }
+  }
+
+  const activeMatches = [...activeIds].sort().map((d) => ({
+    path: join(issueRoot, d),
     archived: false,
   }))
-  const archiveDir = join(root, ".archive")
-  const archiveMatches = listDirsWithPrefix(archiveDir, prefix).map((d) => ({
+  const archiveMatches = [...archivedIds].sort().map((d) => ({
     path: join(archiveDir, d),
     archived: true,
   }))
@@ -208,29 +197,13 @@ function loadIssueStores(path: string): Record<string, string[]> {
   return stores
 }
 
-function readAllIssues(root: string, includeAll: boolean): Record<string, unknown>[] {
-  const results: Record<string, unknown>[] = []
-
-  const readIssuesFrom = (dir: string) => {
-    if (!existsSync(dir)) return
-    for (const entry of readdirSync(dir)) {
-      if (entry.startsWith(".")) continue
-      const entryPath = join(dir, entry)
-      const jsonPath = join(entryPath, "issue.json")
-      if (!existsSync(jsonPath)) continue
-      if (!statSync(entryPath).isDirectory()) continue
-
-      const data = JSON.parse(readFileSync(jsonPath, "utf-8"))
-      results.push({ id: entry, ...data })
-    }
+function tryLoadIssueRecord(root: string, issueId: string): Record<string, unknown> | null {
+  try {
+    const resolved = resolveIssue(issueId, root)
+    return { id: basename(resolved.path), ...loadIssueMetadata(resolved.path) }
+  } catch {
+    return null
   }
-
-  readIssuesFrom(root)
-  if (includeAll) {
-    readIssuesFrom(join(root, ".archive"))
-  }
-
-  return results
 }
 
 function sortIssues(issues: Record<string, unknown>[], sort: SortMode): Record<string, unknown>[] {
@@ -269,24 +242,6 @@ function matchesText(issue: Record<string, unknown>, query: string): boolean {
   return haystacks.some((value) => value.toLowerCase().includes(normalized))
 }
 
-function refResolvesToIssue(ref: string, targetSlug: string, root: string): boolean {
-  try {
-    const resolved = resolveIssue(ref, root)
-    return basename(resolved.path) === targetSlug
-  } catch {
-    return false
-  }
-}
-
-function resolveLocalIssueRef(ref: string, root: string): Record<string, unknown> | null {
-  try {
-    const resolved = resolveIssue(ref, root)
-    return { id: basename(resolved.path), ...loadIssueMetadata(resolved.path) }
-  } catch {
-    return null
-  }
-}
-
 function projectIssueRecord(
   issue: Record<string, unknown>,
   fields: string[] | undefined
@@ -309,45 +264,25 @@ export async function issueCreate(
   const githubIssueRaw = args["--github-issue"]
     ? (Array.isArray(args["--github-issue"]) ? args["--github-issue"][0] : args["--github-issue"])
     : undefined
-
-  // Ensure dirs exist
-  mkdirSync(root, { recursive: true })
-  mkdirSync(join(root, ".archive"), { recursive: true })
-
-  const id = generateId(root)
-  const slug = slugify(title)
-  const dirName = `${id}-${slug}`
-  const dirPath = join(root, dirName)
-  mkdirSync(dirPath, { recursive: true })
-
   const priorityRaw = args["--priority"]
     ? (Array.isArray(args["--priority"]) ? args["--priority"][0] : args["--priority"])
     : undefined
-  const priority = priorityRaw !== undefined ? Number(priorityRaw) : 2
-
   const labelRaw = args["--label"]
   const labels: string[] = labelRaw
     ? (Array.isArray(labelRaw) ? labelRaw : [labelRaw])
     : []
+  const parentRaw = optionalFlag(args, "--parent")
 
-  const metadata: Record<string, unknown> = {
+  const issue = await createTrackedIssue(root, {
     title,
     description,
-    status: "open",
-    phase: "research",
-    priority,
-    created: new Date().toISOString().slice(0, 10),
-    updated: nowIso(),
-    refs: [],
+    priority: priorityRaw !== undefined ? Number(priorityRaw) : 2,
     labels,
-  }
-  if (githubIssueRaw !== undefined) {
-    metadata.github_issue = Number(githubIssueRaw)
-  }
+    ...(githubIssueRaw === undefined ? {} : { githubIssue: Number(githubIssueRaw) }),
+    ...(parentRaw === undefined ? {} : { parentRef: parentRaw }),
+  })
 
-  writeFileSync(join(dirPath, "issue.json"), JSON.stringify(metadata, null, 2))
-
-  return { id: dirName, ...metadata }
+  return issue
 }
 
 export async function issueShow(
@@ -355,19 +290,20 @@ export async function issueShow(
   root: string
 ): Promise<{ id: string; metadata: Record<string, unknown>; stores?: Record<string, string[]> }> {
   const id = requireFlag(args, "--id")
-  const { path } = resolveIssue(id, root)
-  const slug = basename(path)
+  const { path, archived } = resolveIssue(id, root)
+  const issue = archived
+    ? loadArchivedTrackedIssue(root, basename(path))
+    : await loadTrackedIssue(root, basename(path))
 
-  const metadata = loadIssueMetadata(path)
   const fields = resolveOutputFields(args, COMPACT_SHOW_FIELDS)
   const includeStores = "--include-stores" in args || (!("--summary" in args) && fields === undefined)
   const result: { id: string; metadata: Record<string, unknown>; stores?: Record<string, string[]> } = {
-    id: slug,
-    metadata: pickFields(metadata, fields),
+    id: issue.id,
+    metadata: pickFields(issue.metadata, fields),
   }
 
   if (includeStores) {
-    result.stores = loadIssueStores(path)
+    result.stores = issue.stores
   }
 
   return result
@@ -399,9 +335,11 @@ export async function issueList(
   const limit = parseLimit(args)
   const sort = parseSort(args)
 
-  const results = readAllIssues(root, includeAll).filter((issue) => {
+  const results = (await listTrackedIssues(root, includeAll)).filter((issue) => {
+    const issueRecord = issue as Record<string, unknown>
+
     for (const [key, value] of conditions) {
-      if (String(issue[key]) !== value) {
+      if (String(issueRecord[key]) !== value) {
         return false
       }
     }
@@ -433,16 +371,15 @@ export async function issueChildren(
 ): Promise<Record<string, unknown>[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
-  const targetSlug = basename(path)
+  const targetId = basename(path)
   const fields = resolveOutputFields(args, COMPACT_LIST_FIELDS, true)
   const includeAll = "--all" in args
   const limit = parseLimit(args)
   const sort = parseSort(args)
 
-  const matches = readAllIssues(root, includeAll).filter((issue) => {
-    const refs = Array.isArray(issue.refs) ? issue.refs : []
-    return refs.some((ref) => typeof ref === "string" && refResolvesToIssue(ref, targetSlug, root))
-  })
+  const matches = (await listHierarchyChildren(root, targetId, includeAll))
+    .map((childId) => tryLoadIssueRecord(root, childId))
+    .filter((issue): issue is Record<string, unknown> => issue !== null)
 
   const sortedMatches = sortIssues(matches, sort)
   const limitedMatches = limit === undefined ? sortedMatches : sortedMatches.slice(0, limit)
@@ -455,23 +392,14 @@ export async function issueParents(
 ): Promise<Record<string, unknown>[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
-  const metadata = loadIssueMetadata(path)
+  const targetId = basename(path)
   const fields = resolveOutputFields(args, COMPACT_LIST_FIELDS, true)
   const limit = parseLimit(args)
   const sort = parseSort(args)
-  const refs = Array.isArray(metadata.refs) ? metadata.refs : []
-  const parents: Record<string, unknown>[] = []
-  const seen = new Set<string>()
 
-  for (const ref of refs) {
-    if (typeof ref !== "string") continue
-    const parent = resolveLocalIssueRef(ref, root)
-    if (!parent) continue
-    const parentId = String(parent.id)
-    if (seen.has(parentId)) continue
-    seen.add(parentId)
-    parents.push(parent)
-  }
+  const parents = (await listHierarchyParents(root, targetId))
+    .map((parentId) => tryLoadIssueRecord(root, parentId))
+    .filter((issue): issue is Record<string, unknown> => issue !== null)
 
   const sortedParents = sortIssues(parents, sort)
   const limitedParents = limit === undefined ? sortedParents : sortedParents.slice(0, limit)
@@ -493,7 +421,16 @@ export async function issueSearch(
 
   const nextArgs: Record<string, string | string[] | undefined> = { ...args, "--text": query }
   delete nextArgs._
-  return issueList(nextArgs, root)
+  const searchResults = await searchTrackedIssues(root, "--all" in args, query)
+  const filteredArgs: Record<string, string | string[] | undefined> = { ...nextArgs }
+  delete filteredArgs["--text"]
+
+  const fields = resolveOutputFields(filteredArgs, COMPACT_LIST_FIELDS, true)
+  const limit = parseLimit(filteredArgs)
+  const sort = parseSort(filteredArgs)
+  const sortedResults = sortIssues(searchResults, sort)
+  const limitedResults = limit === undefined ? sortedResults : sortedResults.slice(0, limit)
+  return limitedResults.map((issue) => projectIssueRecord(issue, fields))
 }
 
 export async function issueRelated(
@@ -502,35 +439,28 @@ export async function issueRelated(
 ): Promise<Record<string, unknown>[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
-  const metadata = loadIssueMetadata(path)
-  const targetSlug = basename(path)
+  const targetId = basename(path)
   const includeAll = "--all" in args
   const fields = resolveOutputFields(args, COMPACT_RELATED_FIELDS, true)
   const limit = parseLimit(args)
   const sort = parseSort(args)
   const related = new Map<string, Record<string, unknown>>()
 
-  const refs = Array.isArray(metadata.refs) ? metadata.refs : []
-  for (const ref of refs) {
-    if (typeof ref !== "string") continue
-    const parent = resolveLocalIssueRef(ref, root)
+  for (const parentId of await listHierarchyParents(root, targetId)) {
+    const parent = tryLoadIssueRecord(root, parentId)
     if (!parent) continue
     related.set(String(parent.id), { ...parent, relation: "parent" })
   }
 
-  for (const issue of readAllIssues(root, includeAll)) {
-    const refs = Array.isArray(issue.refs) ? issue.refs : []
-    const pointsToTarget = refs.some(
-      (ref) => typeof ref === "string" && refResolvesToIssue(ref, targetSlug, root)
-    )
-    if (!pointsToTarget) continue
+  for (const childId of await listHierarchyChildren(root, targetId, includeAll)) {
+    const child = tryLoadIssueRecord(root, childId)
+    if (!child) continue
 
-    const issueId = String(issue.id)
-    const existing = related.get(issueId)
+    const existing = related.get(String(child.id))
     if (existing) {
-      related.set(issueId, { ...existing, relation: "both" })
+      related.set(String(child.id), { ...existing, relation: "both" })
     } else {
-      related.set(issueId, { ...issue, relation: "child" })
+      related.set(String(child.id), { ...child, relation: "child" })
     }
   }
 
@@ -551,8 +481,9 @@ export async function issueClose(
   }
 
   const dirName = basename(issuePath)
-  const archivePath = join(root, ".archive", dirName)
-  mkdirSync(join(root, ".archive"), { recursive: true })
+  const archiveRoot = getArchiveRoot(root)
+  const archivePath = join(archiveRoot, dirName)
+  mkdirSync(archiveRoot, { recursive: true })
   renameSync(issuePath, archivePath)
 
   // Update status
@@ -779,21 +710,23 @@ export async function storeDelete(
 export const commands: Record<string, Command> = {
   create: {
     description: "Create a new issue",
-    usage: "task create --title <title> [--description <desc>] [--github-issue <number>] [--priority <0-4>] [--label <label>]",
+    usage: "task create --title <title> [--description <desc>] [--github-issue <number>] [--priority <0-4>] [--label <label>] [--parent <id>]",
     flags: {
       "--title": { description: "Issue title", required: true },
       "--description": { description: "Issue description" },
       "--github-issue": { description: "GitHub issue number" },
       "--priority": { description: "Priority (0=highest, default 2)" },
       "--label": { description: "Label (repeatable)" },
+      "--parent": { description: "Parent issue ID for hierarchy" },
     },
     examples: [
       'task create --title "Fix login bug"',
       'task create --title "Urgent fix" --priority 0',
       'task create --title "New feature" --github-issue 42',
       'task create --title "Fix PDF" --label cli --label bug',
+      'task create --title "Add child command" --parent ab12',
     ],
-    run: (args) => issueCreate(args, ISSUE_ROOT),
+    run: (args) => issueCreate(args, detectRepoRoot(process.cwd())),
   },
   show: {
     description: "Show issue details",
@@ -813,7 +746,7 @@ export const commands: Record<string, Command> = {
       "task show --id ab12",
     ],
     positionalId: true,
-    run: (args) => issueShow(args, ISSUE_ROOT),
+    run: (args) => issueShow(args, detectRepoRoot(process.cwd())),
   },
   list: {
     description: "List issues",
@@ -840,7 +773,7 @@ export const commands: Record<string, Command> = {
       "task list --jsonl --all --limit 10",
       "task list --full --limit 1",
     ],
-    run: (args) => issueList(args, ISSUE_ROOT),
+    run: (args) => issueList(args, detectRepoRoot(process.cwd())),
   },
   search: {
     description: "Search issues by text",
@@ -860,10 +793,10 @@ export const commands: Record<string, Command> = {
       "task search \"new packet session page\" --sort updated",
       "task search --text \"packet session\" --jsonl",
     ],
-    run: (args) => issueSearch(args, ISSUE_ROOT),
+    run: (args) => issueSearch(args, detectRepoRoot(process.cwd())),
   },
   children: {
-    description: "List child issues that reference a parent issue",
+    description: "List child issues in the hierarchy under a parent issue",
     usage: "task children <id> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
     flags: {
       "--id": { description: "Parent issue ID (or pass as the first positional argument)" },
@@ -883,10 +816,10 @@ export const commands: Record<string, Command> = {
       "task children --id gh549",
     ],
     positionalId: true,
-    run: (args) => issueChildren(args, ISSUE_ROOT),
+    run: (args) => issueChildren(args, detectRepoRoot(process.cwd())),
   },
   parents: {
-    description: "List parent issues referenced by an issue",
+    description: "List parent issues for an issue in the hierarchy",
     usage: "task parents <id> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl]",
     flags: {
       "--id": { description: "Child issue ID (or pass as the first positional argument)" },
@@ -905,7 +838,7 @@ export const commands: Record<string, Command> = {
       "task parents --id ojyb",
     ],
     positionalId: true,
-    run: (args) => issueParents(args, ISSUE_ROOT),
+    run: (args) => issueParents(args, detectRepoRoot(process.cwd())),
   },
   related: {
     description: "List parent and child issues related to an issue",
@@ -918,7 +851,7 @@ export const commands: Record<string, Command> = {
       "--sort": { description: "Sort by priority (default) or updated" },
       "--limit": { description: "Maximum number of results to return" },
       "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include archived issues when scanning for children" },
+      "--all": { description: "Include archived child issues in the results" },
     },
     examples: [
       "task related gh549",
@@ -928,7 +861,7 @@ export const commands: Record<string, Command> = {
       "task related --id gh549",
     ],
     positionalId: true,
-    run: (args) => issueRelated(args, ISSUE_ROOT),
+    run: (args) => issueRelated(args, detectRepoRoot(process.cwd())),
   },
   close: {
     description: "Close an issue (move to archive)",
@@ -938,7 +871,7 @@ export const commands: Record<string, Command> = {
     },
     examples: ["task close ab12", "task close --id ab12"],
     positionalId: true,
-    run: (args) => issueClose(args, ISSUE_ROOT),
+    run: (args) => issueClose(args, detectRepoRoot(process.cwd())),
   },
   "meta set": {
     description: "Set a metadata field on an issue",
@@ -953,7 +886,7 @@ export const commands: Record<string, Command> = {
       "task meta set --id 0ov2 --key phase --value ready-to-code",
     ],
     positionalId: true,
-    run: (args) => issueMetaSet(args, ISSUE_ROOT),
+    run: (args) => issueMetaSet(args, detectRepoRoot(process.cwd())),
   },
   "meta get": {
     description: "Get a metadata field from an issue",
@@ -964,7 +897,7 @@ export const commands: Record<string, Command> = {
     },
     examples: ["task meta get 0ov2 --key phase", "task meta get --id 0ov2 --key phase"],
     positionalId: true,
-    run: (args) => issueMetaGet(args, ISSUE_ROOT),
+    run: (args) => issueMetaGet(args, detectRepoRoot(process.cwd())),
   },
   "update label": {
     description: "Add or remove labels on an issue",
@@ -982,7 +915,7 @@ export const commands: Record<string, Command> = {
       "task update label --id ab12 --add cli",
     ],
     positionalId: true,
-    run: (args) => updateArrayField(args, "labels", ISSUE_ROOT),
+    run: (args) => updateArrayField(args, "labels", detectRepoRoot(process.cwd())),
   },
   "update refs": {
     description: "Add or remove refs on an issue",
@@ -998,7 +931,7 @@ export const commands: Record<string, Command> = {
       "task update refs --id ab12 --add m85s",
     ],
     positionalId: true,
-    run: (args) => updateArrayField(args, "refs", ISSUE_ROOT),
+    run: (args) => updateArrayField(args, "refs", detectRepoRoot(process.cwd())),
   },
   "store set": {
     description: "Store a value (from --value, --file, or stdin)",
@@ -1018,7 +951,7 @@ export const commands: Record<string, Command> = {
       'task store set --id ab12 --store research --key summary --value "quick note"',
     ],
     positionalId: true,
-    run: (args) => storeSet(args, readAllStdin, ISSUE_ROOT),
+    run: (args) => storeSet(args, readAllStdin, detectRepoRoot(process.cwd())),
   },
   "store get": {
     description: "Get a stored value",
@@ -1033,7 +966,7 @@ export const commands: Record<string, Command> = {
       "task store get --id ab12 --store research --key summary",
     ],
     positionalId: true,
-    run: (args) => storeGet(args, ISSUE_ROOT),
+    run: (args) => storeGet(args, detectRepoRoot(process.cwd())),
   },
   "store keys": {
     description: "List keys in a store",
@@ -1044,7 +977,7 @@ export const commands: Record<string, Command> = {
     },
     examples: ["task store keys ab12 --store research", "task store keys --id ab12 --store research"],
     positionalId: true,
-    run: (args) => storeKeys(args, ISSUE_ROOT),
+    run: (args) => storeKeys(args, detectRepoRoot(process.cwd())),
   },
   "store delete": {
     description: "Delete a key from a store, or delete the entire store if --key is omitted",
@@ -1060,6 +993,6 @@ export const commands: Record<string, Command> = {
       "task store delete --id ab12 --store research --key summary",
     ],
     positionalId: true,
-    run: (args) => storeDelete(args, ISSUE_ROOT),
+    run: (args) => storeDelete(args, detectRepoRoot(process.cwd())),
   },
 }
