@@ -2,12 +2,61 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test"
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
-import { issueCreate, issueShow, issueList, issueSearch, issueChildren, issueParents, issueRelated, issueClose, issueMetaSet, issueMetaGet, updateArrayField, storeSet, storeGet, storeKeys, storeDelete, resolveIssue, requireFlag } from "./commands"
+import {
+  issueCreate,
+  issueShow,
+  issueList,
+  issueSearch,
+  issueChildren,
+  issueParents,
+  issueRelated,
+  issueClose,
+  issueMetaSet,
+  issueMetaGet,
+  issuePhaseNext,
+  issuePhaseSet,
+  updateArrayField,
+  storeSet,
+  storeGet,
+  storeKeys,
+  storeDelete,
+  resolveIssue,
+  requireFlag,
+} from "./commands"
+import { appendTrackedIssueEvents, readTrackedIssueAggregate } from "./tracker/issues"
+import { issueMetadataSetEvent } from "./tracker/events"
 
 type IssueResult = { id: string; [k: string]: unknown }
 
 function issueProjectionRoot(repoRoot: string): string {
   return join(repoRoot, ".task", "issues")
+}
+
+function writeTaskSettings(
+  repoRoot: string,
+  settings: { defaultPhase: string; phases: string[]; transitions: Record<string, string[]> }
+): void {
+  mkdirSync(join(repoRoot, ".task"), { recursive: true })
+  writeFileSync(join(repoRoot, ".task", "settings.json"), `${JSON.stringify(settings, null, 2)}\n`)
+}
+
+function readCanonicalEvents(repoRoot: string, issueId: string): Array<Record<string, unknown>> {
+  const eventDir = join(repoRoot, ".task", "events", "by-issue", issueId)
+  return readdirSync(eventDir)
+    .filter((entry) => entry.endsWith(".json"))
+    .sort()
+    .map((entry) => JSON.parse(readFileSync(join(eventDir, entry), "utf-8")) as Record<string, unknown>)
+}
+
+function expectRecordWithFields(
+  records: ReadonlyArray<Record<string, unknown>>,
+  expected: Record<string, unknown>
+): void {
+  expect(
+    records.some((record) =>
+      Object.entries(expected).every(([key, value]) => record[key] === value)
+    )
+  ).toBe(true)
 }
 
 let root: string
@@ -332,7 +381,7 @@ describe("issueList", () => {
     const first = (await issueCreate({ "--title": "First" }, sortRoot)) as IssueResult
     const second = (await issueCreate({ "--title": "Second" }, sortRoot)) as IssueResult
     await Bun.sleep(5)
-    await issueMetaSet({ "--id": first.id, "--key": "phase", "--value": "ready-to-code" }, sortRoot)
+    await issueMetaSet({ "--id": first.id, "--key": "owner", "--value": "backend" }, sortRoot)
 
     const result = await issueList({ "--sort": "updated", "--full": "true" }, sortRoot)
     expect(result.map((i) => i.title)).toEqual(["First", "Second"])
@@ -543,23 +592,33 @@ describe("issueClose", () => {
 describe("meta", () => {
   test("issueMetaSet adds a new key and returns full issue.json contents", async () => {
     const created = (await issueCreate({ "--title": "Meta Test" }, root)) as IssueResult
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "spec" }, root)) as Record<string, any>
-    expect(result.phase).toBe("spec")
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "backend" }, root)) as Record<string, any>
+    expect(result.owner).toBe("backend")
     expect(result.title).toBe("Meta Test")
 
     // Verify on disk
     const { path } = resolveIssue(created.id, root)
     const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
-    expect(data.phase).toBe("spec")
+    expect(data.owner).toBe("backend")
   })
 
   test("issueMetaSet overwrites an existing key", async () => {
     const created = (await issueCreate({ "--title": "Meta Overwrite" }, root)) as IssueResult
-    await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "spec" }, root)
+    await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "backend" }, root)
     const beforeUpdate = String((await issueShow({ "--id": created.id, "--full": "true" }, root)).metadata.updated)
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "ready-to-code" }, root)) as Record<string, any>
-    expect(result.phase).toBe("ready-to-code")
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "frontend" }, root)) as Record<string, any>
+    expect(result.owner).toBe("frontend")
     expect(String(result.updated) >= beforeUpdate).toBe(true)
+  })
+
+  test("issueMetaSet rejects reserved keys", async () => {
+    const created = (await issueCreate({ "--title": "Meta Reserved" }, root)) as IssueResult
+    await expect(
+      issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "ready-to-code" }, root)
+    ).rejects.toThrow("Metadata key 'phase' is reserved; use a dedicated command instead")
+    await expect(
+      issueMetaSet({ "--id": created.id, "--key": "status", "--value": "closed" }, root)
+    ).rejects.toThrow("Metadata key 'status' is reserved; use a dedicated command instead")
   })
 
   test("issueMetaSet on archived issue works", async () => {
@@ -590,6 +649,144 @@ describe("meta", () => {
   })
 })
 
+describe("phase commands and store revisions", () => {
+  const fakeStdin = (content: string) => () => Promise.resolve(content)
+
+  test("phase next and phase set honor .task/settings.json", async () => {
+    const phaseRoot = join(root, "phase-commands")
+    writeTaskSettings(phaseRoot, {
+      defaultPhase: "backlog",
+      phases: ["backlog", "in-progress", "done"],
+      transitions: {
+        backlog: ["in-progress"],
+        "in-progress": ["done"],
+        done: [],
+      },
+    })
+
+    const created = (await issueCreate({ "--title": "Phase Configured" }, phaseRoot)) as IssueResult
+    expect(created.phase).toBe("backlog")
+    await expect(issuePhaseNext({ "--id": created.id }, phaseRoot)).resolves.toEqual({
+      value: "in-progress",
+    })
+
+    const moved = (await issuePhaseSet(
+      { "--id": created.id, "--value": "in-progress" },
+      phaseRoot
+    )) as Record<string, unknown>
+    expect(moved.phase).toBe("in-progress")
+    expect((await issueShow({ "--id": created.id, "--summary": "true" }, phaseRoot)).metadata.phase).toBe(
+      "in-progress"
+    )
+
+    await expect(
+      issuePhaseSet({ "--id": created.id, "--value": "backlog" }, phaseRoot)
+    ).rejects.toThrow("Invalid phase transition 'in-progress' -> 'backlog'")
+  })
+
+  test("phase change finalizes open store drafts for that issue", async () => {
+    const phaseRoot = join(root, "phase-finalizes-drafts")
+    writeTaskSettings(phaseRoot, {
+      defaultPhase: "research",
+      phases: ["research", "ready-to-code"],
+      transitions: {
+        research: ["ready-to-code"],
+        "ready-to-code": [],
+      },
+    })
+
+    const created = (await issueCreate({ "--title": "Finalize Drafts" }, phaseRoot)) as IssueResult
+    await storeSet(
+      { "--id": created.id, "--store": "research", "--key": "summary" },
+      fakeStdin("draft summary"),
+      phaseRoot
+    )
+    await storeSet(
+      { "--id": created.id, "--store": "tasks", "--key": "plan" },
+      fakeStdin("draft plan"),
+      phaseRoot
+    )
+
+    await issuePhaseSet({ "--id": created.id, "--value": "ready-to-code" }, phaseRoot)
+
+    expect(await storeGet({ "--id": created.id, "--store": "research", "--key": "summary" }, phaseRoot)).toEqual({
+      value: "draft summary",
+    })
+
+    const finalized = readCanonicalEvents(phaseRoot, created.id)
+      .filter((event) => event.type === "StoreRevisionFinalized")
+      .map((event) => event.payload as Record<string, unknown>)
+
+    expect(finalized).toHaveLength(2)
+    expectRecordWithFields(finalized, { store: "research", key: "summary", revision: 1, phase: "research" })
+    expectRecordWithFields(finalized, { store: "tasks", key: "plan", revision: 1, phase: "research" })
+  })
+
+  test("editing the same store key in a later phase creates a new revision", async () => {
+    const revisionRoot = join(root, "phase-store-revisions")
+    writeTaskSettings(revisionRoot, {
+      defaultPhase: "research",
+      phases: ["research", "ready-to-code"],
+      transitions: {
+        research: ["ready-to-code"],
+        "ready-to-code": [],
+      },
+    })
+
+    const created = (await issueCreate({ "--title": "Store Revisions" }, revisionRoot)) as IssueResult
+    await storeSet(
+      { "--id": created.id, "--store": "research", "--key": "summary" },
+      fakeStdin("phase one"),
+      revisionRoot
+    )
+    await issuePhaseSet({ "--id": created.id, "--value": "ready-to-code" }, revisionRoot)
+    await storeSet(
+      { "--id": created.id, "--store": "research", "--key": "summary" },
+      fakeStdin("phase two"),
+      revisionRoot
+    )
+
+    expect(await storeGet({ "--id": created.id, "--store": "research", "--key": "summary" }, revisionRoot)).toEqual({
+      value: "phase two",
+    })
+
+    const savedRevisions = readCanonicalEvents(revisionRoot, created.id)
+      .filter((event) => event.type === "StoreRevisionSaved")
+      .map((event) => event.payload as Record<string, unknown>)
+      .filter((payload) => payload.store === "research" && payload.key === "summary")
+
+    expect(savedRevisions).toHaveLength(2)
+    expectRecordWithFields(savedRevisions, { revision: 1, phase: "research", content: "phase one" })
+    expectRecordWithFields(savedRevisions, {
+      revision: 2,
+      phase: "ready-to-code",
+      content: "phase two",
+      supersedesRevision: 1,
+    })
+  })
+
+  test("stale issue writes fail with optimistic-concurrency errors", async () => {
+    const concurrencyRoot = join(root, "stale-issue-writes")
+    const created = (await issueCreate({ "--title": "Stale Writer" }, concurrencyRoot)) as IssueResult
+
+    const aggregate = await readTrackedIssueAggregate(concurrencyRoot, created.id)
+    await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "backend" }, concurrencyRoot)
+
+    await expect(
+      appendTrackedIssueEvents(
+        concurrencyRoot,
+        created.id,
+        [issueMetadataSetEvent(created.id, "owner", "frontend", new Date().toISOString())],
+        aggregate.maxPosition
+      )
+    ).rejects.toThrow("Append precondition failed: queried tag boundary changed before append")
+
+    await expect(issueMetaGet({ "--id": created.id, "--key": "owner" }, concurrencyRoot)).resolves.toEqual({
+      value: "backend",
+    })
+  })
+})
+
 describe("updateArrayField", () => {
   test("adds values to empty field", async () => {
     const created = (await issueCreate({ "--title": "Update Add" }, root)) as IssueResult
@@ -616,11 +813,11 @@ describe("updateArrayField", () => {
     expect(result.values).toEqual(["cli"])
   })
 
-  test("initializes missing field as empty array", async () => {
+  test("throws for unsupported array fields", async () => {
     const created = (await issueCreate({ "--title": "Update Missing Field" }, root)) as IssueResult
-    // refs exists but let's test with a hypothetical field
-    const result = await updateArrayField({ "--id": created.id, "--add": "val" }, "tags", root)
-    expect(result.values).toEqual(["val"])
+    await expect(updateArrayField({ "--id": created.id, "--add": "val" }, "tags", root)).rejects.toThrow(
+      "Unsupported array field 'tags'"
+    )
   })
 
   test("works on refs field", async () => {

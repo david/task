@@ -17,7 +17,9 @@ Commands resolve tracker data from the current repo. If you run from a subdirect
 ### Create and update issues
 
 - `task create --title <title> [--description ...] [--priority 0-4] [--label ...] [--github-issue ...] [--parent <id>]`
-- `task meta set <id> --key <key> --value <value>`
+- `task phase next <id>`
+- `task phase set <id> --value <phase>`
+- `task meta set <id> --key <key> --value <value>` — non-reserved metadata only
 - `task meta get <id> --key <key>`
 - `task update label <id> --add <label> [--remove <label>]`
 - `task update refs <id> --add <ref> [--remove <ref>]`
@@ -30,12 +32,14 @@ Commands resolve tracker data from the current repo. If you run from a subdirect
 - `task store keys <id> --store <store>`
 - `task store delete <id> --store <store> [--key <key>]`
 
+`store set` is append-only in canonical history. The visible store view always returns the latest current content for each store/key, while earlier finalized revisions remain in `.task/events/`.
+
 ## CLI grammar rules
 
 - Flags must be space-separated: use `--flag value`, not `--flag=value`.
 - Repeated flags are allowed for commands like `--label`, `--where`, `--add`, and `--remove`.
 - Many issue commands accept either `task show ab12` or `task show --id ab12`.
-- Two-word commands are real command names: `meta set`, `meta get`, `update label`, `update refs`, `store set`, `store get`, `store keys`, `store delete`.
+- Two-word commands are real command names: `phase next`, `phase set`, `meta set`, `meta get`, `update label`, `update refs`, `store set`, `store get`, `store keys`, `store delete`.
 
 ## Output rules
 
@@ -50,6 +54,8 @@ Commands resolve tracker data from the current repo. If you run from a subdirect
 task create --title "Fix login bug" --priority 0 --label cli --label bug
 task create --title "Follow-up parser fix" --parent ab12
 task show ab12 --summary
+task phase next ab12
+task phase set ab12 --value ready-to-code
 task list --where phase=research --sort updated
 task search "packet session"
 task update refs ab12 --add m85s
@@ -61,10 +67,13 @@ task close ab12
 
 - `task list` ignores archived issues unless you pass `--all`.
 - `task close` archives the issue directory; it does not delete history.
-- `task meta set` writes raw strings. Do not use it as if it were a typed field updater.
+- `task phase set` validates transitions against `.task/settings.json` and finalizes any open draft store revisions for that issue.
+- `task phase next` returns the single configured next phase for the issue’s current phase.
+- `task meta set` writes raw strings and rejects reserved keys like `status`, `phase`, and `parentId`.
 - Prefer `update label` and `update refs` for arrays instead of editing those fields through `meta set`.
 - Use `create --parent <id>` for local hierarchy. `children`, `parents`, and `related` read hierarchy state, not `refs`.
 - Be careful with `priority`: `create --priority` stores a number, but `meta set --key priority --value 0` stores the string `"0"`, which changes sort behavior.
+- Later `task store set` calls for the same store/key create new revisions after a phase change instead of mutating finalized history.
 - Store names and keys are restricted to safe path characters (`A-Z`, `a-z`, `0-9`, `_`, `.`, `-`) and may not contain `..`.
 
 ## Where data goes

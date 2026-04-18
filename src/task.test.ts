@@ -137,6 +137,9 @@ describe("task subprocess", () => {
     expect(stdout).toContain("Commands:")
     expect(stdout).toContain("related")
     expect(stdout).toContain("search")
+    expect(stdout).toContain("phase next")
+    expect(stdout).toContain("phase set")
+    expect(stdout).toContain("owner")
   })
 
   test("-h exits 0 same as --help", () => {
@@ -175,5 +178,15 @@ describe("task subprocess", () => {
     expect(err.error).toContain("Unknown command 'meta'")
     expect(err.error).toContain("meta set")
     expect(err.error).toContain("meta get")
+  })
+
+  test("partial phase command lists phase subcommands", () => {
+    const result = run("phase")
+    expect(result.exitCode).toBe(1)
+    const stderr = result.stderr.toString()
+    const err = JSON.parse(stderr)
+    expect(err.error).toContain("Unknown command 'phase'")
+    expect(err.error).toContain("phase next")
+    expect(err.error).toContain("phase set")
   })
 })
