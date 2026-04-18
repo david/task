@@ -1,10 +1,14 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test"
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync } from "node:fs"
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import { issueCreate, issueShow, issueList, issueSearch, issueChildren, issueParents, issueRelated, issueClose, issueMetaSet, issueMetaGet, updateArrayField, storeSet, storeGet, storeKeys, storeDelete, resolveIssue, requireFlag } from "./commands"
 
 type IssueResult = { id: string; [k: string]: unknown }
+
+function issueProjectionRoot(repoRoot: string): string {
+  return join(repoRoot, ".task", "issues")
+}
 
 let root: string
 
@@ -108,6 +112,15 @@ describe("issueCreate", () => {
     const { path } = resolveIssue(result.id, root)
     expect(path).toMatch(/hello-world-123/)
   })
+
+  test("writes canonical Esther event files under the repo-local tracker", async () => {
+    const repoRoot = join(root, "repo-local-events")
+    const result = (await issueCreate({ "--title": "Event Backed" }, repoRoot)) as IssueResult
+    const eventDir = join(repoRoot, ".task", "events", "by-issue", result.id)
+    const eventFiles = readdirSync(eventDir).filter((entry) => entry.endsWith(".json"))
+
+    expect(eventFiles).toHaveLength(1)
+  })
 })
 
 describe("resolveIssue", () => {
@@ -208,10 +221,10 @@ describe("issueShow", () => {
 describe("ambiguous ID", () => {
   test("throws with list of matches", () => {
     const ambRoot = join(root, "ambig")
-    mkdirSync(join(ambRoot, "aaaa-first"), { recursive: true })
-    writeFileSync(join(ambRoot, "aaaa-first", "issue.json"), "{}")
-    mkdirSync(join(ambRoot, "aaaa-second"), { recursive: true })
-    writeFileSync(join(ambRoot, "aaaa-second", "issue.json"), "{}")
+    mkdirSync(join(issueProjectionRoot(ambRoot), "aaaa-first"), { recursive: true })
+    writeFileSync(join(issueProjectionRoot(ambRoot), "aaaa-first", "issue.json"), "{}")
+    mkdirSync(join(issueProjectionRoot(ambRoot), "aaaa-second"), { recursive: true })
+    writeFileSync(join(issueProjectionRoot(ambRoot), "aaaa-second", "issue.json"), "{}")
 
     expect(() => resolveIssue("aaaa", ambRoot)).toThrow(/Ambiguous.*aaaa/)
   })
@@ -359,15 +372,35 @@ describe("issueList", () => {
     // Create a normal issue
     await issueCreate({ "--title": "Normal", "--priority": "1" }, legacyRoot)
     // Create a legacy issue manually (no priority field)
-    mkdirSync(join(legacyRoot, "zzzz-legacy"), { recursive: true })
+    mkdirSync(join(issueProjectionRoot(legacyRoot), "zzzz-legacy"), { recursive: true })
     writeFileSync(
-      join(legacyRoot, "zzzz-legacy", "issue.json"),
+      join(issueProjectionRoot(legacyRoot), "zzzz-legacy", "issue.json"),
       JSON.stringify({ title: "Legacy", status: "open", phase: "research" })
     )
 
     const result = await issueList({}, legacyRoot)
     const titles = result.map((i) => i.title as string)
     expect(titles).toEqual(["Normal", "Legacy"])
+  })
+})
+
+describe("repo-local tracker isolation", () => {
+  test("keeps state isolated per repo and ignores issues outside the repo", async () => {
+    const repoA = join(root, "repo-a")
+    const repoB = join(root, "repo-b")
+    const externalRoot = join(root, "outside-repos")
+
+    const created = (await issueCreate({ "--title": "Repo A Only" }, repoA)) as IssueResult
+    await issueCreate({ "--title": "Outside" }, externalRoot)
+
+    const repoAIssues = await issueList({}, repoA)
+    const repoBIssues = await issueList({}, repoB)
+
+    expect(repoAIssues.map((issue) => issue.id)).toEqual([created.id])
+    expect(repoBIssues).toEqual([])
+
+    const eventDir = join(repoA, ".task", "events", "by-issue", created.id)
+    expect(readdirSync(eventDir).some((entry) => entry.endsWith(".json"))).toBe(true)
   })
 })
 
@@ -405,14 +438,10 @@ describe("issueSearch", () => {
 })
 
 describe("issueChildren / issueParents / issueRelated", () => {
-  test("children finds issues that reference the parent and supports field projection", async () => {
+  test("create --parent drives hierarchy queries without refs mutation", async () => {
     const relationRoot = join(root, "relation-test")
     const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
-    const child = (await issueCreate({ "--title": "Child One" }, relationRoot)) as IssueResult
-    const other = (await issueCreate({ "--title": "Other" }, relationRoot)) as IssueResult
-
-    await updateArrayField({ "--id": child.id, "--add": parent.id }, "refs", relationRoot)
-    await updateArrayField({ "--id": other.id, "--add": "external-ref" }, "refs", relationRoot)
+    const child = (await issueCreate({ "--title": "Child One", "--parent": parent.id }, relationRoot)) as IssueResult
 
     const children = await issueChildren(
       { "--id": parent.id, "--fields": "id,title,phase,status" },
@@ -426,14 +455,6 @@ describe("issueChildren / issueParents / issueRelated", () => {
         status: "open",
       },
     ])
-  })
-
-  test("parents resolves local refs and ignores external refs", async () => {
-    const relationRoot = join(root, "relation-test-parents")
-    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
-    const child = (await issueCreate({ "--title": "Child One" }, relationRoot)) as IssueResult
-
-    await updateArrayField({ "--id": child.id, "--add": [parent.id, "https://example.com/123"] }, "refs", relationRoot)
 
     const parents = await issueParents(
       { "--id": child.id, "--fields": "id,title,phase,status" },
@@ -447,54 +468,57 @@ describe("issueChildren / issueParents / issueRelated", () => {
         status: "open",
       },
     ])
+
+    const related = await issueRelated({ "--id": parent.id, "--compact": "true" }, relationRoot)
+    expect(related).toEqual([
+      {
+        id: child.id,
+        title: "Child One",
+        status: "open",
+        phase: "research",
+        priority: 2,
+        relation: "child",
+      },
+    ])
+
+    const childSummary = await issueShow({ "--id": child.id, "--summary": "true" }, relationRoot)
+    expect(childSummary.metadata.refs).toEqual([])
   })
 
-  test("related combines parent and child relationships and supports compact mode", async () => {
-    const relationRoot = join(root, "relation-test-related")
-    const target = (await issueCreate({ "--title": "Target" }, relationRoot)) as IssueResult
-    const parent = (await issueCreate({ "--title": "Parent" }, relationRoot)) as IssueResult
-    const child = (await issueCreate({ "--title": "Child" }, relationRoot)) as IssueResult
+  test("create rejects unknown parent references", async () => {
+    const relationRoot = join(root, "relation-test-missing-parent")
 
-    await updateArrayField({ "--id": target.id, "--add": parent.id }, "refs", relationRoot)
-    await updateArrayField({ "--id": child.id, "--add": target.id }, "refs", relationRoot)
-
-    const related = await issueRelated({ "--id": target.id, "--compact": "true" }, relationRoot)
-    expect(related).toHaveLength(2)
-    expect(related).toEqual(
-      expect.arrayContaining([
-        {
-          id: parent.id,
-          title: "Parent",
-          status: "open",
-          phase: "research",
-          priority: 2,
-          relation: "parent",
-        },
-        {
-          id: child.id,
-          title: "Child",
-          status: "open",
-          phase: "research",
-          priority: 2,
-          relation: "child",
-        },
-      ])
-    )
+    await expect(
+      issueCreate({ "--title": "Child One", "--parent": "zzzz" }, relationRoot)
+    ).rejects.toThrow("Parent issue 'zzzz' not found")
   })
 
-  test("related marks both when an issue is both parent and child", async () => {
-    const relationRoot = join(root, "relation-test-both")
-    const target = (await issueCreate({ "--title": "Target" }, relationRoot)) as IssueResult
-    const both = (await issueCreate({ "--title": "Both" }, relationRoot)) as IssueResult
+  test("create rejects closed parent issues", async () => {
+    const relationRoot = join(root, "relation-test-closed-parent")
+    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
+    await issueClose({ "--id": parent.id }, relationRoot)
 
-    await updateArrayField({ "--id": target.id, "--add": both.id }, "refs", relationRoot)
-    await updateArrayField({ "--id": both.id, "--add": target.id }, "refs", relationRoot)
+    await expect(
+      issueCreate({ "--title": "Child One", "--parent": parent.id }, relationRoot)
+    ).rejects.toThrow(`Parent issue '${parent.id}' is closed`)
+  })
 
-    const related = await issueRelated(
-      { "--id": target.id, "--fields": "id,title,relation" },
+  test("relationship commands ignore refs when no hierarchy link exists", async () => {
+    const relationRoot = join(root, "relation-test-ignore-refs")
+    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
+    const child = (await issueCreate({ "--title": "Child One" }, relationRoot)) as IssueResult
+
+    await updateArrayField(
+      { "--id": child.id, "--add": [parent.id, "https://example.com/123"] },
+      "refs",
       relationRoot
     )
-    expect(related).toEqual([{ id: both.id, title: "Both", relation: "both" }])
+
+    await expect(issueChildren({ "--id": parent.id }, relationRoot)).resolves.toEqual([])
+    await expect(issueParents({ "--id": child.id }, relationRoot)).resolves.toEqual([])
+    await expect(
+      issueRelated({ "--id": parent.id, "--fields": "id,title,relation" }, relationRoot)
+    ).resolves.toEqual([])
   })
 })
 

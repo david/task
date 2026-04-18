@@ -153,6 +153,7 @@ describe("task subprocess", () => {
     const stdout = result.stdout.toString()
     expect(stdout).toContain("Flags:")
     expect(stdout).toContain("--title")
+    expect(stdout).toContain("--parent")
   })
 
   test("unknown command exits 1 with error JSON", () => {

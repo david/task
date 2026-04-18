@@ -5,7 +5,7 @@ import {
   createFilesystemEventStore,
   type CheckpointStore,
   type EventStore,
-} from "../packages/esther/src/index.ts"
+} from "../../packages/esther/src/index.ts"
 
 export type TrackerHandles = {
   repoRoot: string
