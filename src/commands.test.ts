@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test"
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs"
+import { existsSync, mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs"
 import { join } from "node:path"
 import { tmpdir } from "node:os"
 import {
@@ -202,7 +202,7 @@ describe("issueShow", () => {
     expect(result.stores).toEqual({})
   })
 
-  test("finds archived issues", async () => {
+  test("finds closed issues", async () => {
     const created = (await issueCreate({ "--title": "Archive Show" }, root)) as IssueResult
     await issueClose({ "--id": created.id }, root)
     const result = await issueShow({ "--id": created.id }, root)
@@ -313,13 +313,13 @@ describe("issueList", () => {
     ])
   })
 
-  test("excludes archived by default", async () => {
+  test("excludes closed issues by default", async () => {
     const result = await issueList({}, listRoot)
     const titles = result.map((i) => i.title as string)
     expect(titles).not.toContain("Closed One")
   })
 
-  test("--all includes archived", async () => {
+  test("--all includes closed issues", async () => {
     const result = await issueList({ "--all": "true" }, listRoot)
     const titles = result.map((i) => i.title as string)
     expect(titles).toContain("Closed One")
@@ -572,20 +572,132 @@ describe("issueChildren / issueParents / issueRelated", () => {
 })
 
 describe("issueClose", () => {
-  test("moves dir to archive and sets status=closed", async () => {
-    const created = (await issueCreate({ "--title": "To Close" }, root)) as IssueResult
-    const result = await issueClose({ "--id": created.id }, root)
+  test("appends IssueClosed, keeps the issue in place, and surfaces it through current-state reads", async () => {
+    const closeRoot = join(root, "close-current-state")
+    const parent = (await issueCreate({ "--title": "Close Parent" }, closeRoot)) as IssueResult
+    const child = (await issueCreate(
+      { "--title": "Close Child", "--parent": parent.id },
+      closeRoot
+    )) as IssueResult
+
+    const result = await issueClose({ "--id": child.id }, closeRoot)
     expect(result.closed).toBe(true)
 
-    const shown = await issueShow({ "--id": created.id }, root)
+    const shown = await issueShow({ "--id": child.id }, closeRoot)
     expect(shown.metadata.status).toBe("closed")
+
+    const listed = await issueList({ "--all": "true", "--fields": "id,title,status" }, closeRoot)
+    expectRecordWithFields(listed, { id: child.id, title: "Close Child", status: "closed" })
+
+    const searchResults = await issueSearch({ "--all": "true", "--text": "close child" }, closeRoot)
+    expect(searchResults.map((issue) => issue.id)).toContain(child.id)
+
+    await expect(issueChildren({ "--id": parent.id, "--fields": "id" }, closeRoot)).resolves.toEqual([])
+    await expect(
+      issueChildren(
+        { "--id": parent.id, "--all": "true", "--fields": "id,status,title" },
+        closeRoot
+      )
+    ).resolves.toEqual([
+      {
+        id: child.id,
+        status: "closed",
+        title: "Close Child",
+      },
+    ])
+
+    expect(existsSync(join(issueProjectionRoot(closeRoot), child.id, "issue.json"))).toBe(true)
+    expect(existsSync(join(issueProjectionRoot(closeRoot), ".archive", child.id))).toBe(false)
+
+    const closeEvents = readCanonicalEvents(closeRoot, child.id).filter((event) => event.type === "IssueClosed")
+    expect(closeEvents).toHaveLength(1)
   })
 
-  test("on already-archived returns already_closed", async () => {
-    const created = (await issueCreate({ "--title": "Double Close" }, root)) as IssueResult
-    await issueClose({ "--id": created.id }, root)
-    const result = await issueClose({ "--id": created.id }, root)
+  test("on already-closed returns already_closed without appending another close event", async () => {
+    const closeRoot = join(root, "double-close")
+    const created = (await issueCreate({ "--title": "Double Close" }, closeRoot)) as IssueResult
+    await issueClose({ "--id": created.id }, closeRoot)
+    const result = await issueClose({ "--id": created.id }, closeRoot)
     expect(result.already_closed).toBe(true)
+
+    const closeEvents = readCanonicalEvents(closeRoot, created.id).filter((event) => event.type === "IssueClosed")
+    expect(closeEvents).toHaveLength(1)
+  })
+})
+
+describe("projection rebuilds", () => {
+  const fakeStdin = (content: string) => () => Promise.resolve(content)
+
+  test("rebuilds missing or corrupt issue, store, and hierarchy projections from canonical history", async () => {
+    const rebuildRoot = join(root, "projection-rebuild")
+    const parent = (await issueCreate({ "--title": "Rebuild Parent" }, rebuildRoot)) as IssueResult
+    const child = (await issueCreate(
+      { "--title": "Rebuild Child", "--parent": parent.id },
+      rebuildRoot
+    )) as IssueResult
+
+    await storeSet(
+      { "--id": child.id, "--store": "research", "--key": "summary" },
+      fakeStdin("canonical summary"),
+      rebuildRoot
+    )
+    await issueClose({ "--id": child.id }, rebuildRoot)
+
+    rmSync(join(rebuildRoot, ".task", "indexes", "hierarchy"), { recursive: true, force: true })
+    rmSync(join(rebuildRoot, ".task", "indexes", "issues"), { recursive: true, force: true })
+    rmSync(join(issueProjectionRoot(rebuildRoot), child.id, "research"), { recursive: true, force: true })
+    rmSync(join(issueProjectionRoot(rebuildRoot), parent.id, "issue.json"), { force: true })
+    writeFileSync(
+      join(issueProjectionRoot(rebuildRoot), child.id, "issue.json"),
+      `${JSON.stringify({
+        title: "Wrong Title",
+        description: "wrong description",
+        status: "open",
+        phase: "research",
+        priority: 9,
+        created: "",
+        updated: "",
+        refs: [],
+        labels: [],
+      }, null, 2)}\n`
+    )
+
+    const shown = await issueShow({ "--id": child.id }, rebuildRoot)
+    expect(shown.metadata.title).toBe("Rebuild Child")
+    expect(shown.metadata.status).toBe("closed")
+
+    await expect(
+      storeGet({ "--id": child.id, "--store": "research", "--key": "summary" }, rebuildRoot)
+    ).resolves.toEqual({ value: "canonical summary" })
+
+    const listed = await issueList({ "--all": "true", "--fields": "id,title,status" }, rebuildRoot)
+    expectRecordWithFields(listed, { id: child.id, title: "Rebuild Child", status: "closed" })
+
+    await expect(
+      issueChildren(
+        { "--id": parent.id, "--all": "true", "--fields": "id,title,status" },
+        rebuildRoot
+      )
+    ).resolves.toEqual([
+      {
+        id: child.id,
+        title: "Rebuild Child",
+        status: "closed",
+      },
+    ])
+
+    const rebuiltIssue = JSON.parse(
+      readFileSync(join(issueProjectionRoot(rebuildRoot), child.id, "issue.json"), "utf-8")
+    ) as Record<string, unknown>
+    expect(rebuiltIssue.title).toBe("Rebuild Child")
+    expect(rebuiltIssue.status).toBe("closed")
+    expect(readFileSync(join(issueProjectionRoot(rebuildRoot), child.id, "research", "summary"), "utf-8")).toBe(
+      "canonical summary"
+    )
+    expect(existsSync(join(issueProjectionRoot(rebuildRoot), parent.id, "issue.json"))).toBe(true)
+    expect(existsSync(join(rebuildRoot, ".task", "indexes", "issues", "current.json"))).toBe(true)
+    expect(existsSync(join(rebuildRoot, ".task", "indexes", "hierarchy", "parents-by-child.json"))).toBe(true)
+    expect(existsSync(join(rebuildRoot, ".task", "indexes", "hierarchy", "children-by-parent.json"))).toBe(true)
   })
 })
 
@@ -621,7 +733,7 @@ describe("meta", () => {
     ).rejects.toThrow("Metadata key 'status' is reserved; use a dedicated command instead")
   })
 
-  test("issueMetaSet on archived issue works", async () => {
+  test("issueMetaSet on closed issue works", async () => {
     const created = (await issueCreate({ "--title": "Meta Archive" }, root)) as IssueResult
     await issueClose({ "--id": created.id }, root)
     const result = (await issueMetaSet({ "--id": created.id, "--key": "priority", "--value": "high" }, root)) as Record<string, any>

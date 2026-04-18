@@ -13,7 +13,7 @@ Run both for the whole project before considering work done. Passing only change
 
 ## What each test file covers
 
-- `commands.test.ts` — command semantics, issue storage layout, archive behavior, metadata updates, relationship queries, and store operations.
+- `commands.test.ts` — command semantics, issue storage layout, closed-state/projection behavior, metadata updates, relationship queries, and store operations.
 - `task.test.ts` — argv parsing, help text, JSON/JSONL formatting, positional ID normalization, and subprocess-level CLI behavior.
 
 ## Choosing the right test target
@@ -29,7 +29,7 @@ If you change:
 - Prefer behavior tests over implementation-detail tests.
 - Verify JSON shape, not just exit success.
 - Exercise both normal paths and failure paths for user-facing commands.
-- Keep tests explicit about archive vs active issue behavior.
+- Keep tests explicit about open vs closed issue behavior and projection rebuild behavior.
 - Use temp directories for storage isolation instead of touching the real issue root.
 
 ## Quality bar

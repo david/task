@@ -1,17 +1,9 @@
-import {
-  mkdirSync,
-  readFileSync,
-  writeFileSync,
-  readdirSync,
-  renameSync,
-  rmSync,
-  statSync,
-  existsSync,
-} from "node:fs"
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs"
 import { join, basename } from "node:path"
 import type { Command } from "./types"
 import { detectRepoRoot, getArchiveRoot, getIssueRoot, listCanonicalIssueIds } from "./tracker/root"
 import {
+  closeTrackedIssue,
   createTrackedIssue,
   deleteTrackedStore,
   getTrackedIssueNextPhase,
@@ -72,35 +64,36 @@ export function resolveIssue(
     throw new Error(`Invalid issue ID '${id}': must be lowercase alphanumeric (with optional slug)`)
   }
 
-  // Extract the short prefix (everything before the first hyphen) for matching
   const prefix = id.split("-")[0]
-
   const issueRoot = getIssueRoot(root)
   const archiveDir = getArchiveRoot(root)
 
-  const archivedIds = new Set<string>(listDirsWithPrefix(archiveDir, prefix))
-  const activeIds = new Set<string>(listDirsWithPrefix(issueRoot, prefix))
+  const currentIds = new Set<string>(listDirsWithPrefix(issueRoot, prefix))
   for (const issueId of listCanonicalIssueIds(root)) {
-    if (issueId.startsWith(prefix + "-") && !archivedIds.has(issueId)) {
-      activeIds.add(issueId)
+    if (issueId.startsWith(prefix + "-")) {
+      currentIds.add(issueId)
     }
   }
 
-  const activeMatches = [...activeIds].sort().map((d) => ({
-    path: join(issueRoot, d),
+  const archivedIds = new Set(
+    listDirsWithPrefix(archiveDir, prefix).filter((issueId) => !currentIds.has(issueId))
+  )
+
+  const currentMatches = [...currentIds].sort().map((issueId) => ({
+    path: join(issueRoot, issueId),
     archived: false,
   }))
-  const archiveMatches = [...archivedIds].sort().map((d) => ({
-    path: join(archiveDir, d),
+  const archiveMatches = [...archivedIds].sort().map((issueId) => ({
+    path: join(archiveDir, issueId),
     archived: true,
   }))
-  const all = [...activeMatches, ...archiveMatches]
+  const all = [...currentMatches, ...archiveMatches]
 
   if (all.length === 0) {
     throw new Error(`Issue '${id}' not found`)
   }
   if (all.length > 1) {
-    const list = all.map((m) => basename(m.path)).join(", ")
+    const list = all.map((match) => basename(match.path)).join(", ")
     throw new Error(`Ambiguous ID '${id}': ${list}`)
   }
   return all[0]
@@ -178,37 +171,13 @@ function pickFields(
   return picked
 }
 
-function nowIso(): string {
-  return new Date().toISOString()
-}
-
-function loadIssueMetadata(path: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
-}
-
-function touchIssueMetadata(data: Record<string, unknown>): Record<string, unknown> {
-  data.updated = nowIso()
-  return data
-}
-
-function loadIssueStores(path: string): Record<string, string[]> {
-  const stores: Record<string, string[]> = {}
-  const entries = readdirSync(path)
-  for (const entry of entries) {
-    if (entry === "issue.json") continue
-    const entryPath = join(path, entry)
-    if (statSync(entryPath).isDirectory()) {
-      const keys = readdirSync(entryPath).sort()
-      stores[entry] = keys
-    }
-  }
-  return stores
-}
-
-function tryLoadIssueRecord(root: string, issueId: string): Record<string, unknown> | null {
+async function loadIssueRecord(root: string, issueId: string): Promise<Record<string, unknown> | null> {
   try {
     const resolved = resolveIssue(issueId, root)
-    return { id: basename(resolved.path), ...loadIssueMetadata(resolved.path) }
+    const issue = resolved.archived
+      ? loadArchivedTrackedIssue(root, basename(resolved.path))
+      : await loadTrackedIssue(root, basename(resolved.path))
+    return { id: issue.id, ...issue.metadata }
   } catch {
     return null
   }
@@ -385,9 +354,11 @@ export async function issueChildren(
   const limit = parseLimit(args)
   const sort = parseSort(args)
 
-  const matches = (await listHierarchyChildren(root, targetId, includeAll))
-    .map((childId) => tryLoadIssueRecord(root, childId))
+  const matches = (await Promise.all(
+    (await listHierarchyChildren(root, targetId, includeAll)).map((childId) => loadIssueRecord(root, childId))
+  ))
     .filter((issue): issue is Record<string, unknown> => issue !== null)
+    .filter((issue) => includeAll || issue.status !== "closed")
 
   const sortedMatches = sortIssues(matches, sort)
   const limitedMatches = limit === undefined ? sortedMatches : sortedMatches.slice(0, limit)
@@ -405,9 +376,9 @@ export async function issueParents(
   const limit = parseLimit(args)
   const sort = parseSort(args)
 
-  const parents = (await listHierarchyParents(root, targetId))
-    .map((parentId) => tryLoadIssueRecord(root, parentId))
-    .filter((issue): issue is Record<string, unknown> => issue !== null)
+  const parents = (await Promise.all(
+    (await listHierarchyParents(root, targetId)).map((parentId) => loadIssueRecord(root, parentId))
+  )).filter((issue): issue is Record<string, unknown> => issue !== null)
 
   const sortedParents = sortIssues(parents, sort)
   const limitedParents = limit === undefined ? sortedParents : sortedParents.slice(0, limit)
@@ -454,16 +425,17 @@ export async function issueRelated(
   const sort = parseSort(args)
   const related = new Map<string, Record<string, unknown>>()
 
-  for (const parentId of await listHierarchyParents(root, targetId)) {
-    const parent = tryLoadIssueRecord(root, parentId)
-    if (!parent) continue
+  for (const parent of (await Promise.all(
+    (await listHierarchyParents(root, targetId)).map((parentId) => loadIssueRecord(root, parentId))
+  )).filter((issue): issue is Record<string, unknown> => issue !== null)) {
     related.set(String(parent.id), { ...parent, relation: "parent" })
   }
 
-  for (const childId of await listHierarchyChildren(root, targetId, includeAll)) {
-    const child = tryLoadIssueRecord(root, childId)
-    if (!child) continue
-
+  for (const child of (await Promise.all(
+    (await listHierarchyChildren(root, targetId, includeAll)).map((childId) => loadIssueRecord(root, childId))
+  ))
+    .filter((issue): issue is Record<string, unknown> => issue !== null)
+    .filter((issue) => includeAll || issue.status !== "closed")) {
     const existing = related.get(String(child.id))
     if (existing) {
       related.set(String(child.id), { ...existing, relation: "both" })
@@ -483,25 +455,11 @@ export async function issueClose(
 ): Promise<Record<string, unknown>> {
   const id = requireFlag(args, "--id")
   const { path: issuePath, archived } = resolveIssue(id, root)
-
   if (archived) {
     return { already_closed: true }
   }
 
-  const dirName = basename(issuePath)
-  const archiveRoot = getArchiveRoot(root)
-  const archivePath = join(archiveRoot, dirName)
-  mkdirSync(archiveRoot, { recursive: true })
-  renameSync(issuePath, archivePath)
-
-  // Update status
-  const jsonPath = join(archivePath, "issue.json")
-  const data = JSON.parse(readFileSync(jsonPath, "utf-8"))
-  data.status = "closed"
-  touchIssueMetadata(data)
-  writeFileSync(jsonPath, JSON.stringify(data, null, 2))
-
-  return { closed: true }
+  return closeTrackedIssue(root, basename(issuePath))
 }
 
 export async function issueMetaSet(
@@ -730,7 +688,7 @@ export const commands: Record<string, Command> = {
       "--sort": { description: "Sort by priority (default) or updated" },
       "--limit": { description: "Maximum number of results to return" },
       "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include archived issues" },
+      "--all": { description: "Include closed issues" },
     },
     examples: [
       "task list",
@@ -755,7 +713,7 @@ export const commands: Record<string, Command> = {
       "--sort": { description: "Sort by priority (default) or updated" },
       "--limit": { description: "Maximum number of results to return" },
       "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include archived issues" },
+      "--all": { description: "Include closed issues" },
     },
     examples: [
       "task search packet session",
@@ -775,7 +733,7 @@ export const commands: Record<string, Command> = {
       "--sort": { description: "Sort by priority (default) or updated" },
       "--limit": { description: "Maximum number of results to return" },
       "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include archived issues" },
+      "--all": { description: "Include closed issues" },
     },
     examples: [
       "task children gh549",
@@ -820,7 +778,7 @@ export const commands: Record<string, Command> = {
       "--sort": { description: "Sort by priority (default) or updated" },
       "--limit": { description: "Maximum number of results to return" },
       "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include archived child issues in the results" },
+      "--all": { description: "Include closed child issues in the results" },
     },
     examples: [
       "task related gh549",
@@ -833,7 +791,7 @@ export const commands: Record<string, Command> = {
     run: (args) => issueRelated(args, detectRepoRoot(process.cwd())),
   },
   close: {
-    description: "Close an issue (move to archive)",
+    description: "Close an issue (append IssueClosed and keep it in place)",
     usage: "task close <id>",
     flags: {
       "--id": { description: "Issue ID (or pass as the first positional argument)" },

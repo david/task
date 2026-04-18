@@ -23,7 +23,7 @@ Commands resolve tracker data from the current repo. If you run from a subdirect
 - `task meta get <id> --key <key>`
 - `task update label <id> --add <label> [--remove <label>]`
 - `task update refs <id> --add <ref> [--remove <ref>]`
-- `task close <id>` — move issue to archive and set `status` to `closed`
+- `task close <id>` — append `IssueClosed` and set `status` to `closed` without moving the issue directory
 
 ### Work with stores
 
@@ -65,8 +65,8 @@ task close ab12
 
 ## Command gotchas
 
-- `task list` ignores archived issues unless you pass `--all`.
-- `task close` archives the issue directory; it does not delete history.
+- `task list` and `task search` ignore closed issues unless you pass `--all`.
+- `task close` appends history and keeps the issue under `.task/issues/`; it does not move or delete canonical data.
 - `task phase set` validates transitions against `.task/settings.json` and finalizes any open draft store revisions for that issue.
 - `task phase next` returns the single configured next phase for the issue’s current phase.
 - `task meta set` writes raw strings and rejects reserved keys like `status`, `phase`, and `parentId`.
@@ -81,8 +81,7 @@ task close ab12
 Commands operate on the current repo’s `.task/` tracker:
 
 - `.task/events/` — canonical Esther event history
-- `.task/indexes/` and `.task/checkpoints/` — rebuildable Esther metadata
-- `.task/issues/` — current issue projections
-- `.task/issues/.archive/` — archived issue projections
+- `.task/indexes/` and `.task/checkpoints/` — rebuildable Esther metadata and task-owned indexes
+- `.task/issues/` — current issue projections and visible store materializations
 
-Core `create`, `show`, `list`, and `search` flows are backed by canonical Esther event files, with `.task/issues/` acting as the rebuildable current-state projection.
+Core `create`, `show`, `list`, and `search` flows are backed by canonical Esther event files, with `.task/issues/` and `.task/indexes/` acting as rebuildable current-state projections.
