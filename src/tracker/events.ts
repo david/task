@@ -216,6 +216,17 @@ export function issueRefsChangedEvent(
   }
 }
 
+export function issueClosedEvent(
+  issueId: string,
+  closedAt: string
+): DomainEvent<"IssueClosed", IssueClosedPayload> {
+  return {
+    type: "IssueClosed",
+    tags: [issueBoundaryTag(issueId)],
+    payload: { issueId, closedAt },
+  }
+}
+
 export function storeRevisionSavedEvent(
   payload: StoreRevisionSavedPayload
 ): DomainEvent<"StoreRevisionSaved", StoreRevisionSavedPayload> {

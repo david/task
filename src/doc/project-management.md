@@ -29,7 +29,7 @@ Recommended standard fields:
 3. Put larger notes, plans, or research into stores.
 4. Use `task create --parent <id>` for local parent/child hierarchy. Keep `refs` for external or non-hierarchy links.
 5. Advance workflow with `task phase next` / `task phase set`, not `meta set --key phase`.
-6. Close issues with `task close`; do not manually move directories.
+6. Close issues with `task close`; do not manually move or archive issue directories.
 
 ## Phase conventions
 
@@ -105,7 +105,7 @@ Do not bypass these rules with manual file writes.
 
 The CLI expects a stable on-disk layout. Prefer commands over hand-editing files, especially for:
 
-- archiving issues
+- closing issues by hand-editing projections or moving directories
 - changing phase
 - updating labels or refs
 - writing store contents

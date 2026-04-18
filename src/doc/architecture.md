@@ -35,10 +35,9 @@ Staged scope: this document covers the in-progress `src/` rewrite of the `task` 
 Tracker data lives under the current repo:
 
 - `.task/events/` — canonical Esther event files
-- `.task/indexes/` — rebuildable Esther tag indexes
+- `.task/indexes/` — rebuildable Esther tag indexes plus task-owned current-state indexes
 - `.task/checkpoints/` — rebuildable checkpoint state
-- `.task/issues/` — current issue projections used by legacy-compatible commands
-- `.task/issues/.archive/` — archived issue projections
+- `.task/issues/` — current issue projections and visible store materializations
 
 Each issue projection directory is still named `<id>-<slug>`.
 
@@ -47,7 +46,7 @@ Inside an issue projection directory:
 - `issue.json` — current metadata projection
 - `<store>/...` — optional store directories for larger notes or structured artifacts
 
-For core create/show/list/search flows, canonical Esther event files under `.task/events/` are the source of truth and projections are rebuildable.
+For core create/show/list/search flows, canonical Esther event files under `.task/events/` are the source of truth. `.task/issues/` and `.task/indexes/` are rebuildable projections; if they are missing, stale, or corrupt, reads rebuild them from canonical history.
 
 ## Issue metadata conventions
 
@@ -73,7 +72,7 @@ Important: the code does not enforce a full metadata schema. New or modified beh
 - File-system interactions are the main boundary. Path safety and predictable file layout matter more than API convenience.
 - Tracker resolution is repo-local: commands operate on the current repo, not on a shared home-directory store.
 - Hierarchy is explicit: parent/child relationships come from canonical issue events and hierarchy projections, not from `refs`.
-- Closing an issue archives it; the project does not have a separate delete command for issues.
+- Closing an issue appends `IssueClosed` and leaves the issue in place; the project does not have a separate delete command for issues.
 
 ## When changing behavior
 
@@ -82,7 +81,7 @@ Open this doc first when you need to:
 - add a command
 - change issue storage layout
 - change JSON output contracts
-- understand where active vs archived issues come from
+- understand how open vs closed issues are projected from canonical history
 - avoid drifting into `packages/esther/` by mistake
 - confirm the user explicitly wants Esther work before touching `packages/esther/`
 

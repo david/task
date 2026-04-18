@@ -1,18 +1,10 @@
 import { randomBytes } from "node:crypto"
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-  writeFileSync,
-} from "node:fs"
 import { join } from "node:path"
-import type { DomainEvent, SliceError, StoredEvent } from "../../packages/esther/src/index.ts"
+import type { DomainEvent, SliceError } from "../../packages/esther/src/index.ts"
 import {
   RESERVED_METADATA_KEYS,
-  foldIssueState,
   issueBoundaryTag,
+  issueClosedEvent,
   issueCreatedEvent,
   issueLabelsChangedEvent,
   issueMetadataSetEvent,
@@ -24,26 +16,22 @@ import {
   storeRevisionSavedEvent,
   type IssueMetadata,
   type IssueRecord,
-  type IssueState,
-  storedEventSchema,
 } from "./events"
 import { materializeHierarchyLink } from "./hierarchy"
+import { getTrackerHandles, listCanonicalIssueIds, listProjectedIssueIds } from "./root"
 import {
-  getTrackerHandles,
-  listCanonicalIssueIds,
-  listProjectedIssueIds,
-} from "./root"
-import {
-  assertAllowedPhaseTransition,
-  getNextPhase,
-  loadTaskSettings,
-} from "./settings"
+  readIssueStoreKeys,
+  readLegacyIssueRecord,
+  readTrackedIssueAggregate as readAggregate,
+  rebuildCurrentIssueIndex,
+  rebuildIssueProjection,
+  type IssueAggregate,
+} from "./projections"
+import { assertAllowedPhaseTransition, getNextPhase, loadTaskSettings } from "./settings"
 import {
   getOpenStoreDrafts,
   getStoreKeys,
   getStoreValue,
-  getVisibleStores,
-  materializeVisibleStores,
   planStoreRevision,
 } from "./stores"
 
@@ -54,21 +42,6 @@ export type CreateIssueInput = {
   labels: string[]
   githubIssue?: number
   parentRef?: string
-}
-
-type QueryStoredEventsByTags = <TState>(
-  tags: ReadonlyArray<string>,
-  schemas: ReadonlyArray<{
-    safeParse(value: unknown):
-      | { success: true; data: StoredEvent }
-      | { success: false; error?: unknown }
-  }>,
-  fold: (events: ReadonlyArray<StoredEvent>) => TState
-) => Promise<{ state: TState; maxPosition: bigint | undefined }>
-
-export type IssueAggregate = {
-  state: IssueState
-  maxPosition: bigint | undefined
 }
 
 const ISSUE_ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -106,11 +79,7 @@ export async function createTrackedIssue(
     throw sliceErrorToError(appended.error)
   }
 
-  const issueDir = join(tracker.issueRoot, issue.id)
-  mkdirSync(issueDir, { recursive: true })
-  writeFileSync(join(issueDir, "issue.json"), `${JSON.stringify(stripIssueId(issue), null, 2)}\n`)
-  materializeVisibleStores(issueDir, {})
-
+  await rebuildIssueProjection(root, issue.id)
   await materializeHierarchyLink(root, issue.id, parentId)
   return issue
 }
@@ -119,41 +88,79 @@ export async function loadTrackedIssue(
   root: string,
   issueId: string
 ): Promise<{ id: string; metadata: IssueMetadata; stores: Record<string, string[]> }> {
-  const projectionPath = await ensureIssueProjection(root, issueId)
-  const metadata = JSON.parse(readFileSync(join(projectionPath, "issue.json"), "utf-8")) as IssueMetadata
+  const canonical = await rebuildIssueProjection(root, issueId)
+  const tracker = getTrackerHandles(root)
 
-  return {
-    id: issueId,
-    metadata,
-    stores: loadIssueStores(projectionPath),
+  if (canonical !== undefined) {
+    const issueDir = join(tracker.issueRoot, issueId)
+    return {
+      id: issueId,
+      metadata: canonical.state.metadata,
+      stores: readIssueStoreKeys(issueDir),
+    }
   }
+
+  const currentDir = join(tracker.issueRoot, issueId)
+  const current = readLegacyIssueRecord(currentDir, issueId)
+  if (current !== undefined) {
+    return {
+      id: issueId,
+      metadata: stripIssueId(current),
+      stores: readIssueStoreKeys(currentDir),
+    }
+  }
+
+  const archiveDir = join(tracker.archiveRoot, issueId)
+  const archived = readLegacyIssueRecord(archiveDir, issueId)
+  if (archived !== undefined) {
+    return {
+      id: issueId,
+      metadata: stripIssueId(archived),
+      stores: readIssueStoreKeys(archiveDir),
+    }
+  }
+
+  throw new Error(`Issue '${issueId}' not found`)
 }
 
 export async function listTrackedIssues(root: string, includeAll: boolean): Promise<IssueRecord[]> {
-  const archivedIds = new Set<string>(listProjectedIssueIds(root, true))
-  const issueIds = new Set<string>(listProjectedIssueIds(root, false))
-  for (const issueId of listCanonicalIssueIds(root)) {
-    if (!archivedIds.has(issueId)) {
-      issueIds.add(issueId)
+  const tracker = getTrackerHandles(root)
+  const issuesById = new Map<string, IssueRecord>()
+
+  for (const issue of await rebuildCurrentIssueIndex(root)) {
+    issuesById.set(issue.id, issue)
+  }
+
+  for (const issueId of listProjectedIssueIds(root, false)) {
+    if (issuesById.has(issueId)) {
+      continue
+    }
+    const legacy = readLegacyIssueRecord(join(tracker.issueRoot, issueId), issueId)
+    if (legacy !== undefined) {
+      issuesById.set(issueId, legacy)
     }
   }
 
-  const issues: IssueRecord[] = []
-  for (const issueId of [...issueIds].sort()) {
-    const { metadata } = await loadTrackedIssue(root, issueId)
-    issues.push({ id: issueId, ...metadata })
+  let issues = [...issuesById.values()].sort((a, b) => a.id.localeCompare(b.id))
+  if (!includeAll) {
+    issues = issues.filter((issue) => issue.status !== "closed")
   }
 
-  if (includeAll) {
-    const tracker = getTrackerHandles(root)
-    for (const issueId of [...archivedIds].sort()) {
-      const projectionPath = join(tracker.archiveRoot, issueId)
-      const metadata = JSON.parse(readFileSync(join(projectionPath, "issue.json"), "utf-8")) as IssueMetadata
-      issues.push({ id: issueId, ...metadata })
+  if (!includeAll) {
+    return issues
+  }
+
+  for (const issueId of listProjectedIssueIds(root, true)) {
+    if (issuesById.has(issueId)) {
+      continue
+    }
+    const archived = readLegacyIssueRecord(join(tracker.archiveRoot, issueId), issueId)
+    if (archived !== undefined) {
+      issues.push(archived)
     }
   }
 
-  return issues
+  return issues.sort((a, b) => a.id.localeCompare(b.id))
 }
 
 export async function searchTrackedIssues(
@@ -172,12 +179,15 @@ export function loadArchivedTrackedIssue(
 ): { id: string; metadata: IssueMetadata; stores: Record<string, string[]> } {
   const tracker = getTrackerHandles(root)
   const issueDir = join(tracker.archiveRoot, issueId)
-  const metadata = JSON.parse(readFileSync(join(issueDir, "issue.json"), "utf-8")) as IssueMetadata
+  const issue = readLegacyIssueRecord(issueDir, issueId)
+  if (issue === undefined) {
+    throw new Error(`Issue '${issueId}' not found`)
+  }
 
   return {
     id: issueId,
-    metadata,
-    stores: loadIssueStores(issueDir),
+    metadata: stripIssueId(issue),
+    stores: readIssueStoreKeys(issueDir),
   }
 }
 
@@ -185,22 +195,7 @@ export async function readTrackedIssueAggregate(
   root: string,
   issueId: string
 ): Promise<IssueAggregate> {
-  const tracker = getTrackerHandles(root)
-  const queryByTags = tracker.eventStore.queryByTags as unknown as QueryStoredEventsByTags
-  const result = await queryByTags(
-    [issueBoundaryTag(issueId)],
-    [storedEventSchema],
-    (events) => foldIssueState(events)
-  )
-
-  if (result.state === undefined) {
-    throw new Error(`Issue '${issueId}' not found`)
-  }
-
-  return {
-    state: result.state,
-    maxPosition: result.maxPosition,
-  }
+  return readAggregate(root, issueId)
 }
 
 export async function appendTrackedIssueEvents(
@@ -219,7 +214,30 @@ export async function appendTrackedIssueEvents(
     throw sliceErrorToError(appended.error)
   }
 
-  return refreshIssueProjection(root, issueId)
+  const aggregate = await rebuildIssueProjection(root, issueId)
+  if (aggregate === undefined) {
+    throw new Error(`Issue '${issueId}' not found`)
+  }
+  return aggregate
+}
+
+export async function closeTrackedIssue(
+  root: string,
+  issueId: string
+): Promise<{ closed?: true; already_closed?: true }> {
+  const aggregate = await readAggregate(root, issueId)
+  if (aggregate.state.metadata.status === "closed") {
+    await rebuildIssueProjection(root, issueId)
+    return { already_closed: true }
+  }
+
+  await appendTrackedIssueEvents(
+    root,
+    issueId,
+    [issueClosedEvent(issueId, new Date().toISOString())],
+    aggregate.maxPosition
+  )
+  return { closed: true }
 }
 
 export async function setTrackedIssueMetadata(
@@ -232,7 +250,7 @@ export async function setTrackedIssueMetadata(
     throw new Error(`Metadata key '${key}' is reserved; use a dedicated command instead`)
   }
 
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
+  const aggregate = await readAggregate(root, issueId)
   const updatedAt = new Date().toISOString()
   const next = await appendTrackedIssueEvents(
     root,
@@ -250,7 +268,7 @@ export async function updateTrackedIssueArrayField(
   add: string[],
   remove: string[]
 ): Promise<{ id: string; field: string; values: string[] }> {
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
+  const aggregate = await readAggregate(root, issueId)
   const updatedAt = new Date().toISOString()
   const event = field === "labels"
     ? issueLabelsChangedEvent(issueId, add, remove, updatedAt)
@@ -265,7 +283,7 @@ export async function updateTrackedIssueArrayField(
 }
 
 export async function getTrackedIssueNextPhase(root: string, issueId: string): Promise<string> {
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
+  const aggregate = await readMaterializedIssueAggregate(root, issueId)
   const settings = loadTaskSettings(root)
   return getNextPhase(settings, aggregate.state.metadata.phase)
 }
@@ -275,7 +293,7 @@ export async function setTrackedIssuePhase(
   issueId: string,
   nextPhase: string
 ): Promise<IssueMetadata> {
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
+  const aggregate = await readAggregate(root, issueId)
   const settings = loadTaskSettings(root)
   const currentPhase = aggregate.state.metadata.phase
   assertAllowedPhaseTransition(settings, currentPhase, nextPhase)
@@ -306,7 +324,7 @@ export async function saveTrackedStoreValue(
   key: string,
   content: string
 ): Promise<{ stored: true }> {
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
+  const aggregate = await readAggregate(root, issueId)
   const phase = aggregate.state.metadata.phase
   const revision = planStoreRevision(aggregate.state.stores, store, key, phase)
   const savedAt = new Date().toISOString()
@@ -341,7 +359,7 @@ export async function getTrackedStoreValue(
   store: string,
   key: string
 ): Promise<string | null> {
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
+  const aggregate = await readMaterializedIssueAggregate(root, issueId)
   return getStoreValue(aggregate.state.stores, store, key)
 }
 
@@ -350,7 +368,7 @@ export async function listTrackedStoreKeys(
   issueId: string,
   store: string
 ): Promise<string[]> {
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
+  const aggregate = await readMaterializedIssueAggregate(root, issueId)
   return getStoreKeys(aggregate.state.stores, store)
 }
 
@@ -360,7 +378,7 @@ export async function deleteTrackedStore(
   store: string,
   key?: string
 ): Promise<{ deleted: boolean; kind: "store" | "key"; removedEmptyStore?: boolean }> {
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
+  const aggregate = await readAggregate(root, issueId)
   const deletedAt = new Date().toISOString()
 
   if (key === undefined) {
@@ -394,37 +412,12 @@ export async function deleteTrackedStore(
     : { deleted: true, kind: "key" }
 }
 
-async function refreshIssueProjection(root: string, issueId: string): Promise<IssueAggregate> {
-  const aggregate = await readTrackedIssueAggregate(root, issueId)
-  const archived = isArchivedIssue(root, issueId)
-  const tracker = getTrackerHandles(root)
-  const issueDir = archived ? join(tracker.archiveRoot, issueId) : join(tracker.issueRoot, issueId)
-  mkdirSync(issueDir, { recursive: true })
-
-  const projectedMetadata = archived
-    ? { ...aggregate.state.metadata, status: "closed" as const }
-    : aggregate.state.metadata
-
-  writeFileSync(join(issueDir, "issue.json"), `${JSON.stringify(projectedMetadata, null, 2)}\n`)
-  materializeVisibleStores(issueDir, getVisibleStores(aggregate.state.stores))
+async function readMaterializedIssueAggregate(root: string, issueId: string): Promise<IssueAggregate> {
+  const aggregate = await rebuildIssueProjection(root, issueId)
+  if (aggregate === undefined) {
+    throw new Error(`Issue '${issueId}' not found`)
+  }
   return aggregate
-}
-
-async function ensureIssueProjection(root: string, issueId: string): Promise<string> {
-  const tracker = getTrackerHandles(root)
-  const archivedDir = join(tracker.archiveRoot, issueId)
-  const activeDir = join(tracker.issueRoot, issueId)
-
-  if (existsSync(join(archivedDir, "issue.json"))) {
-    return archivedDir
-  }
-
-  if (existsSync(join(activeDir, "issue.json"))) {
-    return activeDir
-  }
-
-  await refreshIssueProjection(root, issueId)
-  return join(tracker.issueRoot, issueId)
 }
 
 function slugify(title: string): string {
@@ -463,19 +456,6 @@ function stripIssueId(issue: IssueRecord): IssueMetadata {
   return metadata
 }
 
-function loadIssueStores(path: string): Record<string, string[]> {
-  const stores: Record<string, string[]> = {}
-  const entries = readdirSync(path)
-  for (const entry of entries) {
-    if (entry === "issue.json") continue
-    const entryPath = join(path, entry)
-    if (statSync(entryPath).isDirectory()) {
-      stores[entry] = readdirSync(entryPath).sort()
-    }
-  }
-  return stores
-}
-
 function matchesText(issue: IssueRecord, normalizedQuery: string): boolean {
   const haystacks: string[] = [issue.id, issue.title, issue.description]
   haystacks.push(...issue.refs)
@@ -496,21 +476,24 @@ function resolveTrackedIssueId(root: string, issueRef: string): ResolvedTrackedI
   }
 
   const prefix = issueRef.split("-")[0]
-  const archivedIds = new Set<string>(
-    listProjectedIssueIds(root, true).filter((issueId) => issueId.startsWith(`${prefix}-`))
-  )
-  const activeIds = new Set<string>(
+  const currentIds = new Set<string>(
     listProjectedIssueIds(root, false).filter((issueId) => issueId.startsWith(`${prefix}-`))
   )
 
   for (const issueId of listCanonicalIssueIds(root)) {
-    if (issueId.startsWith(`${prefix}-`) && !archivedIds.has(issueId)) {
-      activeIds.add(issueId)
+    if (issueId.startsWith(`${prefix}-`)) {
+      currentIds.add(issueId)
     }
   }
 
+  const archivedIds = new Set<string>(
+    listProjectedIssueIds(root, true)
+      .filter((issueId) => issueId.startsWith(`${prefix}-`))
+      .filter((issueId) => !currentIds.has(issueId))
+  )
+
   const matches = [
-    ...[...activeIds].sort().map((issueId) => ({ issueId, archived: false as const })),
+    ...[...currentIds].sort().map((issueId) => ({ issueId, archived: false as const })),
     ...[...archivedIds].sort().map((issueId) => ({ issueId, archived: true as const })),
   ]
 
@@ -535,14 +518,10 @@ async function resolveOpenParentIssueId(root: string, parentRef: string): Promis
 
   const parent = await loadTrackedIssue(root, resolved.issueId)
   if (parent.metadata.status !== "open") {
-    throw new Error(`Parent issue '${parentRef}' is not open`)
+    throw new Error(`Parent issue '${parentRef}' is closed`)
   }
 
   return parent.id
-}
-
-function isArchivedIssue(root: string, issueId: string): boolean {
-  return existsSync(join(getTrackerHandles(root).archiveRoot, issueId))
 }
 
 function sliceErrorToError(error: SliceError): Error {
