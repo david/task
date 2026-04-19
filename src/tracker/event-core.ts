@@ -91,7 +91,7 @@ export function issueCreatedEvent(
       updated: issue.updated,
       refs: [...issue.refs],
       labels: [...issue.labels],
-      ...(issue.github_issue === undefined ? {} : { github_issue: issue.github_issue }),
+      ...("github_issue" in issue ? { github_issue: issue.github_issue } : {}),
       ...(parentId === undefined ? {} : { parentId }),
     },
   }

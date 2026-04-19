@@ -4,11 +4,23 @@ export type FlagDef = {
   default?: string
 }
 
+export interface FlagMap {
+  [flag: string]: FlagDef
+}
+
+export interface CommandArgs {
+  [flag: string]: string | string[] | undefined
+}
+
+export interface CommandResult {
+  [key: string]: unknown
+}
+
 export type Command = {
   description: string
   usage: string
-  flags: Record<string, FlagDef>
+  flags: FlagMap
   examples: string[]
   positionalId?: boolean
-  run: (args: Record<string, string | string[] | undefined>) => Promise<Record<string, unknown>>
+  run: (args: CommandArgs) => Promise<CommandResult>
 }

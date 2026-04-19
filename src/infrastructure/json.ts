@@ -7,14 +7,13 @@ export function parseJsonText<T>(
   invalidJsonMessage: string,
   invalidValueMessage: string,
 ): T {
-  let parsed: unknown
+  let result: ReturnType<ZodType<T>["safeParse"]>
   try {
-    parsed = JSON.parse(text) as unknown
+    result = schema.safeParse(JSON.parse(text))
   } catch {
     throw new Error(invalidJsonMessage)
   }
 
-  const result = schema.safeParse(parsed)
   if (!result.success) {
     throw new Error(invalidValueMessage)
   }

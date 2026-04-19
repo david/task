@@ -9,7 +9,7 @@ import {
 import { dirname, join } from "node:path"
 import { EventId } from "../../packages/esther/src/index.ts"
 import { readJsonFile } from "../infrastructure/json"
-import type { JsonObject, StringMap } from "../types"
+import type { JsonObject, JsonValue, StringMap } from "../types"
 import {
   foldIssueState,
   type IssueRecord,
@@ -82,11 +82,12 @@ function foldHierarchyIndex(events: ReadonlyArray<TrackerStoredEvent>): Hierarch
     }
 
     const payload = parseIssueCreatedPayload(event.payload)
-    if (payload?.parentId === undefined) {
+    const parentId = payload === undefined ? undefined : optionalString(payload["parentId"])
+    if (payload === undefined || parentId === undefined) {
       continue
     }
 
-    addHierarchyLink(index, payload.issueId, payload.parentId)
+    addHierarchyLink(index, payload.issueId, parentId)
   }
 
   return index
@@ -243,6 +244,29 @@ const LEGACY_STANDARD_FIELDS = new Set([
   "github_issue",
 ])
 
+function optionalString(value: JsonValue | undefined): string | undefined {
+  return typeof value === "string" ? value : undefined
+}
+
+function optionalNumber(value: JsonValue | undefined): number | undefined {
+  return typeof value === "number" ? value : undefined
+}
+
+function optionalStringArray(value: JsonValue | undefined): string[] | undefined {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+
+  const strings: string[] = []
+  for (const entry of value) {
+    if (typeof entry !== "string") {
+      return undefined
+    }
+    strings.push(entry)
+  }
+  return strings
+}
+
 function buildLegacyIssueRecord(raw: LegacyIssueFile, issueId: string): IssueRecord {
   const extras: JsonObject = {}
   for (const [key, value] of Object.entries(raw)) {
@@ -251,19 +275,27 @@ function buildLegacyIssueRecord(raw: LegacyIssueFile, issueId: string): IssueRec
     }
   }
 
+  const description = optionalString(raw["description"])
+  const priority = optionalNumber(raw["priority"])
+  const created = optionalString(raw["created"])
+  const updated = optionalString(raw["updated"])
+  const refs = optionalStringArray(raw["refs"])
+  const labels = optionalStringArray(raw["labels"])
+  const githubIssue = optionalNumber(raw["github_issue"])
+
   return {
     id: issueId,
     ...extras,
     title: raw.title,
-    description: raw.description ?? "",
+    description: description ?? "",
     status: raw.status,
     phase: raw.phase,
-    priority: raw.priority ?? Number.POSITIVE_INFINITY,
-    created: raw.created ?? "",
-    updated: raw.updated ?? "",
-    refs: [...(raw.refs ?? [])],
-    labels: [...(raw.labels ?? [])],
-    ...(raw.github_issue === undefined ? {} : { github_issue: raw.github_issue }),
+    priority: priority ?? Number.POSITIVE_INFINITY,
+    created: created ?? "",
+    updated: updated ?? "",
+    refs: refs ?? [],
+    labels: labels ?? [],
+    ...(githubIssue === undefined ? {} : { github_issue: githubIssue }),
   }
 }
 

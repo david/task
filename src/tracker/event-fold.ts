@@ -39,9 +39,9 @@ function createIssueState(event: TrackerStoredEvent): IssueState | undefined {
       updated: payload.updated,
       refs: [...payload.refs],
       labels: [...payload.labels],
-      ...(payload.github_issue === undefined ? {} : { github_issue: payload.github_issue }),
+      ...("github_issue" in payload ? { github_issue: payload.github_issue } : {}),
     },
-    ...(payload.parentId === undefined ? {} : { parentId: payload.parentId }),
+    ...("parentId" in payload ? { parentId: payload.parentId } : {}),
     stores: createEmptyIssueStoreState(),
   }
 }

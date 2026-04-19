@@ -1,7 +1,8 @@
 import { describe, test, expect } from "bun:test"
 import { commands } from "./commands-registry"
 import { expectJsonObject } from "./commands-test-helpers"
-import { safeParseWithSchema, jsonValueSchema } from "./json-schema"
+import { parseJsonText } from "./infrastructure/json"
+import { jsonValueSchema } from "./json-schema"
 import { parseFlags, formatResult, normalizeCommandFlags } from "./task"
 import type { Command } from "./types"
 
@@ -14,10 +15,12 @@ function registeredCommand(name: string): Command {
 }
 
 function parseErrorJson(stderr: string): { error: string } {
-  const parsedValue = safeParseWithSchema(jsonValueSchema, JSON.parse(stderr))
-  if (parsedValue === undefined) {
-    throw new Error("Expected stderr JSON value")
-  }
+  const parsedValue = parseJsonText(
+    stderr,
+    jsonValueSchema,
+    "Expected stderr JSON value",
+    "Expected stderr JSON value"
+  )
   const parsed = expectJsonObject(parsedValue)
   const errorValue = parsed["error"]
   if (typeof errorValue !== "string") {

@@ -10,7 +10,7 @@ export const jsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
 
 export const jsonObjectSchema: z.ZodType<JsonObject> = z.record(z.string(), jsonValueSchema)
 
-export function safeParseWithSchema<T>(schema: ZodType<T>, value: unknown): T | undefined {
+export function safeParseWithSchema<T>(schema: ZodType<T>, value: JsonValue): T | undefined {
   const result = schema.safeParse(value)
   return result.success ? result.data : undefined
 }
