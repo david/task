@@ -2,7 +2,7 @@ import { describe, test, expect } from "bun:test"
 import { parseFlags, formatResult, normalizeCommandFlags } from "./task"
 import type { Command } from "./types"
 
-describe("parseFlags", () => {
+describe("parseFlags basics", () => {
   test("single flag with value", () => {
     expect(parseFlags(["--status", "ready"])).toEqual({ "--status": "ready" })
   })
@@ -27,7 +27,9 @@ describe("parseFlags", () => {
       "Unsupported flag format '--status=ready'. Use '--status ready' (space-separated)"
     )
   })
+})
 
+describe("parseFlags repeated values and positionals", () => {
   test("repeated flag collects values into array", () => {
     expect(parseFlags(["--where", "a", "--where", "b"])).toEqual({
       "--where": ["a", "b"],
@@ -122,15 +124,15 @@ describe("formatResult", () => {
   })
 })
 
-describe("task subprocess", () => {
-  const repoRoot = import.meta.dir
-  const run = (...args: string[]) =>
-    Bun.spawnSync(["bun", "task.ts", ...args], {
-      cwd: repoRoot,
-    })
+const repoRoot = import.meta.dir
+const runTask = (...args: string[]) =>
+  Bun.spawnSync(["bun", "task.ts", ...args], {
+    cwd: repoRoot,
+  })
 
+describe("task subprocess help", () => {
   test("--help exits 0 and shows task", () => {
-    const result = run("--help")
+    const result = runTask("--help")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("task")
@@ -144,15 +146,13 @@ describe("task subprocess", () => {
   })
 
   test("-h exits 0 same as --help", () => {
-    const result = run("-h")
+    const result = runTask("-h")
     expect(result.exitCode).toBe(0)
-    const stdout = result.stdout.toString()
-    expect(stdout).toContain("task")
-    expect(stdout).toContain("Commands:")
+    expect(result.stdout.toString()).toContain("Commands:")
   })
 
   test("create --help exits 0 and shows flags", () => {
-    const result = run("create", "--help")
+    const result = runTask("create", "--help")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("Flags:")
@@ -161,49 +161,46 @@ describe("task subprocess", () => {
   })
 
   test("legacy import --help exits 0 and shows flags", () => {
-    const result = run("legacy", "import", "--help")
+    const result = runTask("legacy", "import", "--help")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("--source")
     expect(stdout).toContain("legacy tracker")
   })
+})
 
+describe("task subprocess command errors", () => {
   test("unknown command exits 1 with error JSON", () => {
-    const result = run("foo")
+    const result = runTask("foo")
     expect(result.exitCode).toBe(1)
-    const stderr = result.stderr.toString()
-    const err = JSON.parse(stderr)
+    const err = JSON.parse(result.stderr.toString())
     expect(err.error).toContain("Unknown command")
     expect(err.error).toContain("foo")
-    // stdout must be empty on error
     expect(result.stdout.toString()).toBe("")
   })
 
   test("partial two-word command lists available subcommands", () => {
-    const result = run("meta")
+    const result = runTask("meta")
     expect(result.exitCode).toBe(1)
-    const stderr = result.stderr.toString()
-    const err = JSON.parse(stderr)
+    const err = JSON.parse(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'meta'")
     expect(err.error).toContain("meta set")
     expect(err.error).toContain("meta get")
   })
 
   test("partial phase command lists phase subcommands", () => {
-    const result = run("phase")
+    const result = runTask("phase")
     expect(result.exitCode).toBe(1)
-    const stderr = result.stderr.toString()
-    const err = JSON.parse(stderr)
+    const err = JSON.parse(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'phase'")
     expect(err.error).toContain("phase next")
     expect(err.error).toContain("phase set")
   })
 
   test("partial legacy command lists legacy subcommands", () => {
-    const result = run("legacy")
+    const result = runTask("legacy")
     expect(result.exitCode).toBe(1)
-    const stderr = result.stderr.toString()
-    const err = JSON.parse(stderr)
+    const err = JSON.parse(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'legacy'")
     expect(err.error).toContain("legacy import")
   })

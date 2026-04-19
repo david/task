@@ -1,5 +1,5 @@
 import type { Command, CommandArgs, JsonValue } from "./types"
-import { commands } from "./commands"
+import { commands } from "./commands-registry"
 
 export type ParsedFlags = CommandArgs
 
@@ -99,7 +99,7 @@ function printCommandHelp(cmdName: string, cmd: Command): void {
     "Usage:",
     `  ${cmd.usage}`,
   ]
-  if (cmd.positionalId) {
+  if ("positionalId" in cmd && cmd.positionalId) {
     lines.push("", "Note:", "  Pass the issue ID either as --id <id> or as the first positional argument.")
   }
   lines.push("", "Flags:")
@@ -108,8 +108,8 @@ function printCommandHelp(cmdName: string, cmd: Command): void {
     lines.push("  (none)")
   } else {
     for (const [flag, def] of flagEntries) {
-      const req = def.required ? " (required)" : ""
-      const dflt = def.default ? ` (default: ${def.default})` : ""
+      const req = "required" in def && def.required ? " (required)" : ""
+      const dflt = "default" in def ? ` (default: ${def.default})` : ""
       lines.push(`  ${flag.padEnd(22)} ${def.description}${req}${dflt}`)
     }
   }
@@ -132,7 +132,7 @@ export function normalizeCommandFlags(
   cmd: Command,
   flags: ParsedFlags
 ): ParsedFlags {
-  if (!cmd.positionalId || flags._ === undefined) {
+  if (!(("positionalId" in cmd && cmd.positionalId)) || flags._ === undefined) {
     return flags
   }
 

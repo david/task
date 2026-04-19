@@ -7,17 +7,18 @@ export type StringMap<T> = { [key: string]: T }
 export type FlagValue = string | string[] | undefined
 export type CommandArgs = { [flag: string]: FlagValue }
 
-export type FlagDef = {
-  description: string
-  required?: boolean
-  default?: string
-}
+export type FlagDef =
+  | { description: string }
+  | { description: string; required: boolean }
+  | { description: string; default: string }
+  | { description: string; required: boolean; default: string }
 
-export type Command = {
+type CommandBase = {
   description: string
   usage: string
   flags: StringMap<FlagDef>
   examples: string[]
-  positionalId?: boolean
   run: (args: CommandArgs) => Promise<JsonValue>
 }
+
+export type Command = CommandBase | (CommandBase & { positionalId: boolean })
