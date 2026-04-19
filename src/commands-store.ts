@@ -1,8 +1,18 @@
 import { readFileSync } from "node:fs"
 import { basename } from "node:path"
-import type { CommandArgs } from "./types"
-import { deleteTrackedStore, getTrackedStoreValue, listTrackedStoreKeys, saveTrackedStoreValue } from "./tracker/issues"
-import { requireFlag, resolveIssue, type StoreDeleteResult, type StoreLookupResult } from "./commands-shared"
+import type { CommandArgs, FlagValue } from "./types"
+import {
+  deleteTrackedStore,
+  getTrackedStoreValue,
+  listTrackedStoreKeys,
+  saveTrackedStoreValue,
+} from "./tracker/issues"
+import {
+  requireFlag,
+  resolveIssue,
+  type StoreDeleteResult,
+  type StoreLookupResult,
+} from "./commands-shared"
 
 const SAFE_NAME_RE = /^[a-zA-Z0-9_.-]+$/
 
@@ -18,9 +28,23 @@ function validateStoreKey(key: string): void {
   }
 }
 
+function firstValue(value: FlagValue): string {
+  return Array.isArray(value) ? value[0] : value
+}
+
 export async function readAllStdin(): Promise<string> {
   const chunks: Buffer[] = []
-  for await (const chunk of process.stdin) chunks.push(chunk)
+  for await (const chunk of process.stdin) {
+    if (typeof chunk === "string") {
+      chunks.push(Buffer.from(chunk))
+      continue
+    }
+    if (chunk instanceof Uint8Array) {
+      chunks.push(Buffer.from(chunk))
+      continue
+    }
+    throw new Error("Unsupported stdin chunk type")
+  }
   return Buffer.concat(chunks).toString()
 }
 
@@ -36,15 +60,14 @@ export async function storeSet(
   validateStoreKey(key)
 
   const { path } = resolveIssue(id, root)
-
   const valueFlag = args["--value"]
   const fileFlag = args["--file"]
+
   let content: string
   if (valueFlag !== undefined) {
-    content = Array.isArray(valueFlag) ? valueFlag[0] : valueFlag
+    content = firstValue(valueFlag)
   } else if (fileFlag !== undefined) {
-    const filePath = Array.isArray(fileFlag) ? fileFlag[0] : fileFlag
-    content = readFileSync(filePath, "utf-8")
+    content = readFileSync(firstValue(fileFlag), "utf-8")
   } else {
     content = await readStdin()
   }
@@ -84,11 +107,13 @@ export async function storeDelete(
 ): Promise<StoreDeleteResult> {
   const id = requireFlag(args, "--id")
   const store = requireFlag(args, "--store")
-  const keyRaw = args["--key"]
+  const keyValue = args["--key"]
   validateStoreName(store)
 
-  const key = keyRaw !== undefined ? (Array.isArray(keyRaw) ? keyRaw[0] : keyRaw) : undefined
-  if (key !== undefined) validateStoreKey(key)
+  const key = keyValue === undefined ? undefined : firstValue(keyValue)
+  if (key !== undefined) {
+    validateStoreKey(key)
+  }
 
   const { path } = resolveIssue(id, root)
   return deleteTrackedStore(root, basename(path), store, key)

@@ -14,7 +14,7 @@ import {
 import {
   fakeStdin,
   issueProjectionRoot,
-  readJsonObject,
+  readIssueMetadata,
   useTempRoot,
 } from "./commands-test-helpers"
 
@@ -38,21 +38,21 @@ describe("issueCreate basics", () => {
   test("generates unique ID and writes well-formed issue.json", async () => {
     const root = getRoot()
     const result = (await issueCreate({ "--title": "My First Issue" }, root))
-    expect(result.id).toMatch(/^[a-z0-9]{4}-my-first-issue$/)
-    expect(result.title).toBe("My First Issue")
-    expect(result.status).toBe("open")
-    expect(result.phase).toBe("research")
-    expect(result.priority).toBe(2)
+    expect(result["id"]).toMatch(/^[a-z0-9]{4}-my-first-issue$/)
+    expect(result["title"]).toBe("My First Issue")
+    expect(result["status"]).toBe("open")
+    expect(result["phase"]).toBe("research")
+    expect(result["priority"]).toBe(2)
     expect(result.description).toBe("")
-    expect(result.refs).toEqual([])
-    expect(result.created).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    expect(String(result.updated)).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    expect(result["refs"]).toEqual([])
+    expect(result["created"]).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(String(result["updated"])).toMatch(/^\d{4}-\d{2}-\d{2}T/)
     expect(result).not.toHaveProperty("path")
 
-    const { path } = resolveIssue(result.id, root)
-    const data = readJsonObject(join(path, "issue.json"))
-    expect(data.title).toBe("My First Issue")
-    expect(data.status).toBe("open")
+    const { path } = resolveIssue(result["id"], root)
+    const data = readIssueMetadata(join(path, "issue.json"))
+    expect(data["title"]).toBe("My First Issue")
+    expect(data["status"]).toBe("open")
   })
 
   test("supports github issues and explicit priority", async () => {
@@ -62,12 +62,12 @@ describe("issueCreate basics", () => {
       root
     ))
 
-    const { path } = resolveIssue(result.id, root)
-    const data = readJsonObject(join(path, "issue.json"))
+    const { path } = resolveIssue(result["id"], root)
+    const data = readIssueMetadata(join(path, "issue.json"))
     expect(result.github_issue).toBe(42)
-    expect(result.priority).toBe(0)
+    expect(result["priority"]).toBe(0)
     expect(data.github_issue).toBe(42)
-    expect(data.priority).toBe(0)
+    expect(data["priority"]).toBe(0)
   })
 
   test("rejects missing --title", async () => {
@@ -77,7 +77,7 @@ describe("issueCreate basics", () => {
   test("auto-creates root dirs if missing", async () => {
     const freshRoot = join(getRoot(), "fresh-sub")
     const result = (await issueCreate({ "--title": "Auto Dir" }, freshRoot))
-    expect(result.id).toMatch(/^[a-z0-9]{4}-auto-dir$/)
+    expect(result["id"]).toMatch(/^[a-z0-9]{4}-auto-dir$/)
   })
 })
 
@@ -88,22 +88,22 @@ describe("issueCreate labels and events", () => {
     const single = (await issueCreate({ "--title": "One Label", "--label": "cli" }, root))
     const unlabeled = (await issueCreate({ "--title": "No Labels" }, root))
 
-    expect(labeled.labels).toEqual(["cli", "bug"])
-    expect(single.labels).toEqual(["cli"])
-    expect(unlabeled.labels).toEqual([])
-    expect(readJsonObject(join(resolveIssue(labeled.id, root).path, "issue.json")).labels).toEqual(["cli", "bug"])
+    expect(labeled["labels"]).toEqual(["cli", "bug"])
+    expect(single["labels"]).toEqual(["cli"])
+    expect(unlabeled["labels"]).toEqual([])
+    expect(readIssueMetadata(join(resolveIssue(labeled["id"], root).path, "issue.json"))["labels"]).toEqual(["cli", "bug"])
   })
 
   test("slug derives from title", async () => {
     const root = getRoot()
     const result = (await issueCreate({ "--title": "Hello World! 123" }, root))
-    expect(resolveIssue(result.id, root).path).toMatch(/hello-world-123/)
+    expect(resolveIssue(result["id"], root).path).toMatch(/hello-world-123/)
   })
 
   test("writes canonical Esther event files under the repo-local tracker", async () => {
     const repoRoot = join(getRoot(), "repo-local-events")
     const result = (await issueCreate({ "--title": "Event Backed" }, repoRoot))
-    const eventDir = join(repoRoot, ".task", "events", "by-issue", result.id)
+    const eventDir = join(repoRoot, ".task", "events", "by-issue", result["id"])
     const eventFiles = readdirSync(eventDir).filter((entry) => entry.endsWith(".json"))
     expect(eventFiles).toHaveLength(1)
   })
@@ -113,8 +113,8 @@ describe("resolveIssue", () => {
   test("finds active issue by ID", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Resolve Test" }, root))
-    const resolved = resolveIssue(created.id, root)
-    expect(resolved.path).toContain(created.id)
+    const resolved = resolveIssue(created["id"], root)
+    expect(resolved.path).toContain(created["id"])
     expect(resolved.archived).toBe(false)
   })
 
@@ -132,28 +132,28 @@ describe("issueShow basics", () => {
   test("returns metadata and empty stores for a new issue", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Show Test" }, root))
-    const result = await issueShow({ "--id": created.id }, root)
-    expect(result.id).toBe(created.id)
-    expect(result.metadata.title).toBe("Show Test")
+    const result = await issueShow({ "--id": created["id"] }, root)
+    expect(result["id"]).toBe(created["id"])
+    expect(result.metadata["title"]).toBe("Show Test")
     expect("stores" in result ? result.stores : undefined).toEqual({})
   })
 
   test("finds closed issues", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Archive Show" }, root))
-    await issueClose({ "--id": created.id }, root)
-    const result = await issueShow({ "--id": created.id }, root)
-    expect(result.metadata.status).toBe("closed")
+    await issueClose({ "--id": created["id"] }, root)
+    const result = await issueShow({ "--id": created["id"] }, root)
+    expect(result.metadata["status"]).toBe("closed")
   })
 
   test("lists store names and keys", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Store Test" }, root))
-    await storeSet({ "--id": created.id, "--store": "tasks", "--key": "01-setup.md" }, fakeStdin("content"), root)
-    await storeSet({ "--id": created.id, "--store": "tasks", "--key": "02-impl.md" }, fakeStdin("content"), root)
+    await storeSet({ "--id": created["id"], "--store": "tasks", "--key": "01-setup.md" }, fakeStdin("content"), root)
+    await storeSet({ "--id": created["id"], "--store": "tasks", "--key": "02-impl.md" }, fakeStdin("content"), root)
 
-    const result = await issueShow({ "--id": created.id }, root)
-    expect("stores" in result ? result.stores.tasks : undefined).toEqual(["01-setup.md", "02-impl.md"])
+    const result = await issueShow({ "--id": created["id"] }, root)
+    expect("stores" in result ? result.stores["tasks"] : undefined).toEqual(["01-setup.md", "02-impl.md"])
   })
 
   test("throws for unknown ID", async () => {
@@ -165,25 +165,23 @@ describe("issueShow projections", () => {
   test("summary omits stores", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Summary Show" }, root))
-    const result = await issueShow({ "--id": created.id, "--summary": "true" }, root)
-    expect(result.metadata.title).toBe("Summary Show")
+    const result = await issueShow({ "--id": created["id"], "--summary": "true" }, root)
+    expect(result.metadata["title"]).toBe("Summary Show")
     expect(result).not.toHaveProperty("stores")
   })
 
   test("compact returns agent-friendly metadata", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Compact Show" }, root))
-    const result = await issueShow({ "--id": created.id, "--compact": "true" }, root)
-    expect(result.metadata).toEqual({
-      title: "Compact Show",
-      status: "open",
-      phase: "research",
-      priority: 2,
-      created: expect.any(String),
-      updated: expect.any(String),
-      refs: [],
-      labels: [],
-    })
+    const result = await issueShow({ "--id": created["id"], "--compact": "true" }, root)
+    expect(result.metadata["title"]).toBe("Compact Show")
+    expect(result.metadata["status"]).toBe("open")
+    expect(result.metadata["phase"]).toBe("research")
+    expect(result.metadata["priority"]).toBe(2)
+    expect(typeof result.metadata["created"]).toBe("string")
+    expect(typeof result.metadata["updated"]).toBe("string")
+    expect(result.metadata["refs"]).toEqual([])
+    expect(result.metadata["labels"]).toEqual([])
     expect(result).not.toHaveProperty("stores")
   })
 
@@ -191,18 +189,18 @@ describe("issueShow projections", () => {
     const root = getRoot()
     const basic = (await issueCreate({ "--title": "Field Show" }, root))
     const withStores = (await issueCreate({ "--title": "Field Show Stores" }, root))
-    await storeSet({ "--id": withStores.id, "--store": "research", "--key": "summary" }, fakeStdin("content"), root)
+    await storeSet({ "--id": withStores["id"], "--store": "research", "--key": "summary" }, fakeStdin("content"), root)
 
-    const narrowed = await issueShow({ "--id": basic.id, "--fields": "title,phase" }, root)
+    const narrowed = await issueShow({ "--id": basic["id"], "--fields": "title,phase" }, root)
     const full = await issueShow(
-      { "--id": withStores.id, "--fields": "title", "--include-stores": "true" },
+      { "--id": withStores["id"], "--fields": "title", "--include-stores": "true" },
       root
     )
 
     expect(narrowed.metadata).toEqual({ title: "Field Show", phase: "research" })
     expect(narrowed).not.toHaveProperty("stores")
     expect(full.metadata).toEqual({ title: "Field Show Stores" })
-    expect("stores" in full ? full.stores.research : undefined).toEqual(["summary"])
+    expect("stores" in full ? full.stores["research"] : undefined).toEqual(["summary"])
   })
 })
 
@@ -211,7 +209,7 @@ describe("issueSearch and isolation", () => {
     const positionalRoot = join(getRoot(), "search-test")
     await issueCreate({ "--title": "Packet Session Work" }, positionalRoot)
     await issueCreate({ "--title": "Something Else" }, positionalRoot)
-    expect((await issueSearch({ _: ["packet", "session"] }, positionalRoot)).map((i) => i.title)).toEqual([
+    expect((await issueSearch({ _: ["packet", "session"] }, positionalRoot)).map((i) => i["title"])).toEqual([
       "Packet Session Work",
     ])
 
@@ -236,9 +234,9 @@ describe("issueSearch and isolation", () => {
     const created = (await issueCreate({ "--title": "Repo A Only" }, repoA))
     await issueCreate({ "--title": "Outside" }, externalRoot)
 
-    expect((await issueList({}, repoA)).map((issue) => issue.id)).toEqual([created.id])
+    expect((await issueList({}, repoA)).map((issue) => issue["id"])).toEqual([created["id"]])
     expect(await issueList({}, repoB)).toEqual([])
-    expect(existsSync(join(repoA, ".task", "events", "by-issue", created.id))).toBe(true)
+    expect(existsSync(join(repoA, ".task", "events", "by-issue", created["id"]))).toBe(true)
   })
 })
 

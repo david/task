@@ -519,7 +519,7 @@ describe("issueClose", () => {
 describe("meta", () => {
   test("issueMetaSet adds a new key and returns full issue.json contents", async () => {
     const created = (await issueCreate({ "--title": "Meta Test" }, root)) as IssueResult
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "spec" }, root)) as Record<string, any>
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "spec" }, root)) as Record<string, unknown>
     expect(result.phase).toBe("spec")
     expect(result.title).toBe("Meta Test")
 
@@ -533,7 +533,7 @@ describe("meta", () => {
     const created = (await issueCreate({ "--title": "Meta Overwrite" }, root)) as IssueResult
     await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "spec" }, root)
     const beforeUpdate = String((await issueShow({ "--id": created.id, "--full": "true" }, root)).metadata.updated)
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "ready-to-code" }, root)) as Record<string, any>
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "ready-to-code" }, root)) as Record<string, unknown>
     expect(result.phase).toBe("ready-to-code")
     expect(String(result.updated) >= beforeUpdate).toBe(true)
   })
@@ -541,7 +541,7 @@ describe("meta", () => {
   test("issueMetaSet on archived issue works", async () => {
     const created = (await issueCreate({ "--title": "Meta Archive" }, root)) as IssueResult
     await issueClose({ "--id": created.id }, root)
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "priority", "--value": "high" }, root)) as Record<string, any>
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "priority", "--value": "high" }, root)) as Record<string, unknown>
     expect(result.priority).toBe("high")
   })
 

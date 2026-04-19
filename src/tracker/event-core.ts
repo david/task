@@ -1,108 +1,61 @@
 import type { DomainEvent, StoredEvent } from "../../packages/esther/src/index.ts"
-import type { JsonObject, JsonValue } from "../types"
+import type { JsonValue } from "../types"
 import type { IssueStoreState } from "./stores"
+import type {
+  IssueClosedPayload,
+  IssueCreatedPayload,
+  IssueLabelsChangedPayload,
+  IssueMetadata,
+  IssueMetadataSetPayload,
+  IssuePhaseChangedPayload,
+  IssueRecord,
+  IssueRefsChangedPayload,
+  StoreDeletedPayload,
+  StoreEntryDeletedPayload,
+  StoreRevisionFinalizedPayload,
+  StoreRevisionSavedPayload,
+} from "./schemas"
+
+export {
+  issueClosedPayloadSchema,
+  issueCreatedPayloadSchema,
+  issueLabelsChangedPayloadSchema,
+  issueMetadataSchema,
+  issueMetadataSetPayloadSchema,
+  issuePhaseChangedPayloadSchema,
+  issueRecordSchema,
+  issueRefsChangedPayloadSchema,
+  issueStatusSchema,
+  legacyIssueFileSchema,
+  storedEventFileSchema,
+  storeDeletedPayloadSchema,
+  storeEntryDeletedPayloadSchema,
+  storeRevisionFinalizedPayloadSchema,
+  storeRevisionSavedPayloadSchema,
+  trackerStoredEventSchema,
+  type IssueClosedPayload,
+  type IssueCreatedPayload,
+  type IssueLabelsChangedPayload,
+  type IssueMetadata,
+  type IssueMetadataSetPayload,
+  type IssuePhaseChangedPayload,
+  type IssueRecord,
+  type IssueRefsChangedPayload,
+  type LegacyIssueFile,
+  type StoredEventFile,
+  type StoreDeletedPayload,
+  type StoreEntryDeletedPayload,
+  type StoreRevisionFinalizedPayload,
+  type StoreRevisionSavedPayload,
+} from "./schemas"
 
 export const RESERVED_METADATA_KEYS = new Set(["status", "phase", "parentId"])
-
-type IssueMetadataBase = {
-  title: string
-  description: string
-  status: "open" | "closed"
-  phase: string
-  priority: number
-  created: string
-  updated: string
-  refs: string[]
-  labels: string[]
-}
-
-export type IssueMetadata =
-  | (IssueMetadataBase & JsonObject)
-  | (IssueMetadataBase & JsonObject & { github_issue: number })
-
-export type IssueRecord = IssueMetadata & {
-  id: string
-}
 
 export type IssueState =
   | { metadata: IssueMetadata; stores: IssueStoreState }
   | { metadata: IssueMetadata; parentId: string; stores: IssueStoreState }
 
 export type TrackerStoredEvent = StoredEvent<string, JsonValue>
-
-export type IssueCreatedPayload =
-  | (IssueMetadata & { issueId: string })
-  | (IssueMetadata & { issueId: string; parentId: string })
-
-export type IssuePhaseChangedPayload = {
-  issueId: string
-  from: string
-  to: string
-  changedAt: string
-}
-
-export type IssueMetadataSetPayload = {
-  issueId: string
-  key: string
-  value: JsonValue
-  updatedAt: string
-}
-
-export type IssueLabelsChangedPayload = {
-  issueId: string
-  added: string[]
-  removed: string[]
-  updatedAt: string
-}
-
-export type IssueRefsChangedPayload = {
-  issueId: string
-  added: string[]
-  removed: string[]
-  updatedAt: string
-}
-
-export type IssueClosedPayload = {
-  issueId: string
-  closedAt: string
-}
-
-type StoreRevisionSavedPayloadBase = {
-  issueId: string
-  store: string
-  key: string
-  revision: number
-  phase: string
-  draft: boolean
-  content: string
-  savedAt: string
-}
-
-export type StoreRevisionSavedPayload =
-  | StoreRevisionSavedPayloadBase
-  | (StoreRevisionSavedPayloadBase & { supersedesRevision: number })
-
-export type StoreRevisionFinalizedPayload = {
-  issueId: string
-  store: string
-  key: string
-  revision: number
-  phase: string
-  finalizedAt: string
-}
-
-export type StoreEntryDeletedPayload = {
-  issueId: string
-  store: string
-  key: string
-  deletedAt: string
-}
-
-export type StoreDeletedPayload = {
-  issueId: string
-  store: string
-  deletedAt: string
-}
 
 export function issueBoundaryTag(issueId: string): string {
   return `issue:${issueId}`

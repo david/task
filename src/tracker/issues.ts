@@ -15,8 +15,8 @@ import {
   type IssueMetadata,
   type IssueRecord,
 } from "./events"
-import type { JsonObject, JsonValue, StringMap } from "../types"
-import { getTrackerHandles, listCanonicalIssueIds, listProjectedIssueIds } from "./root"
+import type { JsonValue, StringMap } from "../types"
+import { getTrackerHandles, listProjectedIssueIds } from "./root"
 import {
   readIssueStoreKeys,
   readLegacyIssueRecord,
@@ -191,7 +191,7 @@ export async function setTrackedIssueMetadata(
   issueId: string,
   key: string,
   value: JsonValue
-): Promise<JsonObject> {
+): Promise<IssueMetadata> {
   if (RESERVED_METADATA_KEYS.has(key)) {
     throw new Error(`Metadata key '${key}' is reserved; use a dedicated command instead`)
   }

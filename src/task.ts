@@ -1,48 +1,88 @@
-import type { Command, CommandArgs, JsonValue } from "./types"
 import { commands } from "./commands-registry"
+import type {
+  Command,
+  CommandArgs,
+  CommandFlag,
+  FlagDef,
+  FlagValue,
+  JsonOutputValue,
+  StringMap,
+} from "./types"
 
 export type ParsedFlags = CommandArgs
 
-export function parseFlags(argv: string[]): ParsedFlags {
+function toCommandFlag(value: string): CommandFlag {
+  if (!value.startsWith("--")) {
+    throw new Error(`Invalid flag '${value}'`)
+  }
+  return value
+}
+
+function appendFlagValue(existing: FlagValue | undefined, nextValue: string): FlagValue {
+  if (existing === undefined) {
+    return nextValue
+  }
+  if (Array.isArray(existing)) {
+    existing.push(nextValue)
+    return existing
+  }
+  return [existing, nextValue]
+}
+
+function flagConsumesValue(flag: CommandFlag, flagDefs: StringMap<FlagDef> | undefined): boolean {
+  const definition = flagDefs?.[flag]
+  return definition?.kind !== "switch"
+}
+
+export function parseFlags(argv: string[], flagDefs?: StringMap<FlagDef>): ParsedFlags {
   const flags: ParsedFlags = {}
   const positional: string[] = []
-  for (let i = 0; i < argv.length; i++) {
+
+  for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
+    if (arg === undefined) {
+      break
+    }
+
     if (arg.startsWith("--")) {
       if (arg.includes("=")) {
+        const [flagName, flagValue] = arg.split("=", 2)
         throw new Error(
-          `Unsupported flag format '${arg}'. Use '${arg.split("=")[0]} ${arg.split("=")[1]}' (space-separated)`
+          `Unsupported flag format '${arg}'. Use '${flagName} ${flagValue}' (space-separated)`
         )
       }
-      let value: string
+
+      const flag = toCommandFlag(arg)
       const next = argv[i + 1]
-      if (next && !next.startsWith("--")) {
-        value = next
-        i++
-      } else {
-        value = "true"
+      const consumeValue = flagConsumesValue(flag, flagDefs)
+      const value = consumeValue && next !== undefined && !next.startsWith("--") ? next : "true"
+      if (consumeValue && next !== undefined && !next.startsWith("--")) {
+        i += 1
       }
-      const existing = flags[arg]
-      if (existing === undefined) {
-        flags[arg] = value
-      } else if (Array.isArray(existing)) {
-        existing.push(value)
-      } else {
-        flags[arg] = [existing, value]
-      }
-    } else {
-      positional.push(arg)
+
+      flags[flag] = appendFlagValue(flags[flag], value)
+      continue
+    }
+
+    positional.push(arg)
+  }
+
+  if (positional.length === 1) {
+    const [onlyPositional] = positional
+    if (onlyPositional !== undefined) {
+      flags["_"] = onlyPositional
+    }
+  } else if (positional.length > 1) {
+    const [firstPositional, ...rest] = positional
+    if (firstPositional !== undefined) {
+      flags["_"] = [firstPositional, ...rest]
     }
   }
-  if (positional.length === 1) {
-    flags._ = positional[0]
-  } else if (positional.length > 1) {
-    flags._ = positional
-  }
+
   return flags
 }
 
-export function formatResult(result: JsonValue, flags: ParsedFlags): string {
+export function formatResult(result: JsonOutputValue, flags: ParsedFlags): string {
   if (flags["--jsonl"] !== undefined && Array.isArray(result)) {
     return result.map((item) => JSON.stringify(item)).join("\n")
   }
@@ -93,12 +133,7 @@ function printHelp(): void {
 }
 
 function printCommandHelp(cmdName: string, cmd: Command): void {
-  const lines = [
-    cmd.description,
-    "",
-    "Usage:",
-    `  ${cmd.usage}`,
-  ]
+  const lines = [cmd.description, "", "Usage:", `  ${cmd.usage}`]
   if ("positionalId" in cmd && cmd.positionalId) {
     lines.push("", "Note:", "  Pass the issue ID either as --id <id> or as the first positional argument.")
   }
@@ -108,8 +143,8 @@ function printCommandHelp(cmdName: string, cmd: Command): void {
     lines.push("  (none)")
   } else {
     for (const [flag, def] of flagEntries) {
-      const req = "required" in def && def.required ? " (required)" : ""
-      const dflt = "default" in def ? ` (default: ${def.default})` : ""
+      const req = def.required ? " (required)" : ""
+      const dflt = def.hasDefault ? ` (default: ${def.defaultValue})` : ""
       lines.push(`  ${flag.padEnd(22)} ${def.description}${req}${dflt}`)
     }
   }
@@ -127,12 +162,16 @@ function isHelp(arg: string | undefined): boolean {
   return arg === "--help" || arg === "-h"
 }
 
+function positionalValues(value: FlagValue): string[] {
+  return Array.isArray(value) ? value : [value]
+}
+
 export function normalizeCommandFlags(
   cmdName: string,
   cmd: Command,
   flags: ParsedFlags
 ): ParsedFlags {
-  if (!(("positionalId" in cmd && cmd.positionalId)) || flags._ === undefined) {
+  if (!("positionalId" in cmd && cmd.positionalId) || flags["_"] === undefined) {
     return flags
   }
 
@@ -140,65 +179,68 @@ export function normalizeCommandFlags(
     throw new Error(`Do not pass both a positional issue ID and --id for '${cmdName}'`)
   }
 
-  const positional = Array.isArray(flags._) ? flags._ : [flags._]
+  const positional = positionalValues(flags["_"])
   if (positional.length !== 1) {
     throw new Error(`Command '${cmdName}' accepts exactly one positional issue ID`)
   }
 
-  const normalized: ParsedFlags = { ...flags, "--id": positional[0] }
-  delete normalized._
+  const [issueId] = positional
+  const normalized: ParsedFlags = { ...flags, "--id": issueId }
+  delete normalized["_"]
   return normalized
+}
+
+function resolveCommand(args: string[]): { cmdName: string; cmd: Command; flagStart: number } {
+  const [firstArg, secondArg] = args
+  if (firstArg === undefined) {
+    throw new Error("No command provided")
+  }
+
+  const twoWord = secondArg !== undefined ? `${firstArg} ${secondArg}` : undefined
+  if (twoWord !== undefined) {
+    const twoWordCommand = commands[twoWord]
+    if (twoWordCommand !== undefined) {
+      return { cmdName: twoWord, cmd: twoWordCommand, flagStart: 2 }
+    }
+  }
+
+  const oneWordCommand = commands[firstArg]
+  if (oneWordCommand !== undefined) {
+    return { cmdName: firstArg, cmd: oneWordCommand, flagStart: 1 }
+  }
+
+  const twoWordCmds = Object.keys(commands).filter((key) => key.startsWith(`${firstArg} `))
+  if (twoWordCmds.length > 0) {
+    throw new Error(
+      `Unknown command '${firstArg}'. Available: ${twoWordCmds.join(", ")}. Run 'task --help' for all commands`
+    )
+  }
+
+  throw new Error(`Unknown command '${firstArg}'. Run 'task --help' for available commands`)
 }
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2)
+  const firstArg = args[0]
 
-  // Root help
-  if (args.length === 0 || isHelp(args[0])) {
+  if (args.length === 0 || isHelp(firstArg)) {
     printHelp()
     return
   }
 
-  // Two-level dispatch: try "word1 word2" key first, then fall back to "word1"
-  let cmdName: string
-  let cmd: Command | undefined
-  let flagStart: number
-
-  const twoWord = args[1] !== undefined ? `${args[0]} ${args[1]}` : undefined
-  if (twoWord && commands[twoWord]) {
-    cmdName = twoWord
-    cmd = commands[twoWord]
-    flagStart = 2
-  } else {
-    cmdName = args[0]
-    cmd = commands[cmdName]
-    flagStart = 1
-  }
-
-  if (!cmd) {
-    // Check if the single word is a prefix of any two-word commands
-    const prefix = args[0]
-    const twoWordCmds = Object.keys(commands).filter((k) => k.startsWith(prefix + " "))
-    if (twoWordCmds.length > 0) {
-      throw new Error(
-        `Unknown command '${prefix}'. Available: ${twoWordCmds.join(", ")}. Run 'task --help' for all commands`
-      )
-    }
-    throw new Error(`Unknown command '${cmdName}'. Run 'task --help' for available commands`)
-  }
-
-  // Command help
+  const { cmdName, cmd, flagStart } = resolveCommand(args)
   if (isHelp(args[flagStart])) {
     printCommandHelp(cmdName, cmd)
     return
   }
 
-  const flags = normalizeCommandFlags(cmdName, cmd, parseFlags(args.slice(flagStart)))
+  const flags = normalizeCommandFlags(cmdName, cmd, parseFlags(args.slice(flagStart), cmd.flags))
   const result = await cmd.run(flags)
   process.stdout.write(formatResult(result, flags))
 }
 
-main().catch((err: Error) => {
-  process.stderr.write(JSON.stringify({ error: err.message }))
+main().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error)
+  process.stderr.write(JSON.stringify({ error: message }))
   process.exit(1)
 })

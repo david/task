@@ -28,7 +28,7 @@ export function detectRepoRoot(start: string): string {
   let current = resolve(start)
   const fallback = current
 
-  while (true) {
+  for (;;) {
     if (directoryExists(join(current, ".task")) || existsSync(join(current, ".git"))) {
       return current
     }

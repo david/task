@@ -6,6 +6,15 @@ import { readLegacyIssueRecord, rebuildIssueProjection } from "./projections"
 import { loadTaskSettings } from "./settings"
 import { getTrackerHandles, listCanonicalIssueIds, listProjectedIssueIds } from "./root"
 
+function byteToIssueChar(value: number): string {
+  const normalizedIndex = value % ISSUE_ID_CHARS.length
+  const char = ISSUE_ID_CHARS[normalizedIndex]
+  if (char === undefined) {
+    throw new Error(`Invalid generated issue-id index '${normalizedIndex}'`)
+  }
+  return char
+}
+
 type CreateIssueInputBase = {
   title: string
   description: string
@@ -20,6 +29,14 @@ export type CreateIssueInput =
   | (CreateIssueInputBase & { githubIssue: number; parentRef: string })
 
 const ISSUE_ID_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
+
+function issueIdPrefix(issueId: string): string {
+  const prefix = issueId.split("-", 1)[0]
+  if (prefix === undefined || prefix.length === 0) {
+    throw new Error(`Invalid issue ID '${issueId}'`)
+  }
+  return prefix
+}
 
 type ResolvedTrackedIssue = {
   issueId: string
@@ -75,11 +92,11 @@ function generateIssueId(root: string): string {
     ...listCanonicalIssueIds(root),
   ])
 
-  for (let attempt = 0; attempt < 100; attempt++) {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
     const bytes = randomBytes(4)
     let candidate = ""
-    for (let i = 0; i < 4; i++) {
-      candidate += ISSUE_ID_CHARS[bytes[i] % ISSUE_ID_CHARS.length]
+    for (const byte of bytes) {
+      candidate += byteToIssueChar(byte)
     }
 
     const collision = [...knownIds].some((issueId) => issueId.startsWith(`${candidate}-`))
@@ -98,7 +115,7 @@ function resolveTrackedIssueId(root: string, issueRef: string): ResolvedTrackedI
     )
   }
 
-  const prefix = issueRef.split("-")[0]
+  const prefix = issueIdPrefix(issueRef)
   const currentIds = new Set<string>(
     listProjectedIssueIds(root, false).filter((issueId) => issueId.startsWith(`${prefix}-`))
   )
@@ -128,7 +145,11 @@ function resolveTrackedIssueId(root: string, issueRef: string): ResolvedTrackedI
       `Ambiguous parent issue ID '${issueRef}': ${matches.map((match) => match.issueId).join(", ")}`
     )
   }
-  return matches[0]
+  const match = matches[0]
+  if (match === undefined) {
+    throw new Error(`Parent issue '${issueRef}' not found`)
+  }
+  return match
 }
 
 async function resolveOpenParentIssueId(root: string, parentRef: string): Promise<string> {

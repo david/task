@@ -46,6 +46,15 @@ export type LegacyImportResult = {
 }
 
 const ISSUE_REF_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/
+
+function issueIdPrefix(issueId: string): string {
+  const prefix = issueId.split("-", 1)[0]
+  if (prefix === undefined || prefix.length === 0) {
+    throw new Error(`Invalid legacy issue ref '${issueId}'`)
+  }
+  return prefix
+}
+
 const STANDARD_METADATA_KEYS = new Set([
   "id",
   "title",
@@ -249,19 +258,29 @@ function planLegacyImport(snapshots: ReadonlyArray<LegacyIssueSnapshot>): Legacy
     }
 
     const extraMetadata = Object.entries(snapshot.metadata)
-      .filter(([key]) => !STANDARD_METADATA_KEYS.has(key))
+      .filter(
+        (entry): entry is [string, JsonValue] => !STANDARD_METADATA_KEYS.has(entry[0]) && entry[1] !== undefined
+      )
       .map(([key, value]) => ({ key, value }))
 
-    return {
+    const planBase: LegacyIssuePlanBase = {
       issueId: snapshot.issueId,
       created,
       extraMetadata,
       storeEntries: snapshot.storeEntries,
       closed: snapshot.archived || snapshot.metadata.status === "closed",
-      ...("parentId" in parentResolution ? { parentId: parentResolution.parentId } : {}),
     }
+
+    return "parentId" in parentResolution
+      ? { ...planBase, parentId: parentResolution.parentId }
+      : planBase
   })
 }
+
+type ResolvedLegacyIssueRef =
+  | { kind: "external" }
+  | { kind: "ambiguous" }
+  | { kind: "issue"; issueId: string }
 
 function inferLegacyParent(
   refs: ReadonlyArray<string>,
@@ -273,16 +292,16 @@ function inferLegacyParent(
 
   for (const ref of refs) {
     const resolved = resolveLegacyIssueRef(ref, issueIds)
-    if (resolved === "external") {
+    if (resolved.kind === "external") {
       externalRefs.push(ref)
       continue
     }
 
-    if (resolved === "ambiguous") {
+    if (resolved.kind === "ambiguous") {
       throw new Error("ambiguous_legacy_parent")
     }
 
-    localParents.add(resolved)
+    localParents.add(resolved.issueId)
   }
 
   if (localParents.size > 1) {
@@ -300,20 +319,24 @@ function inferLegacyParent(
 function resolveLegacyIssueRef(
   ref: string,
   issueIds: ReadonlyArray<string>
-): string | "external" | "ambiguous" {
+): ResolvedLegacyIssueRef {
   if (!ISSUE_REF_RE.test(ref)) {
-    return "external"
+    return { kind: "external" }
   }
 
-  const prefix = ref.split("-")[0]
+  const prefix = issueIdPrefix(ref)
   const matches = issueIds.filter((issueId) => issueId.startsWith(`${prefix}-`))
   if (matches.length === 0) {
-    return "external"
+    return { kind: "external" }
   }
   if (matches.length > 1) {
-    return "ambiguous"
+    return { kind: "ambiguous" }
   }
-  return matches[0]
+  const match = matches[0]
+  if (match === undefined) {
+    return { kind: "external" }
+  }
+  return { kind: "issue", issueId: match }
 }
 
 function normalizeCreatedDate(created: string, updatedAt: string): string {
@@ -333,6 +356,6 @@ function normalizeUpdatedAt(updated: string, created: string): string {
   return new Date().toISOString()
 }
 
-function normalizePriority(priority: JsonValue | object | null): number {
+function normalizePriority(priority: JsonValue | undefined): number {
   return typeof priority === "number" && Number.isFinite(priority) ? priority : 2
 }

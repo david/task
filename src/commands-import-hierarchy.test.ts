@@ -23,7 +23,7 @@ import {
 
 const getRoot = useTempRoot("commands-import-hierarchy-")
 
-function seedLegacyImportSource(legacyRoot: string): void {
+function seedLegacyParent(legacyRoot: string): void {
   writeLegacyIssue(
     legacyRoot,
     "aaaa-parent-epic",
@@ -41,7 +41,9 @@ function seedLegacyImportSource(legacyRoot: string): void {
     },
     { research: { summary: "parent summary" } }
   )
+}
 
+function seedLegacyChild(legacyRoot: string): void {
   writeLegacyIssue(
     legacyRoot,
     "bbbb-child-task",
@@ -59,7 +61,9 @@ function seedLegacyImportSource(legacyRoot: string): void {
     },
     { research: { summary: "child summary" }, tasks: { plan: "child plan" } }
   )
+}
 
+function seedLegacyClosedIssue(legacyRoot: string): void {
   writeLegacyIssue(
     legacyRoot,
     "cccc-closed-task",
@@ -77,6 +81,12 @@ function seedLegacyImportSource(legacyRoot: string): void {
     { notes: { summary: "closed summary" } },
     true
   )
+}
+
+function seedLegacyImportSource(legacyRoot: string): void {
+  seedLegacyParent(legacyRoot)
+  seedLegacyChild(legacyRoot)
+  seedLegacyClosedIssue(legacyRoot)
 }
 
 async function assertLegacyImportListings(targetRoot: string): Promise<void> {
@@ -121,7 +131,7 @@ async function assertLegacyImportRelationsAndStores(targetRoot: string): Promise
   ])
   await expect(storeGet({ "--id": "bbbb-child-task", "--store": "research", "--key": "summary" }, targetRoot)).resolves.toEqual({ value: "child summary" })
   await expect(storeGet({ "--id": "bbbb-child-task", "--store": "tasks", "--key": "plan" }, targetRoot)).resolves.toEqual({ value: "child plan" })
-  expect((await issueSearch({ "--text": "external-child-ref" }, targetRoot)).map((issue) => issue.id)).toEqual([
+  expect((await issueSearch({ "--text": "external-child-ref" }, targetRoot)).map((issue) => issue["id"])).toEqual([
     "bbbb-child-task",
   ])
 }
@@ -133,15 +143,17 @@ function assertLegacyImportEvents(targetRoot: string): void {
 
   const childEvents = readCanonicalEvents(targetRoot, "bbbb-child-task")
   expect(childEvents).toHaveLength(6)
-  expect(childEvents.map((event) => event.type)).toEqual(
-    expect.arrayContaining(["IssueCreated", "IssueMetadataSet", "StoreRevisionSaved", "StoreRevisionFinalized"])
-  )
+  const childEventTypes = childEvents.map((event) => event.type)
+  expect(childEventTypes).toContain("IssueCreated")
+  expect(childEventTypes).toContain("IssueMetadataSet")
+  expect(childEventTypes).toContain("StoreRevisionSaved")
+  expect(childEventTypes).toContain("StoreRevisionFinalized")
 
   const closedEvents = readCanonicalEvents(targetRoot, "cccc-closed-task")
   expect(closedEvents.map((event) => event.type)).toContain("IssueClosed")
 }
 
-describe("legacy import", () => {
+function registerLegacyImportSuccessTest(): void {
   test("imports legacy issues stores hierarchy and closed state", async () => {
     const legacyRoot = join(getRoot(), "legacy-import-source")
     const targetRoot = join(getRoot(), "legacy-import-target")
@@ -152,7 +164,9 @@ describe("legacy import", () => {
     await assertLegacyImportRelationsAndStores(targetRoot)
     assertLegacyImportEvents(targetRoot)
   })
+}
 
+function registerLegacyImportAmbiguousParentTest(): void {
   test("aborts ambiguous parent inference without partial state", async () => {
     const legacyRoot = join(getRoot(), "legacy-import-ambiguous-source")
     const targetRoot = join(getRoot(), "legacy-import-ambiguous-target")
@@ -195,24 +209,29 @@ describe("legacy import", () => {
     await expect(issueList({ "--all": "true" }, targetRoot)).resolves.toEqual([])
     expect(existsSync(join(targetRoot, ".task", "events", "by-issue"))).toBe(false)
   })
+}
+
+describe("legacy import", () => {
+  registerLegacyImportSuccessTest()
+  registerLegacyImportAmbiguousParentTest()
 })
 
 describe("issue hierarchy commands", () => {
   test("create with parent drives hierarchy queries without refs mutation", async () => {
     const relationRoot = join(getRoot(), "relation-test")
     const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot))
-    const child = (await issueCreate({ "--title": "Child One", "--parent": parent.id }, relationRoot))
+    const child = (await issueCreate({ "--title": "Child One", "--parent": parent["id"] }, relationRoot))
 
-    await expect(issueChildren({ "--id": parent.id, "--fields": "id,title,phase,status" }, relationRoot)).resolves.toEqual([
-      { id: child.id, title: "Child One", phase: "research", status: "open" },
+    await expect(issueChildren({ "--id": parent["id"], "--fields": "id,title,phase,status" }, relationRoot)).resolves.toEqual([
+      { id: child["id"], title: "Child One", phase: "research", status: "open" },
     ])
-    await expect(issueParents({ "--id": child.id, "--fields": "id,title,phase,status" }, relationRoot)).resolves.toEqual([
-      { id: parent.id, title: "Parent Epic", phase: "research", status: "open" },
+    await expect(issueParents({ "--id": child["id"], "--fields": "id,title,phase,status" }, relationRoot)).resolves.toEqual([
+      { id: parent["id"], title: "Parent Epic", phase: "research", status: "open" },
     ])
-    await expect(issueRelated({ "--id": parent.id, "--compact": "true" }, relationRoot)).resolves.toEqual([
-      { id: child.id, title: "Child One", status: "open", phase: "research", priority: 2, relation: "child" },
+    await expect(issueRelated({ "--id": parent["id"], "--compact": "true" }, relationRoot)).resolves.toEqual([
+      { id: child["id"], title: "Child One", status: "open", phase: "research", priority: 2, relation: "child" },
     ])
-    expect((await issueShow({ "--id": child.id, "--summary": "true" }, relationRoot)).metadata.refs).toEqual([])
+    expect((await issueShow({ "--id": child["id"], "--summary": "true" }, relationRoot)).metadata["refs"]).toEqual([])
   })
 
   test("create rejects unknown parent references", async () => {
@@ -225,9 +244,9 @@ describe("issue hierarchy commands", () => {
   test("create rejects closed parent issues", async () => {
     const relationRoot = join(getRoot(), "relation-test-closed-parent")
     const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot))
-    await issueClose({ "--id": parent.id }, relationRoot)
-    await expect(issueCreate({ "--title": "Child One", "--parent": parent.id }, relationRoot)).rejects.toThrow(
-      `Parent issue '${parent.id}' is closed`
+    await issueClose({ "--id": parent["id"] }, relationRoot)
+    await expect(issueCreate({ "--title": "Child One", "--parent": parent["id"] }, relationRoot)).rejects.toThrow(
+      `Parent issue '${parent["id"]}' is closed`
     )
   })
 
@@ -235,10 +254,10 @@ describe("issue hierarchy commands", () => {
     const relationRoot = join(getRoot(), "relation-test-ignore-refs")
     const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot))
     const child = (await issueCreate({ "--title": "Child One" }, relationRoot))
-    await updateArrayField({ "--id": child.id, "--add": [parent.id, "https://example.com/123"] }, "refs", relationRoot)
+    await updateArrayField({ "--id": child["id"], "--add": [parent["id"], "https://example.com/123"] }, "refs", relationRoot)
 
-    await expect(issueChildren({ "--id": parent.id }, relationRoot)).resolves.toEqual([])
-    await expect(issueParents({ "--id": child.id }, relationRoot)).resolves.toEqual([])
-    await expect(issueRelated({ "--id": parent.id, "--fields": "id,title,relation" }, relationRoot)).resolves.toEqual([])
+    await expect(issueChildren({ "--id": parent["id"] }, relationRoot)).resolves.toEqual([])
+    await expect(issueParents({ "--id": child["id"] }, relationRoot)).resolves.toEqual([])
+    await expect(issueRelated({ "--id": parent["id"], "--fields": "id,title,relation" }, relationRoot)).resolves.toEqual([])
   })
 })

@@ -1,5 +1,5 @@
 import { basename } from "node:path"
-import type { CommandArgs, JsonObject } from "./types"
+import type { CommandArgs } from "./types"
 import type { IssueMetadata, IssueRecord } from "./tracker/events"
 import {
   closeTrackedIssue,
@@ -26,19 +26,48 @@ import {
   parseSort,
   pickFields,
   projectIssueRecord,
+  projectRelatedIssueRecord,
   requireFlag,
   resolveIssue,
   resolveOutputFields,
   sortIssues,
   type IssueCloseResult,
   type IssueMetaGetResult,
-  type IssueProjection,
+  type IssueProjectionOutput,
   type IssueShowResult,
   type RelatedIssueProjection,
+  type RelatedIssueProjectionOutput,
 } from "./commands-shared"
 
 export { requireFlag, resolveIssue } from "./commands-shared"
 export { readAllStdin, storeDelete, storeGet, storeKeys, storeSet } from "./commands-store"
+
+function parseIntegerFlag(raw: string, flag: string): number {
+  const parsed = Number(raw)
+  if (!Number.isInteger(parsed)) {
+    throw new Error(`${flag} must be an integer`)
+  }
+  return parsed
+}
+
+function valuesFromFlag(value: CommandArgs[keyof CommandArgs]): string[] {
+  if (value === undefined) {
+    return []
+  }
+  return Array.isArray(value) ? [...value] : [value]
+}
+
+function applyLimit<T>(values: readonly T[], limit: number | undefined): T[] {
+  return limit === undefined ? [...values] : values.slice(0, limit)
+}
+
+async function loadHierarchyMatches(
+  issueIds: readonly string[],
+  root: string
+): Promise<IssueRecord[]> {
+  return (await Promise.all(issueIds.map((issueId) => loadIssueRecord(root, issueId))))
+    .filter((issue): issue is IssueRecord => issue !== null)
+}
 
 export async function issueCreate(
   args: CommandArgs,
@@ -48,16 +77,17 @@ export async function issueCreate(
   const description = optionalFlag(args, "--description") ?? ""
   const githubIssueRaw = optionalFlag(args, "--github-issue")
   const priorityRaw = optionalFlag(args, "--priority")
-  const labelRaw = args["--label"]
-  const labels: string[] = labelRaw ? (Array.isArray(labelRaw) ? labelRaw : [labelRaw]) : []
+  const labels = valuesFromFlag(args["--label"])
   const parentRaw = optionalFlag(args, "--parent")
 
   return createTrackedIssue(root, {
     title,
     description,
-    priority: priorityRaw !== undefined ? Number(priorityRaw) : 2,
+    priority: priorityRaw === undefined ? 2 : parseIntegerFlag(priorityRaw, "--priority"),
     labels,
-    ...(githubIssueRaw === undefined ? {} : { githubIssue: Number(githubIssueRaw) }),
+    ...(githubIssueRaw === undefined
+      ? {}
+      : { githubIssue: parseIntegerFlag(githubIssueRaw, "--github-issue") }),
     ...(parentRaw === undefined ? {} : { parentRef: parentRaw }),
   })
 }
@@ -73,7 +103,7 @@ export async function issueShow(
     : await loadTrackedIssue(root, basename(path))
 
   const fields = resolveOutputFields(args, COMPACT_SHOW_FIELDS)
-  const includeStores = "--include-stores" in args || (!("--summary" in args) && fields === undefined)
+  const includeStores = args["--include-stores"] !== undefined || (args["--summary"] === undefined && fields === undefined)
   if (includeStores) {
     return {
       id: issue.id,
@@ -91,8 +121,8 @@ export async function issueShow(
 export async function issueList(
   args: CommandArgs,
   root: string
-): Promise<JsonObject[]> {
-  const includeAll = "--all" in args
+): Promise<IssueProjectionOutput[]> {
+  const includeAll = args["--all"] !== undefined
   const whereRaw = args["--where"]
   const conditions: Array<[string, string]> = []
 
@@ -100,13 +130,14 @@ export async function issueList(
     const items = Array.isArray(whereRaw) ? whereRaw : [whereRaw]
     for (const item of items) {
       const eqIdx = item.indexOf("=")
-      if (eqIdx === -1) continue
+      if (eqIdx === -1) {
+        continue
+      }
       conditions.push([item.slice(0, eqIdx), item.slice(eqIdx + 1)])
     }
   }
 
-  const labelRaw = args["--label"]
-  const labelFilters: string[] = labelRaw ? (Array.isArray(labelRaw) ? labelRaw : [labelRaw]) : []
+  const labelFilters = valuesFromFlag(args["--label"])
   const textFilter = optionalFlag(args, "--text")?.trim().toLowerCase()
   const fields = resolveOutputFields(args, COMPACT_LIST_FIELDS, true)
   const limit = parseLimit(args)
@@ -120,15 +151,14 @@ export async function issueList(
     }
 
     if (labelFilters.length > 0) {
-      const issueLabels: string[] = Array.isArray(issue.labels) ? issue.labels : []
-      for (const lbl of labelFilters) {
-        if (!issueLabels.includes(lbl)) {
+      for (const label of labelFilters) {
+        if (!issue.labels.includes(label)) {
           return false
         }
       }
     }
 
-    if (textFilter && !matchesText(issue, textFilter)) {
+    if (textFilter !== undefined && !matchesText(issue, textFilter)) {
       return false
     }
 
@@ -139,27 +169,15 @@ export async function issueList(
     .map((issue) => projectIssueRecord(issue, fields))
 }
 
-function applyLimit<T>(values: T[], limit: number | undefined): T[] {
-  return limit === undefined ? values : values.slice(0, limit)
-}
-
-async function loadHierarchyMatches(
-  issueIds: string[],
-  root: string
-): Promise<IssueRecord[]> {
-  return (await Promise.all(issueIds.map((issueId) => loadIssueRecord(root, issueId))))
-    .filter((issue): issue is IssueRecord => issue !== null)
-}
-
 export async function issueChildren(
   args: CommandArgs,
   root: string
-): Promise<JsonObject[]> {
+): Promise<IssueProjectionOutput[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
   const targetId = basename(path)
   const fields = resolveOutputFields(args, COMPACT_LIST_FIELDS, true)
-  const includeAll = "--all" in args
+  const includeAll = args["--all"] !== undefined
   const limit = parseLimit(args)
   const sort = parseSort(args)
 
@@ -174,7 +192,7 @@ export async function issueChildren(
 export async function issueParents(
   args: CommandArgs,
   root: string
-): Promise<JsonObject[]> {
+): Promise<IssueProjectionOutput[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
   const targetId = basename(path)
@@ -189,54 +207,55 @@ export async function issueParents(
 export async function issueSearch(
   args: CommandArgs,
   root: string
-): Promise<JsonObject[]> {
+): Promise<IssueProjectionOutput[]> {
   const positional = args["_"]
-  const positionalArgs = positional === undefined ? [] : Array.isArray(positional) ? positional : [positional]
+  const positionalArgs = positional === undefined ? [] : Array.isArray(positional) ? [...positional] : [positional]
   const queryFromPositional = positionalArgs.join(" ").trim()
   const queryFromFlag = optionalFlag(args, "--text")?.trim()
-  const query = queryFromFlag && queryFromFlag.length > 0 ? queryFromFlag : queryFromPositional
-  if (!query) {
+  const query = queryFromFlag !== undefined && queryFromFlag.length > 0 ? queryFromFlag : queryFromPositional
+  if (query.length === 0) {
     throw new Error("search query is required (pass positional text or --text)")
   }
 
-  const nextArgs: CommandArgs = { ...args, "--text": query }
-  delete nextArgs._
-  const filteredArgs: CommandArgs = { ...nextArgs }
+  const filteredArgs: CommandArgs = { ...args, "--text": query }
+  delete filteredArgs["_"]
   delete filteredArgs["--text"]
 
   const fields = resolveOutputFields(filteredArgs, COMPACT_LIST_FIELDS, true)
   const limit = parseLimit(filteredArgs)
   const sort = parseSort(filteredArgs)
-  const results = await searchTrackedIssues(root, "--all" in args, query)
+  const results = await searchTrackedIssues(root, args["--all"] !== undefined, query)
   return applyLimit(sortIssues(results, sort), limit).map((issue) => projectIssueRecord(issue, fields))
 }
 
 export async function issueRelated(
   args: CommandArgs,
   root: string
-): Promise<JsonObject[]> {
+): Promise<RelatedIssueProjectionOutput[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
   const targetId = basename(path)
-  const includeAll = "--all" in args
+  const includeAll = args["--all"] !== undefined
   const fields = resolveOutputFields(args, COMPACT_RELATED_FIELDS, true)
   const limit = parseLimit(args)
   const sort = parseSort(args)
   const related = new Map<string, RelatedIssueProjection>()
 
   for (const parent of await loadHierarchyMatches(await listHierarchyParents(root, targetId), root)) {
-    related.set(String(parent.id), { ...parent, relation: "parent" })
+    related.set(parent.id, { ...parent, relation: "parent" })
   }
 
   for (const child of (await loadHierarchyMatches(
     await listHierarchyChildren(root, targetId, includeAll),
     root
   )).filter((issue) => includeAll || issue.status !== "closed")) {
-    const existing = related.get(String(child.id))
-    related.set(String(child.id), existing ? { ...existing, relation: "both" } : { ...child, relation: "child" })
+    const existing = related.get(child.id)
+    related.set(child.id, existing === undefined ? { ...child, relation: "child" } : { ...existing, relation: "both" })
   }
 
-  return applyLimit(sortIssues([...related.values()], sort), limit).map((issue) => projectIssueRecord(issue, fields))
+  return applyLimit(sortIssues([...related.values()], sort), limit).map((issue) =>
+    projectRelatedIssueRecord(issue, fields)
+  )
 }
 
 export async function issueClose(
@@ -254,7 +273,7 @@ export async function issueClose(
 export async function issueMetaSet(
   args: CommandArgs,
   root: string
-): Promise<JsonObject> {
+): Promise<IssueMetadata> {
   const id = requireFlag(args, "--id")
   const key = requireFlag(args, "--key")
   const value = requireFlag(args, "--value")
@@ -294,7 +313,10 @@ export async function issuePhaseSet(
   return setTrackedIssuePhase(root, basename(path), value)
 }
 
-export async function legacyImport(args: CommandArgs, root: string) {
+export async function legacyImport(
+  args: CommandArgs,
+  root: string
+): Promise<Awaited<ReturnType<typeof importLegacyTracker>>> {
   return importLegacyTracker(root, requireFlag(args, "--source"))
 }
 
@@ -314,8 +336,8 @@ export async function updateArrayField(
     throw new Error(`Unsupported array field '${field}'`)
   }
 
-  const toAdd = addRaw ? (Array.isArray(addRaw) ? addRaw : [addRaw]) : []
-  const toRemove = removeRaw ? (Array.isArray(removeRaw) ? removeRaw : [removeRaw]) : []
+  const toAdd = valuesFromFlag(addRaw)
+  const toRemove = valuesFromFlag(removeRaw)
   const { path: issuePath } = resolveIssue(id, root)
   return updateTrackedIssueArrayField(root, basename(issuePath), field, toAdd, toRemove)
 }
