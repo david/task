@@ -1,7 +1,17 @@
 import { afterAll, beforeAll, expect } from "bun:test"
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs"
+import { existsSync, mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
+import { readJsonFile } from "./infrastructure/json"
+import { jsonObjectSchema } from "./json-schema"
+import {
+  issueMetadataSchema,
+  legacyIssueFileSchema,
+  storedEventFileSchema,
+  type IssueMetadata,
+  type LegacyIssueFile,
+  type StoredEventFile,
+} from "./tracker/events"
 import type { JsonObject, JsonValue, StringMap } from "./types"
 
 export function useTempRoot(prefix: string): () => string {
@@ -36,22 +46,27 @@ export function fakeStdin(content: string): () => Promise<string> {
   return () => Promise.resolve(content)
 }
 
-function isJsonObject(value: JsonValue | object | null): value is JsonObject {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-}
-
-export function expectJsonObject(value: JsonValue | object | null): JsonObject {
-  if (!isJsonObject(value)) {
+export function expectJsonObject(value: JsonValue): JsonObject {
+  const parsed = jsonObjectSchema.safeParse(value)
+  if (!parsed.success) {
     throw new Error("Expected JSON object")
   }
-  return value
+  return parsed.data
 }
 
 export function readJsonObject(path: string): JsonObject {
-  return expectJsonObject(JSON.parse(readFileSync(path, "utf-8")))
+  return readJsonFile(path, jsonObjectSchema, `${path} is not valid JSON`, `Invalid JSON object at '${path}'`)
 }
 
-export function readCanonicalEvents(repoRoot: string, issueId: string): JsonObject[] {
+export function readIssueMetadata(path: string): IssueMetadata {
+  return readJsonFile(path, issueMetadataSchema, `${path} is not valid JSON`, `Invalid issue metadata at '${path}'`)
+}
+
+export function readStoredEvent(path: string): StoredEventFile {
+  return readJsonFile(path, storedEventFileSchema, `${path} is not valid JSON`, `Invalid stored event file '${path}'`)
+}
+
+export function readCanonicalEvents(repoRoot: string, issueId: string): StoredEventFile[] {
   const eventDir = join(repoRoot, ".task", "events", "by-issue", issueId)
   if (!existsSync(eventDir)) {
     return []
@@ -60,7 +75,7 @@ export function readCanonicalEvents(repoRoot: string, issueId: string): JsonObje
   return readdirSync(eventDir)
     .filter((entry) => entry.endsWith(".json"))
     .sort()
-    .map((entry) => readJsonObject(join(eventDir, entry)))
+    .map((entry) => readStoredEvent(join(eventDir, entry)))
 }
 
 export function expectRecordWithFields(records: ReadonlyArray<JsonObject>, expected: JsonObject): void {
@@ -69,6 +84,14 @@ export function expectRecordWithFields(records: ReadonlyArray<JsonObject>, expec
       Object.entries(expected).every(([key, value]) => record[key] === value)
     )
   ).toBe(true)
+}
+
+function normalizeLegacyMetadata(metadata: JsonObject): LegacyIssueFile {
+  const parsed = legacyIssueFileSchema.safeParse(metadata)
+  if (!parsed.success) {
+    throw new Error("Invalid legacy issue test fixture")
+  }
+  return parsed.data
 }
 
 export function writeLegacyIssue(
@@ -83,7 +106,7 @@ export function writeLegacyIssue(
     : join(legacyRoot, issueId)
 
   mkdirSync(issueDir, { recursive: true })
-  writeFileSync(join(issueDir, "issue.json"), `${JSON.stringify(metadata, null, 2)}\n`)
+  writeFileSync(join(issueDir, "issue.json"), `${JSON.stringify(normalizeLegacyMetadata(metadata), null, 2)}\n`)
 
   for (const [store, keys] of Object.entries(stores)) {
     const storeDir = join(issueDir, store)

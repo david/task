@@ -1,7 +1,6 @@
 import {
   existsSync,
   mkdirSync,
-  readFileSync,
   readdirSync,
   rmSync,
   statSync,
@@ -9,27 +8,21 @@ import {
 } from "node:fs"
 import { dirname, join } from "node:path"
 import { EventId } from "../../packages/esther/src/index.ts"
+import { readJsonFile } from "../infrastructure/json"
+import type { JsonObject, StringMap } from "../types"
 import {
   foldIssueState,
-  parseIssueCreatedPayload,
   type IssueRecord,
   type IssueState,
+  type LegacyIssueFile,
+  type StoredEventFile,
   type TrackerStoredEvent,
 } from "./events"
-import type { JsonObject, JsonValue, StringMap } from "../types"
+import { legacyIssueFileSchema, parseIssueCreatedPayload, storedEventFileSchema } from "./events"
 import { getTrackerHandles, listCanonicalIssueIds } from "./root"
 import { getVisibleStores, materializeVisibleStores } from "./stores"
 
 type MaxPosition = bigint | undefined
-
-type StoredEventFile = JsonObject & {
-  id: string
-  type: string
-  tags: string[]
-  payload: JsonValue
-  position: string
-  timestamp: string
-}
 
 export type IssueAggregate = {
   state: IssueState
@@ -89,7 +82,7 @@ function foldHierarchyIndex(events: ReadonlyArray<TrackerStoredEvent>): Hierarch
     }
 
     const payload = parseIssueCreatedPayload(event.payload)
-    if (!payload || typeof payload.parentId !== "string") {
+    if (payload?.parentId === undefined) {
       continue
     }
 
@@ -128,24 +121,13 @@ function listJsonFilesRecursively(dir: string): string[] {
   return files
 }
 
-function isStoredEventFile(value: JsonValue | object | null): value is StoredEventFile {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    typeof value.type === "string" &&
-    isStringArray(value.tags) &&
-    typeof value.position === "string" &&
-    /^-?\d+$/.test(value.position) &&
-    typeof value.timestamp === "string" &&
-    Number.isFinite(Date.parse(value.timestamp))
-  )
-}
-
 function readStoredEventFile(path: string): TrackerStoredEvent {
-  const raw = JSON.parse(readFileSync(path, "utf-8"))
-  if (!isStoredEventFile(raw)) {
-    throw new Error(`Invalid stored event file '${path}'`)
-  }
+  const raw = readJsonFile<StoredEventFile>(
+    path,
+    storedEventFileSchema,
+    `${path} is not valid JSON`,
+    `Invalid stored event file '${path}'`
+  )
 
   return {
     id: EventId(raw.id),
@@ -248,14 +230,6 @@ export async function rebuildHierarchyIndex(root: string): Promise<HierarchyInde
   return index
 }
 
-function isRecord(value: JsonValue | object | null): value is JsonObject {
-  return typeof value === "object" && value !== null
-}
-
-function isStringArray(value: JsonValue | object | null): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string")
-}
-
 const LEGACY_STANDARD_FIELDS = new Set([
   "title",
   "description",
@@ -266,20 +240,13 @@ const LEGACY_STANDARD_FIELDS = new Set([
   "updated",
   "refs",
   "labels",
+  "github_issue",
 ])
 
-function buildLegacyIssueRecord(raw: JsonObject, issueId: string): IssueRecord | undefined {
-  if (
-    typeof raw.title !== "string" ||
-    (raw.status !== "open" && raw.status !== "closed") ||
-    typeof raw.phase !== "string"
-  ) {
-    return undefined
-  }
-
+function buildLegacyIssueRecord(raw: LegacyIssueFile, issueId: string): IssueRecord {
   const extras: JsonObject = {}
   for (const [key, value] of Object.entries(raw)) {
-    if (!LEGACY_STANDARD_FIELDS.has(key)) {
+    if (!LEGACY_STANDARD_FIELDS.has(key) && value !== undefined) {
       extras[key] = value
     }
   }
@@ -288,14 +255,15 @@ function buildLegacyIssueRecord(raw: JsonObject, issueId: string): IssueRecord |
     id: issueId,
     ...extras,
     title: raw.title,
-    description: typeof raw.description === "string" ? raw.description : "",
+    description: raw.description ?? "",
     status: raw.status,
     phase: raw.phase,
-    priority: typeof raw.priority === "number" ? raw.priority : Number.POSITIVE_INFINITY,
-    created: typeof raw.created === "string" ? raw.created : "",
-    updated: typeof raw.updated === "string" ? raw.updated : "",
-    refs: isStringArray(raw.refs) ? [...raw.refs] : [],
-    labels: isStringArray(raw.labels) ? [...raw.labels] : [],
+    priority: raw.priority ?? Number.POSITIVE_INFINITY,
+    created: raw.created ?? "",
+    updated: raw.updated ?? "",
+    refs: [...(raw.refs ?? [])],
+    labels: [...(raw.labels ?? [])],
+    ...(raw.github_issue === undefined ? {} : { github_issue: raw.github_issue }),
   }
 }
 
@@ -306,10 +274,12 @@ export function readLegacyIssueRecord(issueDir: string, issueId: string): IssueR
   }
 
   try {
-    const raw = JSON.parse(readFileSync(issuePath, "utf-8"))
-    if (!isRecord(raw)) {
-      return undefined
-    }
+    const raw = readJsonFile<LegacyIssueFile>(
+      issuePath,
+      legacyIssueFileSchema,
+      `${issuePath} is not valid JSON`,
+      `Invalid legacy issue projection '${issuePath}'`
+    )
     return buildLegacyIssueRecord(raw, issueId)
   } catch {
     return undefined

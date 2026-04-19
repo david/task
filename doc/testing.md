@@ -41,4 +41,4 @@ If you change:
 
 ## Current environment note
 
-The root project defines `typecheck` as `tsgo --noEmit`. If that command fails because of repo or environment setup, treat it as a real project problem and fix or surface it rather than silently skipping typechecking.
+The root project defines `typecheck` as `tsc --noEmit`. If that command fails because of repo or environment setup, treat it as a real project problem and fix or surface it rather than silently skipping typechecking.

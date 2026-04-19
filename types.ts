@@ -10,5 +10,5 @@ export type Command = {
   flags: Record<string, FlagDef>
   examples: string[]
   positionalId?: boolean
-  run: (args: Record<string, string | string[] | undefined>) => Promise<object>
+  run: (args: Record<string, string | string[] | undefined>) => Promise<Record<string, unknown>>
 }

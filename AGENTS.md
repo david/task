@@ -10,6 +10,18 @@ Bun/TypeScript CLI for managing local agent issues in the filesystem. The root p
 - Full-project verification before finishing work: [doc/testing.md](doc/testing.md)
 - Correctness rules for new and modified code: [doc/code-style.md](doc/code-style.md)
 
+## Correctness policy
+
+For root `task` CLI work, apply this priority order:
+
+1. correctness
+2. soundness and explicitness
+3. boundary validation and architectural integrity
+4. maintainability and local reasoning
+5. ergonomics
+
+Ergonomics is not a valid justification for unsoundness. Unsafe constructs are acceptable only for true TypeScript limitations or true runtime boundaries; anything that remains must be minimized, isolated, documented, and justified. Compiler, lint, boundary, and dependency rules must not be weakened without explicit approval. Apply the same strictness to tests unless it is explicitly waived. See [doc/code-style.md](doc/code-style.md) for the durable implementation rules.
+
 ## Gotchas
 
 - Run `bun test` and `bun run typecheck` for the entire project; passing only changed files is not enough.

@@ -1,4 +1,4 @@
-import type { Command, StringMap } from "./types"
+import type { Command, FlagDef, StringMap } from "./types"
 import { detectRepoRoot } from "./tracker/root"
 import {
   issueChildren,
@@ -18,17 +18,42 @@ import {
 } from "./commands"
 import { readAllStdin, storeDelete, storeGet, storeKeys, storeSet } from "./commands-store"
 
+type FlagOptions = {
+  required: boolean
+  defaultValue: string
+}
+
+function valueFlag(description: string, options: Partial<FlagOptions> = {}): FlagDef {
+  return {
+    description,
+    kind: "value",
+    required: options.required ?? false,
+    hasDefault: options.defaultValue !== undefined,
+    defaultValue: options.defaultValue ?? "",
+  }
+}
+
+function switchFlag(description: string): FlagDef {
+  return {
+    description,
+    kind: "switch",
+    required: false,
+    hasDefault: false,
+    defaultValue: "",
+  }
+}
+
 export const commands: StringMap<Command> = {
   create: {
     description: "Create a new issue",
     usage: "task create --title <title> [--description <desc>] [--github-issue <number>] [--priority <0-4>] [--label <label>] [--parent <id>]",
     flags: {
-      "--title": { description: "Issue title", required: true },
-      "--description": { description: "Issue description" },
-      "--github-issue": { description: "GitHub issue number" },
-      "--priority": { description: "Priority (0=highest, default 2)" },
-      "--label": { description: "Label (repeatable)" },
-      "--parent": { description: "Parent issue ID for hierarchy" },
+      "--title": valueFlag("Issue title", { required: true }),
+      "--description": valueFlag("Issue description"),
+      "--github-issue": valueFlag("GitHub issue number"),
+      "--priority": valueFlag("Priority (0=highest, default 2)"),
+      "--label": valueFlag("Label (repeatable)"),
+      "--parent": valueFlag("Parent issue ID for hierarchy"),
     },
     examples: [
       'task create --title "Fix login bug"',
@@ -43,11 +68,11 @@ export const commands: StringMap<Command> = {
     description: "Show issue details",
     usage: "task show <id> [--fields <csv>] [--compact] [--summary] [--include-stores]",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--fields": { description: "Comma-separated metadata fields to return" },
-      "--compact": { description: "Return a compact metadata projection suitable for agents" },
-      "--summary": { description: "Return metadata only (omit stores unless --include-stores is passed)" },
-      "--include-stores": { description: "Include store names and keys in the output" },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--fields": valueFlag("Comma-separated metadata fields to return"),
+      "--compact": switchFlag("Return a compact metadata projection suitable for agents"),
+      "--summary": switchFlag("Return metadata only (omit stores unless --include-stores is passed)"),
+      "--include-stores": switchFlag("Include store names and keys in the output"),
     },
     examples: [
       "task show ab12",
@@ -63,16 +88,16 @@ export const commands: StringMap<Command> = {
     description: "List issues",
     usage: "task list [--where key=value] [--label <label>] [--text <query>] [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
     flags: {
-      "--where": { description: "Filter by key=value (repeatable, AND logic)" },
-      "--label": { description: "Filter by label (repeatable, AND logic)" },
-      "--text": { description: "Case-insensitive text search across id, title, description, refs, and labels" },
-      "--fields": { description: "Comma-separated fields to return for each issue" },
-      "--compact": { description: "Return a compact issue projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include closed issues" },
+      "--where": valueFlag("Filter by key=value (repeatable, AND logic)"),
+      "--label": valueFlag("Filter by label (repeatable, AND logic)"),
+      "--text": valueFlag("Case-insensitive text search across id, title, description, refs, and labels"),
+      "--fields": valueFlag("Comma-separated fields to return for each issue"),
+      "--compact": switchFlag("Return a compact issue projection suitable for agents (default)"),
+      "--full": switchFlag("Return full issue objects instead of the default compact projection"),
+      "--sort": valueFlag("Sort by priority (default) or updated"),
+      "--limit": valueFlag("Maximum number of results to return"),
+      "--jsonl": switchFlag("Format array output as one JSON object per line"),
+      "--all": switchFlag("Include closed issues"),
     },
     examples: [
       "task list",
@@ -90,14 +115,14 @@ export const commands: StringMap<Command> = {
     description: "Search issues by text",
     usage: "task search <query> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
     flags: {
-      "--text": { description: "Optional explicit search query (otherwise uses positional query text)" },
-      "--fields": { description: "Comma-separated fields to return for each issue" },
-      "--compact": { description: "Return a compact issue projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include closed issues" },
+      "--text": valueFlag("Optional explicit search query (otherwise uses positional query text)"),
+      "--fields": valueFlag("Comma-separated fields to return for each issue"),
+      "--compact": switchFlag("Return a compact issue projection suitable for agents (default)"),
+      "--full": switchFlag("Return full issue objects instead of the default compact projection"),
+      "--sort": valueFlag("Sort by priority (default) or updated"),
+      "--limit": valueFlag("Maximum number of results to return"),
+      "--jsonl": switchFlag("Format array output as one JSON object per line"),
+      "--all": switchFlag("Include closed issues"),
     },
     examples: [
       "task search packet session",
@@ -110,14 +135,14 @@ export const commands: StringMap<Command> = {
     description: "List child issues in the hierarchy under a parent issue",
     usage: "task children <id> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
     flags: {
-      "--id": { description: "Parent issue ID (or pass as the first positional argument)" },
-      "--fields": { description: "Comma-separated fields to return for each child issue" },
-      "--compact": { description: "Return a compact issue projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include closed issues" },
+      "--id": valueFlag("Parent issue ID (or pass as the first positional argument)"),
+      "--fields": valueFlag("Comma-separated fields to return for each child issue"),
+      "--compact": switchFlag("Return a compact issue projection suitable for agents (default)"),
+      "--full": switchFlag("Return full issue objects instead of the default compact projection"),
+      "--sort": valueFlag("Sort by priority (default) or updated"),
+      "--limit": valueFlag("Maximum number of results to return"),
+      "--jsonl": switchFlag("Format array output as one JSON object per line"),
+      "--all": switchFlag("Include closed issues"),
     },
     examples: [
       "task children gh549",
@@ -133,13 +158,13 @@ export const commands: StringMap<Command> = {
     description: "List parent issues for an issue in the hierarchy",
     usage: "task parents <id> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl]",
     flags: {
-      "--id": { description: "Child issue ID (or pass as the first positional argument)" },
-      "--fields": { description: "Comma-separated fields to return for each parent issue" },
-      "--compact": { description: "Return a compact issue projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
+      "--id": valueFlag("Child issue ID (or pass as the first positional argument)"),
+      "--fields": valueFlag("Comma-separated fields to return for each parent issue"),
+      "--compact": switchFlag("Return a compact issue projection suitable for agents (default)"),
+      "--full": switchFlag("Return full issue objects instead of the default compact projection"),
+      "--sort": valueFlag("Sort by priority (default) or updated"),
+      "--limit": valueFlag("Maximum number of results to return"),
+      "--jsonl": switchFlag("Format array output as one JSON object per line"),
     },
     examples: [
       "task parents ojyb",
@@ -155,14 +180,14 @@ export const commands: StringMap<Command> = {
     description: "List parent and child issues related to an issue",
     usage: "task related <id> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--fields": { description: "Comma-separated fields to return for each related issue" },
-      "--compact": { description: "Return a compact relation projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include closed child issues in the results" },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--fields": valueFlag("Comma-separated fields to return for each related issue"),
+      "--compact": switchFlag("Return a compact relation projection suitable for agents (default)"),
+      "--full": switchFlag("Return full issue objects instead of the default compact projection"),
+      "--sort": valueFlag("Sort by priority (default) or updated"),
+      "--limit": valueFlag("Maximum number of results to return"),
+      "--jsonl": switchFlag("Format array output as one JSON object per line"),
+      "--all": switchFlag("Include closed child issues in the results"),
     },
     examples: [
       "task related gh549",
@@ -178,7 +203,7 @@ export const commands: StringMap<Command> = {
     description: "Close an issue (append IssueClosed and keep it in place)",
     usage: "task close <id>",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
     },
     examples: ["task close ab12", "task close --id ab12"],
     positionalId: true,
@@ -188,7 +213,7 @@ export const commands: StringMap<Command> = {
     description: "Get the next configured phase for an issue",
     usage: "task phase next <id>",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
     },
     examples: ["task phase next ab12", "task phase next --id ab12"],
     positionalId: true,
@@ -198,8 +223,8 @@ export const commands: StringMap<Command> = {
     description: "Advance an issue to a configured phase",
     usage: "task phase set <id> --value <phase>",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--value": { description: "Next phase", required: true },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--value": valueFlag("Next phase", { required: true }),
     },
     examples: [
       "task phase set 0ov2 --value ready-to-code",
@@ -212,7 +237,7 @@ export const commands: StringMap<Command> = {
     description: "Import a legacy tracker snapshot into the repo-local .task event store",
     usage: "task legacy import --source <path>",
     flags: {
-      "--source": { description: "Path to the legacy tracker root", required: true },
+      "--source": valueFlag("Path to the legacy tracker root", { required: true }),
     },
     examples: ["task legacy import --source /tmp/old-issues"],
     run: (args) => legacyImport(args, detectRepoRoot(process.cwd())),
@@ -221,9 +246,9 @@ export const commands: StringMap<Command> = {
     description: "Set a non-reserved metadata field on an issue",
     usage: "task meta set <id> --key <key> --value <value>",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--key": { description: "Metadata key", required: true },
-      "--value": { description: "Metadata value", required: true },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--key": valueFlag("Metadata key", { required: true }),
+      "--value": valueFlag("Metadata value", { required: true }),
     },
     examples: [
       "task meta set 0ov2 --key owner --value backend",
@@ -236,8 +261,8 @@ export const commands: StringMap<Command> = {
     description: "Get a metadata field from an issue",
     usage: "task meta get <id> --key <key>",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--key": { description: "Metadata key", required: true },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--key": valueFlag("Metadata key", { required: true }),
     },
     examples: ["task meta get 0ov2 --key phase", "task meta get --id 0ov2 --key phase"],
     positionalId: true,
@@ -247,9 +272,9 @@ export const commands: StringMap<Command> = {
     description: "Add or remove labels on an issue",
     usage: "task update label <id> [--add <label>] [--remove <label>]",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--add": { description: "Label to add (repeatable)" },
-      "--remove": { description: "Label to remove (repeatable)" },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--add": valueFlag("Label to add (repeatable)"),
+      "--remove": valueFlag("Label to remove (repeatable)"),
     },
     examples: [
       "task update label ab12 --add cli",
@@ -265,9 +290,9 @@ export const commands: StringMap<Command> = {
     description: "Add or remove refs on an issue",
     usage: "task update refs <id> [--add <ref>] [--remove <ref>]",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--add": { description: "Ref to add (repeatable)" },
-      "--remove": { description: "Ref to remove (repeatable)" },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--add": valueFlag("Ref to add (repeatable)"),
+      "--remove": valueFlag("Ref to remove (repeatable)"),
     },
     examples: [
       "task update refs ab12 --add m85s",
@@ -281,11 +306,11 @@ export const commands: StringMap<Command> = {
     description: "Store a value (from --value, --file, or stdin)",
     usage: "task store set <id> --store <store> --key <key> [--value <val> | --file <path>]",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--store": { description: "Store name", required: true },
-      "--key": { description: "Key name", required: true },
-      "--value": { description: "Value to store (for simple strings)" },
-      "--file": { description: "Read value from file path (for multiline content)" },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--store": valueFlag("Store name", { required: true }),
+      "--key": valueFlag("Key name", { required: true }),
+      "--value": valueFlag("Value to store (for simple strings)"),
+      "--file": valueFlag("Read value from file path (for multiline content)"),
     },
     examples: [
       'task store set ab12 --store research --key summary --value "quick note"',
@@ -300,9 +325,9 @@ export const commands: StringMap<Command> = {
     description: "Get a stored value",
     usage: "task store get <id> --store <store> --key <key>",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--store": { description: "Store name", required: true },
-      "--key": { description: "Key name", required: true },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--store": valueFlag("Store name", { required: true }),
+      "--key": valueFlag("Key name", { required: true }),
     },
     examples: [
       "task store get ab12 --store research --key summary",
@@ -315,8 +340,8 @@ export const commands: StringMap<Command> = {
     description: "List keys in a store",
     usage: "task store keys <id> --store <store>",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--store": { description: "Store name", required: true },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--store": valueFlag("Store name", { required: true }),
     },
     examples: ["task store keys ab12 --store research", "task store keys --id ab12 --store research"],
     positionalId: true,
@@ -326,9 +351,9 @@ export const commands: StringMap<Command> = {
     description: "Delete a key from a store, or delete the entire store if --key is omitted",
     usage: "task store delete <id> --store <store> [--key <key>]",
     flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--store": { description: "Store name", required: true },
-      "--key": { description: "Key name (omit to delete the whole store)" },
+      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
+      "--store": valueFlag("Store name", { required: true }),
+      "--key": valueFlag("Key name (omit to delete the whole store)"),
     },
     examples: [
       "task store delete ab12 --store research --key summary",

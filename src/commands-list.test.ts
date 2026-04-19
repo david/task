@@ -37,7 +37,7 @@ beforeAll(async () => {
 
 describe("issueList default behavior", () => {
   test("returns open issues only", async () => {
-    const titles = (await issueList({}, listRoot)).map((i) => i.title)
+    const titles = (await issueList({}, listRoot)).map((i) => i["title"])
     expect(titles).toContain("Open One")
     expect(titles).toContain("Open Two")
     expect(titles).not.toContain("Closed One")
@@ -49,23 +49,23 @@ describe("issueList default behavior", () => {
   })
 
   test("all includes closed issues", async () => {
-    const titles = (await issueList({ "--all": "true" }, listRoot)).map((i) => i.title)
+    const titles = (await issueList({ "--all": "true" }, listRoot)).map((i) => i["title"])
     expect(titles).toContain("Closed One")
   })
 
   test("where applies status and phase filters", async () => {
     const openOnly = await issueList({ "--where": "status=open" }, listRoot)
     const openResearch = await issueList({ "--where": ["status=open", "phase=research"] }, listRoot)
-    expect(openOnly.every((item) => item.status === "open")).toBe(true)
-    expect(openResearch.every((item) => item.status === "open" && item.phase === "research")).toBe(true)
+    expect(openOnly.every((item) => item["status"] === "open")).toBe(true)
+    expect(openResearch.every((item) => item["status"] === "open" && item["phase"] === "research")).toBe(true)
   })
 })
 
 describe("issueList text and projection flags", () => {
   test("text searches title description refs and labels", async () => {
-    expect((await issueList({ "--text": "packet session" }, listRoot)).map((i) => i.title)).toEqual(["Open One"])
-    expect((await issueList({ "--text": "epic1" }, listRoot)).map((i) => i.title)).toEqual(["Open One"])
-    expect((await issueList({ "--text": "backend" }, listRoot)).map((i) => i.title)).toEqual(["Open Two"])
+    expect((await issueList({ "--text": "packet session" }, listRoot)).map((i) => i["title"])).toEqual(["Open One"])
+    expect((await issueList({ "--text": "epic1" }, listRoot)).map((i) => i["title"])).toEqual(["Open One"])
+    expect((await issueList({ "--text": "backend" }, listRoot)).map((i) => i["title"])).toEqual(["Open Two"])
   })
 
   test("fields projects returned issue objects", async () => {
@@ -94,7 +94,7 @@ describe("issueList sorting and validation", () => {
     await issueCreate({ "--title": "Second" }, sortRoot)
     await Bun.sleep(5)
     await issueMetaSet({ "--id": first.id, "--key": "owner", "--value": "backend" }, sortRoot)
-    expect((await issueList({ "--sort": "updated", "--full": "true" }, sortRoot)).map((i) => i.title)).toEqual([
+    expect((await issueList({ "--sort": "updated", "--full": "true" }, sortRoot)).map((i) => i["title"])).toEqual([
       "First",
       "Second",
     ])
@@ -106,7 +106,7 @@ describe("issueList sorting and validation", () => {
     await issueCreate({ "--title": "High", "--priority": "0" }, sortRoot)
     await issueCreate({ "--title": "Default" }, sortRoot)
     await issueCreate({ "--title": "Medium", "--priority": "1" }, sortRoot)
-    expect((await issueList({}, sortRoot)).map((i) => i.title)).toEqual(["High", "Medium", "Default", "Low"])
+    expect((await issueList({}, sortRoot)).map((i) => i["title"])).toEqual(["High", "Medium", "Default", "Low"])
   })
 
   test("legacy issues without priority sort last", async () => {
@@ -117,7 +117,7 @@ describe("issueList sorting and validation", () => {
       join(issueProjectionRoot(legacyRoot), "zzzz-legacy", "issue.json"),
       JSON.stringify({ title: "Legacy", status: "open", phase: "research" })
     )
-    expect((await issueList({}, legacyRoot)).map((i) => i.title)).toEqual(["Normal", "Legacy"])
+    expect((await issueList({}, legacyRoot)).map((i) => i["title"])).toEqual(["Normal", "Legacy"])
   })
 
   test("invalid sort and limit throw", async () => {
@@ -132,18 +132,18 @@ describe("issueList sorting and validation", () => {
 
 describe("issueList label filters", () => {
   test("filters by a single label", async () => {
-    expect((await issueList({ "--label": "cli" }, labelRoot)).map((i) => i.title)).toEqual(["CLI Issue"])
+    expect((await issueList({ "--label": "cli" }, labelRoot)).map((i) => i["title"])).toEqual(["CLI Issue"])
   })
 
   test("single-item label arrays still work", async () => {
-    const titles = (await issueList({ "--label": ["bug"] }, labelRoot)).map((i) => i.title)
+    const titles = (await issueList({ "--label": ["bug"] }, labelRoot)).map((i) => i["title"])
     expect(titles).toContain("CLI Issue")
     expect(titles).toContain("PDF Issue")
     expect(titles).not.toContain("No Labels")
   })
 
   test("multiple labels use AND logic", async () => {
-    expect((await issueList({ "--label": ["bug", "cli"] }, labelRoot)).map((i) => i.title)).toEqual([
+    expect((await issueList({ "--label": ["bug", "cli"] }, labelRoot)).map((i) => i["title"])).toEqual([
       "CLI Issue",
     ])
   })
@@ -154,7 +154,7 @@ describe("issueList label filters", () => {
 
   test("combines with where", async () => {
     const titles = (await issueList({ "--label": "bug", "--where": "status=open" }, labelRoot)).map(
-      (i) => i.title
+      (i) => i["title"]
     )
     expect(titles).toContain("CLI Issue")
     expect(titles).toContain("PDF Issue")

@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from "node:fs"
 import { basename, join } from "node:path"
-import type { CommandArgs, JsonObject, JsonValue, StringMap } from "./types"
+import type { CommandArgs, CommandFlag, FlagValue, JsonObject, JsonValue, StringMap } from "./types"
 import type { IssueMetadata, IssueRecord } from "./tracker/events"
 import { getArchiveRoot, getIssueRoot, listCanonicalIssueIds } from "./tracker/root"
 import { loadArchivedTrackedIssue, loadTrackedIssue } from "./tracker/issues"
@@ -8,11 +8,19 @@ import { loadArchivedTrackedIssue, loadTrackedIssue } from "./tracker/issues"
 function listDirsWithPrefix(dir: string, prefix: string): string[] {
   if (!existsSync(dir)) return []
   return readdirSync(dir).filter(
-    (entry) => entry.startsWith(prefix + "-") && statSync(join(dir, entry)).isDirectory()
+    (entry) => entry.startsWith(`${prefix}-`) && statSync(join(dir, entry)).isDirectory()
   )
 }
 
-export const COMPACT_LIST_FIELDS = ["id", "title", "status", "phase", "priority", "refs"]
+function issueIdPrefix(issueId: string): string {
+  const prefix = issueId.split("-", 1)[0]
+  if (prefix === undefined || prefix.length === 0) {
+    throw new Error(`Invalid issue ID '${issueId}'`)
+  }
+  return prefix
+}
+
+export const COMPACT_LIST_FIELDS = ["id", "title", "status", "phase", "priority", "refs"] as const
 export const COMPACT_SHOW_FIELDS = [
   "title",
   "status",
@@ -23,18 +31,21 @@ export const COMPACT_SHOW_FIELDS = [
   "refs",
   "labels",
   "github_issue",
-]
-export const COMPACT_RELATED_FIELDS = ["id", "title", "status", "phase", "priority", "relation"]
+] as const
+export const COMPACT_RELATED_FIELDS = ["id", "title", "status", "phase", "priority", "relation"] as const
 
 export type SortMode = "priority" | "updated"
 export type IssueProjection = Partial<IssueRecord> & { id: string }
+export type ProjectedIssueMetadata = JsonObject
+export type IssueProjectionOutput = JsonObject
 export type IssueRelation = "parent" | "child" | "both"
 export type RelatedIssueProjection = IssueProjection & { relation: IssueRelation }
+export type RelatedIssueProjectionOutput = JsonObject
 export type IssueShowResult =
-  | { id: string; metadata: JsonObject }
-  | { id: string; metadata: JsonObject; stores: StringMap<string[]> }
+  | { id: string; metadata: ProjectedIssueMetadata }
+  | { id: string; metadata: ProjectedIssueMetadata; stores: StringMap<string[]> }
 export type IssueCloseResult = { closed: true } | { already_closed: true }
-export type MetadataLookupValue = IssueMetadata[string] | null
+export type MetadataLookupValue = Exclude<IssueMetadata[string], undefined> | null
 export type IssueMetaGetResult = { value: MetadataLookupValue }
 export type StoreValue = string | null
 export type StoreLookupResult = { value: StoreValue }
@@ -45,10 +56,20 @@ export type StoreDeleteResult =
   | { deleted: true; kind: "key" }
   | { deleted: true; kind: "key"; removedEmptyStore: true }
 
-export function requireFlag(args: CommandArgs, flag: string): string {
-  const val = args[flag]
-  if (val === undefined) throw new Error(`${flag} is required`)
-  return Array.isArray(val) ? val[0] : val
+function getFlagValue(args: CommandArgs, flag: CommandFlag): FlagValue | undefined {
+  return args[flag]
+}
+
+function firstValue(value: FlagValue): string {
+  return Array.isArray(value) ? value[0] : value
+}
+
+export function requireFlag(args: CommandArgs, flag: CommandFlag): string {
+  const value = getFlagValue(args, flag)
+  if (value === undefined) {
+    throw new Error(`${flag} is required`)
+  }
+  return firstValue(value)
 }
 
 export function resolveIssue(
@@ -59,13 +80,13 @@ export function resolveIssue(
     throw new Error(`Invalid issue ID '${id}': must be lowercase alphanumeric (with optional slug)`)
   }
 
-  const prefix = id.split("-")[0]
+  const prefix = issueIdPrefix(id)
   const issueRoot = getIssueRoot(root)
   const archiveDir = getArchiveRoot(root)
 
   const currentIds = new Set<string>(listDirsWithPrefix(issueRoot, prefix))
   for (const issueId of listCanonicalIssueIds(root)) {
-    if (issueId.startsWith(prefix + "-")) {
+    if (issueId.startsWith(`${prefix}-`)) {
       currentIds.add(issueId)
     }
   }
@@ -82,27 +103,34 @@ export function resolveIssue(
     path: join(archiveDir, issueId),
     archived: true,
   }))
-  const all = [...currentMatches, ...archiveMatches]
+  const allMatches = [...currentMatches, ...archiveMatches]
 
-  if (all.length === 0) {
+  if (allMatches.length === 0) {
     throw new Error(`Issue '${id}' not found`)
   }
-  if (all.length > 1) {
-    const list = all.map((match) => basename(match.path)).join(", ")
+  if (allMatches.length > 1) {
+    const list = allMatches.map((match) => basename(match.path)).join(", ")
     throw new Error(`Ambiguous ID '${id}': ${list}`)
   }
-  return all[0]
+
+  const match = allMatches[0]
+  if (match === undefined) {
+    throw new Error(`Issue '${id}' not found`)
+  }
+  return match
 }
 
-export function optionalFlag(args: CommandArgs, flag: string): string | undefined {
-  const val = args[flag]
-  if (val === undefined) return undefined
-  return Array.isArray(val) ? val[0] : val
+export function optionalFlag(args: CommandArgs, flag: CommandFlag): string | undefined {
+  const value = getFlagValue(args, flag)
+  return value === undefined ? undefined : firstValue(value)
 }
 
-export function parseCsvFlag(args: CommandArgs, flag: string): string[] | undefined {
-  const raw = args[flag]
-  if (raw === undefined) return undefined
+export function parseCsvFlag(args: CommandArgs, flag: CommandFlag): string[] | undefined {
+  const raw = getFlagValue(args, flag)
+  if (raw === undefined) {
+    return undefined
+  }
+
   const values = Array.isArray(raw) ? raw : [raw]
   const fields = values.flatMap((value) =>
     value
@@ -110,12 +138,16 @@ export function parseCsvFlag(args: CommandArgs, flag: string): string[] | undefi
       .map((field) => field.trim())
       .filter((field) => field.length > 0)
   )
+
   return fields.length > 0 ? fields : undefined
 }
 
 export function parseLimit(args: CommandArgs): number | undefined {
   const raw = optionalFlag(args, "--limit")
-  if (raw === undefined) return undefined
+  if (raw === undefined) {
+    return undefined
+  }
+
   const limit = Number(raw)
   if (!Number.isInteger(limit) || limit < 1) {
     throw new Error("--limit must be a positive integer")
@@ -125,35 +157,29 @@ export function parseLimit(args: CommandArgs): number | undefined {
 
 export function parseSort(args: CommandArgs): SortMode {
   const raw = optionalFlag(args, "--sort")
-  if (raw === undefined) return "priority"
-  if (raw === "priority" || raw === "updated") return raw
+  if (raw === undefined) {
+    return "priority"
+  }
+  if (raw === "priority" || raw === "updated") {
+    return raw
+  }
   throw new Error("--sort must be one of: priority, updated")
 }
 
 export function resolveOutputFields(
   args: CommandArgs,
-  compactFields: string[],
+  compactFields: readonly string[],
   defaultCompact = false
 ): string[] | undefined {
   const explicitFields = parseCsvFlag(args, "--fields")
   if (explicitFields !== undefined) return explicitFields
-  if ("--full" in args) return undefined
-  if ("--compact" in args || defaultCompact) return compactFields
+  if (args["--full"] !== undefined) return undefined
+  if (args["--compact"] !== undefined || defaultCompact) return [...compactFields]
   return undefined
 }
 
-export function isJsonValue(value: JsonValue | object | null | undefined): value is JsonValue {
-  if (value === null) return true
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return true
-  }
-  if (Array.isArray(value)) {
-    return value.every((item) => isJsonValue(item))
-  }
-  if (typeof value === "object" && value !== null) {
-    return Object.values(value).every((item) => isJsonValue(item))
-  }
-  return false
+export function isJsonValue(value: JsonValue | undefined): value is JsonValue {
+  return value !== undefined
 }
 
 export function pickFields(
@@ -186,42 +212,56 @@ export async function loadIssueRecord(root: string, issueId: string): Promise<Is
   }
 }
 
-export function sortIssues(issues: IssueProjection[], sort: SortMode): IssueProjection[] {
+export function sortIssues<T extends IssueProjection>(issues: readonly T[], sort: SortMode): T[] {
   return [...issues].sort((a, b) => {
     if (sort === "updated") {
       const ua = typeof a.updated === "string" ? a.updated : ""
       const ub = typeof b.updated === "string" ? b.updated : ""
       if (ua === ub) {
-        return String(a.id).localeCompare(String(b.id))
+        return a.id.localeCompare(b.id)
       }
       return ub.localeCompare(ua)
     }
 
-    const pa = typeof a.priority === "number" ? a.priority : Infinity
-    const pb = typeof b.priority === "number" ? b.priority : Infinity
+    const pa = typeof a.priority === "number" ? a.priority : Number.POSITIVE_INFINITY
+    const pb = typeof b.priority === "number" ? b.priority : Number.POSITIVE_INFINITY
     if (pa !== pb) return pa - pb
-    return String(a.id).localeCompare(String(b.id))
+    return a.id.localeCompare(b.id)
   })
 }
 
 export function matchesText(issue: IssueProjection, query: string): boolean {
   const haystacks: string[] = []
-  for (const key of ["id", "title", "description"]) {
-    const value = issue[key]
-    if (typeof value === "string") haystacks.push(value)
+  const stringFields = [issue.id, issue.title, issue.description]
+  for (const value of stringFields) {
+    if (typeof value === "string") {
+      haystacks.push(value)
+    }
   }
-  for (const key of ["refs", "labels"]) {
-    const value = issue[key]
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (typeof item === "string") haystacks.push(item)
+
+  const listFields = [issue.refs, issue.labels]
+  for (const value of listFields) {
+    if (!Array.isArray(value)) {
+      continue
+    }
+    for (const item of value) {
+      if (typeof item === "string") {
+        haystacks.push(item)
       }
     }
   }
+
   const normalized = query.toLowerCase()
   return haystacks.some((value) => value.toLowerCase().includes(normalized))
 }
 
-export function projectIssueRecord(issue: IssueProjection, fields: string[] | undefined): JsonObject {
+export function projectIssueRecord(issue: IssueProjection, fields: string[] | undefined): IssueProjectionOutput {
+  return pickFields(issue, fields)
+}
+
+export function projectRelatedIssueRecord(
+  issue: RelatedIssueProjection,
+  fields: string[] | undefined
+): RelatedIssueProjectionOutput {
   return pickFields(issue, fields)
 }

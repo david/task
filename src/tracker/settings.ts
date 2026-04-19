@@ -1,6 +1,9 @@
-import { existsSync, readFileSync } from "node:fs"
+import { existsSync } from "node:fs"
 import { join } from "node:path"
-import type { JsonObject, JsonValue, StringMap } from "../types"
+import { z } from "zod"
+import { readJsonFile } from "../infrastructure/json"
+import { jsonObjectSchema } from "../json-schema"
+import type { JsonValue, StringMap } from "../types"
 import { getTrackerRoot } from "./root"
 
 export type TaskSettings = {
@@ -15,23 +18,24 @@ const DEFAULT_SETTINGS: TaskSettings = {
   transitions: {},
 }
 
-function isRecord(value: JsonValue | object | null): value is JsonObject {
-  return typeof value === "object" && value !== null
-}
+const nonEmptyStringSchema = z.string().trim().min(1)
+const stringArraySchema = z.array(nonEmptyStringSchema)
 
-function ensurePhaseName(value: JsonValue | object | null, path: string): string {
-  if (typeof value !== "string" || value.trim().length === 0) {
+function ensurePhaseName(value: JsonValue | undefined, path: string): string {
+  const parsed = nonEmptyStringSchema.safeParse(value)
+  if (!parsed.success) {
     throw new Error(`${path} must be a non-empty string`)
   }
-  return value
+  return parsed.data
 }
 
-function ensurePhaseList(value: JsonValue | object | null, path: string, allowEmpty = false): string[] {
-  if (!Array.isArray(value)) {
+function ensurePhaseList(value: JsonValue | undefined, path: string, allowEmpty = false): string[] {
+  const parsed = stringArraySchema.safeParse(value)
+  if (!parsed.success) {
     throw new Error(`${path} must be an array of phase names`)
   }
 
-  const phases = value.map((entry, index) => ensurePhaseName(entry, `${path}[${index}]`))
+  const phases = parsed.data
   const unique = new Set(phases)
   if (unique.size !== phases.length) {
     throw new Error(`${path} must not contain duplicate phase names`)
@@ -41,21 +45,19 @@ function ensurePhaseList(value: JsonValue | object | null, path: string, allowEm
     throw new Error(`${path} must contain at least one phase`)
   }
 
-  return phases
+  return [...phases]
 }
 
-function ensureTransitions(
-  value: JsonValue | object | null,
-  phases: ReadonlyArray<string>
-): StringMap<string[]> {
-  if (!isRecord(value)) {
+function ensureTransitions(value: JsonValue | undefined, phases: ReadonlyArray<string>): StringMap<string[]> {
+  const parsed = jsonObjectSchema.safeParse(value)
+  if (!parsed.success) {
     throw new Error(".task/settings.json transitions must be an object")
   }
 
   const phaseSet = new Set(phases)
   const transitions: StringMap<string[]> = {}
 
-  for (const [from, rawTargets] of Object.entries(value)) {
+  for (const [from, rawTargets] of Object.entries(parsed.data)) {
     if (!phaseSet.has(from)) {
       throw new Error(`.task/settings.json transitions references unknown phase '${from}'`)
     }
@@ -63,9 +65,7 @@ function ensureTransitions(
     const targets = ensurePhaseList(rawTargets, `.task/settings.json transitions.${from}`, true)
     for (const target of targets) {
       if (!phaseSet.has(target)) {
-        throw new Error(
-          `.task/settings.json transitions.${from} references unknown phase '${target}'`
-        )
+        throw new Error(`.task/settings.json transitions.${from} references unknown phase '${target}'`)
       }
     }
     transitions[from] = targets
@@ -80,25 +80,20 @@ export function loadTaskSettings(root: string): TaskSettings {
     return { ...DEFAULT_SETTINGS, phases: [...DEFAULT_SETTINGS.phases] }
   }
 
-  let parsed: JsonValue | object | null
-  try {
-    parsed = JSON.parse(readFileSync(settingsPath, "utf-8"))
-  } catch {
-    throw new Error(".task/settings.json is not valid JSON")
-  }
+  const parsed = readJsonFile(
+    settingsPath,
+    jsonObjectSchema,
+    ".task/settings.json is not valid JSON",
+    ".task/settings.json must be a JSON object"
+  )
 
-  if (!isRecord(parsed)) {
-    throw new Error(".task/settings.json must be a JSON object")
-  }
-
-  const phases = ensurePhaseList(parsed.phases, ".task/settings.json phases")
-  const defaultPhase = ensurePhaseName(parsed.defaultPhase, ".task/settings.json defaultPhase")
+  const phases = ensurePhaseList(parsed["phases"], ".task/settings.json phases")
+  const defaultPhase = ensurePhaseName(parsed["defaultPhase"], ".task/settings.json defaultPhase")
   if (!phases.includes(defaultPhase)) {
     throw new Error(".task/settings.json defaultPhase must appear in phases")
   }
 
-  const transitions = ensureTransitions(parsed.transitions ?? {}, phases)
-
+  const transitions = ensureTransitions(parsed["transitions"] ?? {}, phases)
   return {
     defaultPhase,
     phases,
@@ -142,5 +137,9 @@ export function getNextPhase(settings: TaskSettings, currentPhase: string): stri
     throw new Error(`Phase '${currentPhase}' has multiple next phases configured`)
   }
 
-  return next[0]
+  const onlyNextPhase = next[0]
+  if (onlyNextPhase === undefined) {
+    throw new Error(`No next phase configured for '${currentPhase}'`)
+  }
+  return onlyNextPhase
 }

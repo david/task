@@ -1,6 +1,30 @@
 import { describe, test, expect } from "bun:test"
+import { commands } from "./commands-registry"
+import { expectJsonObject } from "./commands-test-helpers"
+import { safeParseWithSchema, jsonValueSchema } from "./json-schema"
 import { parseFlags, formatResult, normalizeCommandFlags } from "./task"
 import type { Command } from "./types"
+
+function registeredCommand(name: string): Command {
+  const command = commands[name]
+  if (command === undefined) {
+    throw new Error(`Missing test command '${name}'`)
+  }
+  return command
+}
+
+function parseErrorJson(stderr: string): { error: string } {
+  const parsedValue = safeParseWithSchema(jsonValueSchema, JSON.parse(stderr))
+  if (parsedValue === undefined) {
+    throw new Error("Expected stderr JSON value")
+  }
+  const parsed = expectJsonObject(parsedValue)
+  const errorValue = parsed["error"]
+  if (typeof errorValue !== "string") {
+    throw new Error("Expected stderr JSON error string")
+  }
+  return { error: errorValue }
+}
 
 describe("parseFlags basics", () => {
   test("single flag with value", () => {
@@ -8,7 +32,7 @@ describe("parseFlags basics", () => {
   })
 
   test("boolean flag (no value)", () => {
-    expect(parseFlags(["--all"])).toEqual({ "--all": "true" })
+    expect(parseFlags(["--all"], registeredCommand("search").flags)).toEqual({ "--all": "true" })
   })
 
   test("multiple flags", () => {
@@ -54,25 +78,42 @@ describe("parseFlags repeated values and positionals", () => {
   })
 
   test("collects positional args under _", () => {
-    expect(parseFlags(["packet", "session", "--limit", "5"])).toEqual({
+    expect(parseFlags(["packet", "session", "--limit", "5"], registeredCommand("search").flags)).toEqual({
       _: ["packet", "session"],
       "--limit": "5",
     })
   })
+
+  test("switch flag before positional search text preserves the query", () => {
+    expect(parseFlags(["--all", "rebuild", "child"], registeredCommand("search").flags)).toEqual({
+      "--all": "true",
+      _: ["rebuild", "child"],
+    })
+  })
 })
 
-describe("normalizeCommandFlags", () => {
-  const positionalIdCommand: Command = {
-    description: "Show issue details",
-    usage: "task show <id>",
-    flags: {},
-    examples: [],
-    positionalId: true,
-    run: async () => ({ ok: true }),
-  }
+const positionalIdCommand: Command = {
+  description: "Show issue details",
+  usage: "task show <id>",
+  flags: {},
+  examples: [],
+  positionalId: true,
+  run: async () => ({ ok: true }),
+}
 
+describe("normalizeCommandFlags positional ids", () => {
   test("maps a single positional arg to --id for positional-id commands", () => {
     expect(normalizeCommandFlags("show", positionalIdCommand, { _: "ab12", "--summary": "true" })).toEqual({
+      "--id": "ab12",
+      "--summary": "true",
+    })
+  })
+
+  test("preserves positional id after a switch flag", () => {
+    const showCommand = registeredCommand("show")
+    const parsed = parseFlags(["--summary", "ab12"], showCommand.flags)
+    expect(parsed).toEqual({ "--summary": "true", _: "ab12" })
+    expect(normalizeCommandFlags("show", showCommand, parsed)).toEqual({
       "--id": "ab12",
       "--summary": "true",
     })
@@ -90,7 +131,9 @@ describe("normalizeCommandFlags", () => {
       _: ["packet", "session"],
     })
   })
+})
 
+describe("normalizeCommandFlags validation", () => {
   test("rejects mixing positional id with --id", () => {
     expect(() =>
       normalizeCommandFlags("show", positionalIdCommand, { _: "ab12", "--id": "cd34" })
@@ -173,7 +216,7 @@ describe("task subprocess command errors", () => {
   test("unknown command exits 1 with error JSON", () => {
     const result = runTask("foo")
     expect(result.exitCode).toBe(1)
-    const err = JSON.parse(result.stderr.toString())
+    const err = parseErrorJson(result.stderr.toString())
     expect(err.error).toContain("Unknown command")
     expect(err.error).toContain("foo")
     expect(result.stdout.toString()).toBe("")
@@ -182,7 +225,7 @@ describe("task subprocess command errors", () => {
   test("partial two-word command lists available subcommands", () => {
     const result = runTask("meta")
     expect(result.exitCode).toBe(1)
-    const err = JSON.parse(result.stderr.toString())
+    const err = parseErrorJson(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'meta'")
     expect(err.error).toContain("meta set")
     expect(err.error).toContain("meta get")
@@ -191,7 +234,7 @@ describe("task subprocess command errors", () => {
   test("partial phase command lists phase subcommands", () => {
     const result = runTask("phase")
     expect(result.exitCode).toBe(1)
-    const err = JSON.parse(result.stderr.toString())
+    const err = parseErrorJson(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'phase'")
     expect(err.error).toContain("phase next")
     expect(err.error).toContain("phase set")
@@ -200,7 +243,7 @@ describe("task subprocess command errors", () => {
   test("partial legacy command lists legacy subcommands", () => {
     const result = runTask("legacy")
     expect(result.exitCode).toBe(1)
-    const err = JSON.parse(result.stderr.toString())
+    const err = parseErrorJson(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'legacy'")
     expect(err.error).toContain("legacy import")
   })

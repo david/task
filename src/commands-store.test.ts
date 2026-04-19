@@ -88,7 +88,7 @@ describe("store value sources", () => {
   })
 })
 
-describe("store keys and delete", () => {
+describe("store keys", () => {
   test("storeKeys lists keys and returns empty arrays for missing stores", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Store Keys Test" }, root))
@@ -102,7 +102,9 @@ describe("store keys and delete", () => {
     ])
     expect(await storeKeys({ "--id": created.id, "--store": "nope" }, root)).toEqual({ keys: [] })
   })
+})
 
+describe("store delete", () => {
   test("storeDelete removes individual keys and empty stores", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Store Delete Key" }, root))
