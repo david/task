@@ -1,5 +1,6 @@
 import { mkdirSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
+import type { StringMap } from "../types"
 
 export type StoreEntryState = {
   revision: number
@@ -10,7 +11,7 @@ export type StoreEntryState = {
 }
 
 export type IssueStoreState = {
-  entries: Record<string, Record<string, StoreEntryState>>
+  entries: StringMap<StringMap<StoreEntryState>>
 }
 
 export type StoreRevisionPlan = {
@@ -29,13 +30,13 @@ export function createEmptyIssueStoreState(): IssueStoreState {
   return { entries: {} }
 }
 
-function ensureStoreEntries(state: IssueStoreState, store: string): Record<string, StoreEntryState> {
+function ensureStoreEntries(state: IssueStoreState, store: string): StringMap<StoreEntryState> {
   const existing = state.entries[store]
   if (existing !== undefined) {
     return existing
   }
 
-  const created: Record<string, StoreEntryState> = {}
+  const created: StringMap<StoreEntryState> = {}
   state.entries[store] = created
   return created
 }
@@ -155,8 +156,8 @@ export function getStoreKeys(state: IssueStoreState, store: string): string[] {
     .sort()
 }
 
-export function getVisibleStores(state: IssueStoreState): Record<string, Record<string, string>> {
-  const visible: Record<string, Record<string, string>> = {}
+export function getVisibleStores(state: IssueStoreState): StringMap<StringMap<string>> {
+  const visible: StringMap<StringMap<string>> = {}
 
   for (const [store, storeEntries] of Object.entries(state.entries)) {
     const currentEntries = Object.entries(storeEntries)
@@ -196,7 +197,7 @@ export function getOpenStoreDrafts(state: IssueStoreState): StoreDraftRef[] {
 
 export function materializeVisibleStores(
   issueDir: string,
-  stores: Record<string, Record<string, string>>
+  stores: StringMap<StringMap<string>>
 ): void {
   mkdirSync(issueDir, { recursive: true })
 

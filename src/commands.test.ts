@@ -26,8 +26,7 @@ import {
 } from "./commands"
 import { appendTrackedIssueEvents, readTrackedIssueAggregate } from "./tracker/issues"
 import { issueMetadataSetEvent } from "./tracker/events"
-
-type IssueResult = { id: string; [k: string]: unknown }
+import type { JsonObject, JsonValue, StringMap } from "./types"
 
 function issueProjectionRoot(repoRoot: string): string {
   return join(repoRoot, ".task", "issues")
@@ -35,23 +34,38 @@ function issueProjectionRoot(repoRoot: string): string {
 
 function writeTaskSettings(
   repoRoot: string,
-  settings: { defaultPhase: string; phases: string[]; transitions: Record<string, string[]> }
+  settings: { defaultPhase: string; phases: string[]; transitions: StringMap<string[]> }
 ): void {
   mkdirSync(join(repoRoot, ".task"), { recursive: true })
   writeFileSync(join(repoRoot, ".task", "settings.json"), `${JSON.stringify(settings, null, 2)}\n`)
 }
 
-function readCanonicalEvents(repoRoot: string, issueId: string): Array<Record<string, unknown>> {
+function isJsonObject(value: JsonValue | object | null): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+}
+
+function expectJsonObject(value: JsonValue | object | null): JsonObject {
+  if (!isJsonObject(value)) {
+    throw new Error("Expected JSON object")
+  }
+  return value
+}
+
+function readJsonObject(path: string): JsonObject {
+  return expectJsonObject(JSON.parse(readFileSync(path, "utf-8")))
+}
+
+function readCanonicalEvents(repoRoot: string, issueId: string): JsonObject[] {
   const eventDir = join(repoRoot, ".task", "events", "by-issue", issueId)
   return readdirSync(eventDir)
     .filter((entry) => entry.endsWith(".json"))
     .sort()
-    .map((entry) => JSON.parse(readFileSync(join(eventDir, entry), "utf-8")) as Record<string, unknown>)
+    .map((entry) => readJsonObject(join(eventDir, entry)))
 }
 
 function expectRecordWithFields(
-  records: ReadonlyArray<Record<string, unknown>>,
-  expected: Record<string, unknown>
+  records: ReadonlyArray<JsonObject>,
+  expected: JsonObject
 ): void {
   expect(
     records.some((record) =>
@@ -63,8 +77,8 @@ function expectRecordWithFields(
 function writeLegacyIssue(
   legacyRoot: string,
   issueId: string,
-  metadata: Record<string, unknown>,
-  stores: Record<string, Record<string, string>> = {},
+  metadata: JsonObject,
+  stores: StringMap<StringMap<string>> = {},
   archived = false
 ): void {
   const issueDir = archived
@@ -108,7 +122,7 @@ describe("requireFlag", () => {
 
 describe("issueCreate", () => {
   test("generates unique ID and writes well-formed issue.json", async () => {
-    const result = (await issueCreate({ "--title": "My First Issue" }, root)) as IssueResult
+    const result = (await issueCreate({ "--title": "My First Issue" }, root))
     expect(result.id).toMatch(/^[a-z0-9]{4}-my-first-issue$/)
     expect(result.title).toBe("My First Issue")
     expect(result.status).toBe("open")
@@ -122,32 +136,32 @@ describe("issueCreate", () => {
 
     // Verify file on disk via resolveIssue
     const { path } = resolveIssue(result.id, root)
-    const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
+    const data = readJsonObject(join(path, "issue.json"))
     expect(data.title).toBe("My First Issue")
     expect(data.status).toBe("open")
   })
 
   test("with --github-issue includes github_issue field", async () => {
-    const result = (await issueCreate({ "--title": "GH Issue", "--github-issue": "42" }, root)) as IssueResult
+    const result = (await issueCreate({ "--title": "GH Issue", "--github-issue": "42" }, root))
     expect(result.github_issue).toBe(42)
     const { path } = resolveIssue(result.id, root)
-    const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
+    const data = readJsonObject(join(path, "issue.json"))
     expect(data.github_issue).toBe(42)
   })
 
   test("without --github-issue omits github_issue field", async () => {
-    const result = (await issueCreate({ "--title": "No GH" }, root)) as IssueResult
+    const result = (await issueCreate({ "--title": "No GH" }, root))
     expect(result).not.toHaveProperty("github_issue")
     const { path } = resolveIssue(result.id, root)
-    const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
+    const data = readJsonObject(join(path, "issue.json"))
     expect(data).not.toHaveProperty("github_issue")
   })
 
   test("with --priority overrides default", async () => {
-    const result = (await issueCreate({ "--title": "Urgent", "--priority": "0" }, root)) as IssueResult
+    const result = (await issueCreate({ "--title": "Urgent", "--priority": "0" }, root))
     expect(result.priority).toBe(0)
     const { path } = resolveIssue(result.id, root)
-    const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
+    const data = readJsonObject(join(path, "issue.json"))
     expect(data.priority).toBe(0)
   })
 
@@ -157,37 +171,37 @@ describe("issueCreate", () => {
 
   test("auto-creates root dirs if missing", async () => {
     const freshRoot = join(root, "fresh-sub")
-    const result = (await issueCreate({ "--title": "Auto Dir" }, freshRoot)) as IssueResult
+    const result = (await issueCreate({ "--title": "Auto Dir" }, freshRoot))
     expect(result.id).toMatch(/^[a-z0-9]{4}-auto-dir$/)
   })
 
   test("with --label stores labels array", async () => {
-    const result = (await issueCreate({ "--title": "Labeled", "--label": ["cli", "bug"] }, root)) as IssueResult
+    const result = (await issueCreate({ "--title": "Labeled", "--label": ["cli", "bug"] }, root))
     expect(result.labels).toEqual(["cli", "bug"])
     const { path } = resolveIssue(result.id, root)
-    const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
+    const data = readJsonObject(join(path, "issue.json"))
     expect(data.labels).toEqual(["cli", "bug"])
   })
 
   test("without --label defaults to empty array", async () => {
-    const result = (await issueCreate({ "--title": "No Labels" }, root)) as IssueResult
+    const result = (await issueCreate({ "--title": "No Labels" }, root))
     expect(result.labels).toEqual([])
   })
 
   test("single --label stores as array", async () => {
-    const result = (await issueCreate({ "--title": "One Label", "--label": "cli" }, root)) as IssueResult
+    const result = (await issueCreate({ "--title": "One Label", "--label": "cli" }, root))
     expect(result.labels).toEqual(["cli"])
   })
 
   test("slug derives from title", async () => {
-    const result = (await issueCreate({ "--title": "Hello World! 123" }, root)) as IssueResult
+    const result = (await issueCreate({ "--title": "Hello World! 123" }, root))
     const { path } = resolveIssue(result.id, root)
     expect(path).toMatch(/hello-world-123/)
   })
 
   test("writes canonical Esther event files under the repo-local tracker", async () => {
     const repoRoot = join(root, "repo-local-events")
-    const result = (await issueCreate({ "--title": "Event Backed" }, repoRoot)) as IssueResult
+    const result = (await issueCreate({ "--title": "Event Backed" }, repoRoot))
     const eventDir = join(repoRoot, ".task", "events", "by-issue", result.id)
     const eventFiles = readdirSync(eventDir).filter((entry) => entry.endsWith(".json"))
 
@@ -197,7 +211,7 @@ describe("issueCreate", () => {
 
 describe("resolveIssue", () => {
   test("finds active issue by ID", async () => {
-    const created = (await issueCreate({ "--title": "Resolve Test" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Resolve Test" }, root))
     const resolved = resolveIssue(created.id, root)
     expect(resolved.path).toContain(created.id)
     expect(resolved.archived).toBe(false)
@@ -218,7 +232,7 @@ describe("resolveIssue", () => {
 
 describe("issueShow", () => {
   test("finds issue by ID and returns metadata with empty stores", async () => {
-    const created = (await issueCreate({ "--title": "Show Test" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Show Test" }, root))
     const result = await issueShow({ "--id": created.id }, root)
     expect(result.id).toBe(created.id)
     expect(result.metadata.title).toBe("Show Test")
@@ -226,14 +240,14 @@ describe("issueShow", () => {
   })
 
   test("finds closed issues", async () => {
-    const created = (await issueCreate({ "--title": "Archive Show" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Archive Show" }, root))
     await issueClose({ "--id": created.id }, root)
     const result = await issueShow({ "--id": created.id }, root)
     expect(result.metadata.status).toBe("closed")
   })
 
   test("with store directories lists store names and keys", async () => {
-    const created = (await issueCreate({ "--title": "Store Test" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Test" }, root))
     const fakeStdin = (s: string) => () => Promise.resolve(s)
     await storeSet({ "--id": created.id, "--store": "tasks", "--key": "01-setup.md" }, fakeStdin("content"), root)
     await storeSet({ "--id": created.id, "--store": "tasks", "--key": "02-impl.md" }, fakeStdin("content"), root)
@@ -243,14 +257,14 @@ describe("issueShow", () => {
   })
 
   test("--summary omits stores", async () => {
-    const created = (await issueCreate({ "--title": "Summary Show" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Summary Show" }, root))
     const result = await issueShow({ "--id": created.id, "--summary": "true" }, root)
     expect(result.metadata.title).toBe("Summary Show")
     expect(result).not.toHaveProperty("stores")
   })
 
   test("--compact returns agent-friendly metadata and omits stores", async () => {
-    const created = (await issueCreate({ "--title": "Compact Show" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Compact Show" }, root))
     const result = await issueShow({ "--id": created.id, "--compact": "true" }, root)
     expect(result.metadata).toEqual({
       title: "Compact Show",
@@ -266,14 +280,14 @@ describe("issueShow", () => {
   })
 
   test("--fields narrows metadata and omits stores by default", async () => {
-    const created = (await issueCreate({ "--title": "Field Show" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Field Show" }, root))
     const result = await issueShow({ "--id": created.id, "--fields": "title,phase" }, root)
     expect(result.metadata).toEqual({ title: "Field Show", phase: "research" })
     expect(result).not.toHaveProperty("stores")
   })
 
   test("--fields with --include-stores keeps stores", async () => {
-    const created = (await issueCreate({ "--title": "Field Show Stores" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Field Show Stores" }, root))
     const fakeStdin = (s: string) => () => Promise.resolve(s)
     await storeSet({ "--id": created.id, "--store": "research", "--key": "summary" }, fakeStdin("content"), root)
 
@@ -310,16 +324,16 @@ describe("issueList", () => {
     const openOne = (await issueCreate(
       { "--title": "Open One", "--description": "Replace new packet session page", "--label": "ui" },
       listRoot
-    )) as IssueResult
+    ))
     await updateArrayField({ "--id": openOne.id, "--add": "epic1" }, "refs", listRoot)
     await issueCreate({ "--title": "Open Two", "--label": ["backend", "packet"] }, listRoot)
-    const toClose = (await issueCreate({ "--title": "Closed One" }, listRoot)) as IssueResult
+    const toClose = (await issueCreate({ "--title": "Closed One" }, listRoot))
     await issueClose({ "--id": toClose.id }, listRoot)
   })
 
   test("returns open issues", async () => {
     const result = await issueList({}, listRoot)
-    const titles = result.map((i) => i.title as string)
+    const titles = result.map((i) => i.title)
     expect(titles).toContain("Open One")
     expect(titles).toContain("Open Two")
   })
@@ -338,13 +352,13 @@ describe("issueList", () => {
 
   test("excludes closed issues by default", async () => {
     const result = await issueList({}, listRoot)
-    const titles = result.map((i) => i.title as string)
+    const titles = result.map((i) => i.title)
     expect(titles).not.toContain("Closed One")
   })
 
   test("--all includes closed issues", async () => {
     const result = await issueList({ "--all": "true" }, listRoot)
-    const titles = result.map((i) => i.title as string)
+    const titles = result.map((i) => i.title)
     expect(titles).toContain("Closed One")
   })
 
@@ -401,8 +415,8 @@ describe("issueList", () => {
 
   test("--sort updated orders by most recently updated first", async () => {
     const sortRoot = join(root, "updated-sort-test")
-    const first = (await issueCreate({ "--title": "First" }, sortRoot)) as IssueResult
-    const second = (await issueCreate({ "--title": "Second" }, sortRoot)) as IssueResult
+    const first = (await issueCreate({ "--title": "First" }, sortRoot))
+    const second = (await issueCreate({ "--title": "Second" }, sortRoot))
     await Bun.sleep(5)
     await issueMetaSet({ "--id": first.id, "--key": "owner", "--value": "backend" }, sortRoot)
 
@@ -435,7 +449,7 @@ describe("issueList", () => {
     await issueCreate({ "--title": "Medium", "--priority": "1" }, sortRoot)
 
     const result = await issueList({}, sortRoot)
-    const titles = result.map((i) => i.title as string)
+    const titles = result.map((i) => i.title)
     expect(titles).toEqual(["High", "Medium", "Default", "Low"])
   })
 
@@ -451,7 +465,7 @@ describe("issueList", () => {
     )
 
     const result = await issueList({}, legacyRoot)
-    const titles = result.map((i) => i.title as string)
+    const titles = result.map((i) => i.title)
     expect(titles).toEqual(["Normal", "Legacy"])
   })
 })
@@ -462,7 +476,7 @@ describe("repo-local tracker isolation", () => {
     const repoB = join(root, "repo-b")
     const externalRoot = join(root, "outside-repos")
 
-    const created = (await issueCreate({ "--title": "Repo A Only" }, repoA)) as IssueResult
+    const created = (await issueCreate({ "--title": "Repo A Only" }, repoA))
     await issueCreate({ "--title": "Outside" }, externalRoot)
 
     const repoAIssues = await issueList({}, repoA)
@@ -704,8 +718,8 @@ describe("issueSearch", () => {
 describe("issueChildren / issueParents / issueRelated", () => {
   test("create --parent drives hierarchy queries without refs mutation", async () => {
     const relationRoot = join(root, "relation-test")
-    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
-    const child = (await issueCreate({ "--title": "Child One", "--parent": parent.id }, relationRoot)) as IssueResult
+    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot))
+    const child = (await issueCreate({ "--title": "Child One", "--parent": parent.id }, relationRoot))
 
     const children = await issueChildren(
       { "--id": parent.id, "--fields": "id,title,phase,status" },
@@ -759,7 +773,7 @@ describe("issueChildren / issueParents / issueRelated", () => {
 
   test("create rejects closed parent issues", async () => {
     const relationRoot = join(root, "relation-test-closed-parent")
-    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
+    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot))
     await issueClose({ "--id": parent.id }, relationRoot)
 
     await expect(
@@ -769,8 +783,8 @@ describe("issueChildren / issueParents / issueRelated", () => {
 
   test("relationship commands ignore refs when no hierarchy link exists", async () => {
     const relationRoot = join(root, "relation-test-ignore-refs")
-    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot)) as IssueResult
-    const child = (await issueCreate({ "--title": "Child One" }, relationRoot)) as IssueResult
+    const parent = (await issueCreate({ "--title": "Parent Epic" }, relationRoot))
+    const child = (await issueCreate({ "--title": "Child One" }, relationRoot))
 
     await updateArrayField(
       { "--id": child.id, "--add": [parent.id, "https://example.com/123"] },
@@ -789,11 +803,11 @@ describe("issueChildren / issueParents / issueRelated", () => {
 describe("issueClose", () => {
   test("appends IssueClosed, keeps the issue in place, and surfaces it through current-state reads", async () => {
     const closeRoot = join(root, "close-current-state")
-    const parent = (await issueCreate({ "--title": "Close Parent" }, closeRoot)) as IssueResult
+    const parent = (await issueCreate({ "--title": "Close Parent" }, closeRoot))
     const child = (await issueCreate(
       { "--title": "Close Child", "--parent": parent.id },
       closeRoot
-    )) as IssueResult
+    ))
 
     const result = await issueClose({ "--id": child.id }, closeRoot)
     expect(result.closed).toBe(true)
@@ -830,7 +844,7 @@ describe("issueClose", () => {
 
   test("on already-closed returns already_closed without appending another close event", async () => {
     const closeRoot = join(root, "double-close")
-    const created = (await issueCreate({ "--title": "Double Close" }, closeRoot)) as IssueResult
+    const created = (await issueCreate({ "--title": "Double Close" }, closeRoot))
     await issueClose({ "--id": created.id }, closeRoot)
     const result = await issueClose({ "--id": created.id }, closeRoot)
     expect(result.already_closed).toBe(true)
@@ -845,11 +859,11 @@ describe("projection rebuilds", () => {
 
   test("rebuilds missing or corrupt issue, store, and hierarchy projections from canonical history", async () => {
     const rebuildRoot = join(root, "projection-rebuild")
-    const parent = (await issueCreate({ "--title": "Rebuild Parent" }, rebuildRoot)) as IssueResult
+    const parent = (await issueCreate({ "--title": "Rebuild Parent" }, rebuildRoot))
     const child = (await issueCreate(
       { "--title": "Rebuild Child", "--parent": parent.id },
       rebuildRoot
-    )) as IssueResult
+    ))
 
     await storeSet(
       { "--id": child.id, "--store": "research", "--key": "summary" },
@@ -901,9 +915,7 @@ describe("projection rebuilds", () => {
       },
     ])
 
-    const rebuiltIssue = JSON.parse(
-      readFileSync(join(issueProjectionRoot(rebuildRoot), child.id, "issue.json"), "utf-8")
-    ) as Record<string, unknown>
+    const rebuiltIssue = readJsonObject(join(issueProjectionRoot(rebuildRoot), child.id, "issue.json"))
     expect(rebuiltIssue.title).toBe("Rebuild Child")
     expect(rebuiltIssue.status).toBe("closed")
     expect(readFileSync(join(issueProjectionRoot(rebuildRoot), child.id, "research", "summary"), "utf-8")).toBe(
@@ -918,28 +930,28 @@ describe("projection rebuilds", () => {
 
 describe("meta", () => {
   test("issueMetaSet adds a new key and returns full issue.json contents", async () => {
-    const created = (await issueCreate({ "--title": "Meta Test" }, root)) as IssueResult
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "backend" }, root)) as Record<string, any>
+    const created = (await issueCreate({ "--title": "Meta Test" }, root))
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "backend" }, root))
     expect(result.owner).toBe("backend")
     expect(result.title).toBe("Meta Test")
 
     // Verify on disk
     const { path } = resolveIssue(created.id, root)
-    const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
+    const data = readJsonObject(join(path, "issue.json"))
     expect(data.owner).toBe("backend")
   })
 
   test("issueMetaSet overwrites an existing key", async () => {
-    const created = (await issueCreate({ "--title": "Meta Overwrite" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Meta Overwrite" }, root))
     await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "backend" }, root)
     const beforeUpdate = String((await issueShow({ "--id": created.id, "--full": "true" }, root)).metadata.updated)
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "frontend" }, root)) as Record<string, any>
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "frontend" }, root))
     expect(result.owner).toBe("frontend")
     expect(String(result.updated) >= beforeUpdate).toBe(true)
   })
 
   test("issueMetaSet rejects reserved keys", async () => {
-    const created = (await issueCreate({ "--title": "Meta Reserved" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Meta Reserved" }, root))
     await expect(
       issueMetaSet({ "--id": created.id, "--key": "phase", "--value": "ready-to-code" }, root)
     ).rejects.toThrow("Metadata key 'phase' is reserved; use a dedicated command instead")
@@ -949,27 +961,27 @@ describe("meta", () => {
   })
 
   test("issueMetaSet on closed issue works", async () => {
-    const created = (await issueCreate({ "--title": "Meta Archive" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Meta Archive" }, root))
     await issueClose({ "--id": created.id }, root)
-    const result = (await issueMetaSet({ "--id": created.id, "--key": "priority", "--value": "high" }, root)) as Record<string, any>
+    const result = (await issueMetaSet({ "--id": created.id, "--key": "priority", "--value": "high" }, root))
     expect(result.priority).toBe("high")
   })
 
   test("issueMetaGet returns value for existing key", async () => {
-    const created = (await issueCreate({ "--title": "Meta Get" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Meta Get" }, root))
     await issueMetaSet({ "--id": created.id, "--key": "priority", "--value": "low" }, root)
     const result = await issueMetaGet({ "--id": created.id, "--key": "priority" }, root)
     expect(result.value).toBe("low")
   })
 
   test("issueMetaGet returns null for missing key", async () => {
-    const created = (await issueCreate({ "--title": "Meta Get Missing" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Meta Get Missing" }, root))
     const result = await issueMetaGet({ "--id": created.id, "--key": "nonexistent" }, root)
     expect(result.value).toBeNull()
   })
 
   test("issueMetaSet missing required flags throws", async () => {
-    const created = (await issueCreate({ "--title": "Meta Flags" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Meta Flags" }, root))
     await expect(issueMetaSet({ "--id": created.id, "--key": "k" }, root)).rejects.toThrow("--value is required")
     await expect(issueMetaSet({ "--id": created.id, "--value": "v" }, root)).rejects.toThrow("--key is required")
     await expect(issueMetaSet({ "--key": "k", "--value": "v" }, root)).rejects.toThrow("--id is required")
@@ -991,7 +1003,7 @@ describe("phase commands and store revisions", () => {
       },
     })
 
-    const created = (await issueCreate({ "--title": "Phase Configured" }, phaseRoot)) as IssueResult
+    const created = (await issueCreate({ "--title": "Phase Configured" }, phaseRoot))
     expect(created.phase).toBe("backlog")
     await expect(issuePhaseNext({ "--id": created.id }, phaseRoot)).resolves.toEqual({
       value: "in-progress",
@@ -1000,7 +1012,7 @@ describe("phase commands and store revisions", () => {
     const moved = (await issuePhaseSet(
       { "--id": created.id, "--value": "in-progress" },
       phaseRoot
-    )) as Record<string, unknown>
+    ))
     expect(moved.phase).toBe("in-progress")
     expect((await issueShow({ "--id": created.id, "--summary": "true" }, phaseRoot)).metadata.phase).toBe(
       "in-progress"
@@ -1022,7 +1034,7 @@ describe("phase commands and store revisions", () => {
       },
     })
 
-    const created = (await issueCreate({ "--title": "Finalize Drafts" }, phaseRoot)) as IssueResult
+    const created = (await issueCreate({ "--title": "Finalize Drafts" }, phaseRoot))
     await storeSet(
       { "--id": created.id, "--store": "research", "--key": "summary" },
       fakeStdin("draft summary"),
@@ -1042,7 +1054,7 @@ describe("phase commands and store revisions", () => {
 
     const finalized = readCanonicalEvents(phaseRoot, created.id)
       .filter((event) => event.type === "StoreRevisionFinalized")
-      .map((event) => event.payload as Record<string, unknown>)
+      .map((event) => expectJsonObject(event.payload))
 
     expect(finalized).toHaveLength(2)
     expectRecordWithFields(finalized, { store: "research", key: "summary", revision: 1, phase: "research" })
@@ -1060,7 +1072,7 @@ describe("phase commands and store revisions", () => {
       },
     })
 
-    const created = (await issueCreate({ "--title": "Store Revisions" }, revisionRoot)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Revisions" }, revisionRoot))
     await storeSet(
       { "--id": created.id, "--store": "research", "--key": "summary" },
       fakeStdin("phase one"),
@@ -1079,7 +1091,7 @@ describe("phase commands and store revisions", () => {
 
     const savedRevisions = readCanonicalEvents(revisionRoot, created.id)
       .filter((event) => event.type === "StoreRevisionSaved")
-      .map((event) => event.payload as Record<string, unknown>)
+      .map((event) => expectJsonObject(event.payload))
       .filter((payload) => payload.store === "research" && payload.key === "summary")
 
     expect(savedRevisions).toHaveLength(2)
@@ -1094,7 +1106,7 @@ describe("phase commands and store revisions", () => {
 
   test("stale issue writes fail with optimistic-concurrency errors", async () => {
     const concurrencyRoot = join(root, "stale-issue-writes")
-    const created = (await issueCreate({ "--title": "Stale Writer" }, concurrencyRoot)) as IssueResult
+    const created = (await issueCreate({ "--title": "Stale Writer" }, concurrencyRoot))
 
     const aggregate = await readTrackedIssueAggregate(concurrencyRoot, created.id)
     await issueMetaSet({ "--id": created.id, "--key": "owner", "--value": "backend" }, concurrencyRoot)
@@ -1116,55 +1128,55 @@ describe("phase commands and store revisions", () => {
 
 describe("updateArrayField", () => {
   test("adds values to empty field", async () => {
-    const created = (await issueCreate({ "--title": "Update Add" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Update Add" }, root))
     const result = await updateArrayField({ "--id": created.id, "--add": ["cli", "bug"] }, "labels", root)
     expect(result.values).toEqual(["cli", "bug"])
     expect(result.field).toBe("labels")
   })
 
   test("removes values", async () => {
-    const created = (await issueCreate({ "--title": "Update Remove", "--label": ["cli", "bug", "pdf"] }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Update Remove", "--label": ["cli", "bug", "pdf"] }, root))
     const result = await updateArrayField({ "--id": created.id, "--remove": "bug" }, "labels", root)
     expect(result.values).toEqual(["cli", "pdf"])
   })
 
   test("add + remove in same call (remove first, then add)", async () => {
-    const created = (await issueCreate({ "--title": "Update Both", "--label": ["old"] }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Update Both", "--label": ["old"] }, root))
     const result = await updateArrayField({ "--id": created.id, "--remove": "old", "--add": "new" }, "labels", root)
     expect(result.values).toEqual(["new"])
   })
 
   test("deduplicates on add", async () => {
-    const created = (await issueCreate({ "--title": "Update Dedup", "--label": ["cli"] }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Update Dedup", "--label": ["cli"] }, root))
     const result = await updateArrayField({ "--id": created.id, "--add": "cli" }, "labels", root)
     expect(result.values).toEqual(["cli"])
   })
 
   test("throws for unsupported array fields", async () => {
-    const created = (await issueCreate({ "--title": "Update Missing Field" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Update Missing Field" }, root))
     await expect(updateArrayField({ "--id": created.id, "--add": "val" }, "tags", root)).rejects.toThrow(
       "Unsupported array field 'tags'"
     )
   })
 
   test("works on refs field", async () => {
-    const created = (await issueCreate({ "--title": "Update Refs" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Update Refs" }, root))
     const result = await updateArrayField({ "--id": created.id, "--add": ["m85s", "x0h2"] }, "refs", root)
     expect(result.values).toEqual(["m85s", "x0h2"])
   })
 
   test("throws when neither --add nor --remove provided", async () => {
-    const created = (await issueCreate({ "--title": "Update Neither" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Update Neither" }, root))
     await expect(updateArrayField({ "--id": created.id }, "labels", root)).rejects.toThrow(
       "At least one of --add or --remove is required"
     )
   })
 
   test("persists to disk", async () => {
-    const created = (await issueCreate({ "--title": "Update Persist" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Update Persist" }, root))
     await updateArrayField({ "--id": created.id, "--add": "cli" }, "labels", root)
     const { path } = resolveIssue(created.id, root)
-    const data = JSON.parse(readFileSync(join(path, "issue.json"), "utf-8"))
+    const data = readJsonObject(join(path, "issue.json"))
     expect(data.labels).toEqual(["cli"])
   })
 })
@@ -1214,7 +1226,7 @@ describe("store", () => {
   const fakeStdin = (content: string) => () => Promise.resolve(content)
 
   test("storeSet creates store directory and writes file", async () => {
-    const created = (await issueCreate({ "--title": "Store Set Test" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Set Test" }, root))
     const result = await storeSet(
       { "--id": created.id, "--store": "research", "--key": "summary" },
       fakeStdin("hello world"),
@@ -1228,7 +1240,7 @@ describe("store", () => {
   })
 
   test("storeGet reads back the written content", async () => {
-    const created = (await issueCreate({ "--title": "Store Get Test" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Get Test" }, root))
     await storeSet(
       { "--id": created.id, "--store": "data", "--key": "notes" },
       fakeStdin("some notes"),
@@ -1239,7 +1251,7 @@ describe("store", () => {
   })
 
   test("storeGet returns null for missing key", async () => {
-    const created = (await issueCreate({ "--title": "Store Get Missing Key" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Get Missing Key" }, root))
     // Create the store by writing a different key
     await storeSet({ "--id": created.id, "--store": "mystore", "--key": "exists" }, fakeStdin("x"), root)
     const result = await storeGet({ "--id": created.id, "--store": "mystore", "--key": "nope" }, root)
@@ -1247,13 +1259,13 @@ describe("store", () => {
   })
 
   test("storeGet returns null for missing store", async () => {
-    const created = (await issueCreate({ "--title": "Store Get Missing Store" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Get Missing Store" }, root))
     const result = await storeGet({ "--id": created.id, "--store": "nonexistent", "--key": "nope" }, root)
     expect(result).toEqual({ value: null })
   })
 
   test("storeKeys lists all keys in a store", async () => {
-    const created = (await issueCreate({ "--title": "Store Keys Test" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Keys Test" }, root))
     await storeSet({ "--id": created.id, "--store": "docs", "--key": "alpha" }, fakeStdin("a"), root)
     await storeSet({ "--id": created.id, "--store": "docs", "--key": "beta" }, fakeStdin("b"), root)
     await storeSet({ "--id": created.id, "--store": "docs", "--key": "gamma" }, fakeStdin("c"), root)
@@ -1262,13 +1274,13 @@ describe("store", () => {
   })
 
   test("storeKeys returns empty array for missing store", async () => {
-    const created = (await issueCreate({ "--title": "Store Keys Empty" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Keys Empty" }, root))
     const result = await storeKeys({ "--id": created.id, "--store": "nope" }, root)
     expect(result).toEqual({ keys: [] })
   })
 
   test("storeDelete removes a single key", async () => {
-    const created = (await issueCreate({ "--title": "Store Delete Key" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Delete Key" }, root))
     await storeSet({ "--id": created.id, "--store": "docs", "--key": "alpha" }, fakeStdin("a"), root)
     await storeSet({ "--id": created.id, "--store": "docs", "--key": "beta" }, fakeStdin("b"), root)
 
@@ -1279,7 +1291,7 @@ describe("store", () => {
   })
 
   test("storeDelete removes empty store after deleting its last key", async () => {
-    const created = (await issueCreate({ "--title": "Store Delete Last Key" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Delete Last Key" }, root))
     await storeSet({ "--id": created.id, "--store": "docs", "--key": "only" }, fakeStdin("a"), root)
 
     const result = await storeDelete({ "--id": created.id, "--store": "docs", "--key": "only" }, root)
@@ -1291,7 +1303,7 @@ describe("store", () => {
   })
 
   test("storeDelete removes an entire store when --key is omitted", async () => {
-    const created = (await issueCreate({ "--title": "Store Delete Store" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Delete Store" }, root))
     await storeSet({ "--id": created.id, "--store": "docs", "--key": "alpha" }, fakeStdin("a"), root)
     await storeSet({ "--id": created.id, "--store": "docs", "--key": "beta" }, fakeStdin("b"), root)
 
@@ -1301,7 +1313,7 @@ describe("store", () => {
   })
 
   test("storeDelete is idempotent for missing targets", async () => {
-    const created = (await issueCreate({ "--title": "Store Delete Missing" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Delete Missing" }, root))
     expect(await storeDelete({ "--id": created.id, "--store": "docs", "--key": "nope" }, root)).toEqual({
       deleted: false,
       kind: "key",
@@ -1313,7 +1325,7 @@ describe("store", () => {
   })
 
   test("store values round-trip unchanged (arbitrary content)", async () => {
-    const created = (await issueCreate({ "--title": "Store Roundtrip" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Roundtrip" }, root))
     const content = "line1\nline2\n\ttabbed\n🎉 emoji\nnull bytes: \x00"
     await storeSet({ "--id": created.id, "--store": "raw", "--key": "blob" }, fakeStdin(content), root)
     const result = await storeGet({ "--id": created.id, "--store": "raw", "--key": "blob" }, root)
@@ -1321,7 +1333,7 @@ describe("store", () => {
   })
 
   test("storeSet with --value flag stores the value", async () => {
-    const created = (await issueCreate({ "--title": "Store Value Flag" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Value Flag" }, root))
     const neverCalled = () => { throw new Error("stdin should not be read") }
     await storeSet(
       { "--id": created.id, "--store": "notes", "--key": "quick", "--value": "simple string" },
@@ -1333,7 +1345,7 @@ describe("store", () => {
   })
 
   test("storeSet with --file flag reads from file", async () => {
-    const created = (await issueCreate({ "--title": "Store File Flag" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store File Flag" }, root))
     const tmpFile = join(root, "tmp-content.md")
     writeFileSync(tmpFile, "line one\nline two\nline three")
     const neverCalled = () => { throw new Error("stdin should not be read") }
@@ -1347,7 +1359,7 @@ describe("store", () => {
   })
 
   test("storeSet --value takes precedence over --file", async () => {
-    const created = (await issueCreate({ "--title": "Store Precedence" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Precedence" }, root))
     const tmpFile = join(root, "tmp-ignored.md")
     writeFileSync(tmpFile, "file content")
     const neverCalled = () => { throw new Error("stdin should not be read") }
@@ -1361,7 +1373,7 @@ describe("store", () => {
   })
 
   test("invalid store name is rejected", async () => {
-    const created = (await issueCreate({ "--title": "Store Bad Name" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Bad Name" }, root))
     await expect(
       storeSet({ "--id": created.id, "--store": "../bad", "--key": "k" }, fakeStdin("x"), root),
     ).rejects.toThrow("Invalid store name '../bad'")
@@ -1371,7 +1383,7 @@ describe("store", () => {
   })
 
   test("invalid store key is rejected", async () => {
-    const created = (await issueCreate({ "--title": "Store Bad Key" }, root)) as IssueResult
+    const created = (await issueCreate({ "--title": "Store Bad Key" }, root))
     await expect(
       storeSet({ "--id": created.id, "--store": "valid", "--key": "foo/bar" }, fakeStdin("x"), root),
     ).rejects.toThrow("Invalid key 'foo/bar'")

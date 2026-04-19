@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs"
 import { join, basename } from "node:path"
-import type { Command } from "./types"
+import type { Command, CommandArgs, JsonObject, JsonValue, StringMap } from "./types"
+import type { IssueMetadata, IssueRecord } from "./tracker/events"
 import { detectRepoRoot, getArchiveRoot, getIssueRoot, listCanonicalIssueIds } from "./tracker/root"
 import {
   closeTrackedIssue,
@@ -26,7 +27,7 @@ import { importLegacyTracker } from "./tracker/migrate"
 // ---------------------------------------------------------------------------
 
 export function requireFlag(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   flag: string
 ): string {
   const val = args[flag]
@@ -56,6 +57,10 @@ const COMPACT_SHOW_FIELDS = [
 const COMPACT_RELATED_FIELDS = ["id", "title", "status", "phase", "priority", "relation"]
 
 type SortMode = "priority" | "updated"
+type IssueProjection = Partial<IssueRecord> & { id: string }
+type IssueRelation = "parent" | "child" | "both"
+type RelatedIssueProjection = IssueProjection & { relation?: IssueRelation }
+type IssueShowResult = { id: string; metadata: JsonObject; stores?: StringMap<string[]> }
 
 export function resolveIssue(
   id: string,
@@ -101,7 +106,7 @@ export function resolveIssue(
 }
 
 function optionalFlag(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   flag: string
 ): string | undefined {
   const val = args[flag]
@@ -110,7 +115,7 @@ function optionalFlag(
 }
 
 function parseCsvFlag(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   flag: string
 ): string[] | undefined {
   const raw = args[flag]
@@ -126,7 +131,7 @@ function parseCsvFlag(
 }
 
 function parseLimit(
-  args: Record<string, string | string[] | undefined>
+  args: CommandArgs
 ): number | undefined {
   const raw = optionalFlag(args, "--limit")
   if (raw === undefined) return undefined
@@ -138,7 +143,7 @@ function parseLimit(
 }
 
 function parseSort(
-  args: Record<string, string | string[] | undefined>
+  args: CommandArgs
 ): SortMode {
   const raw = optionalFlag(args, "--sort")
   if (raw === undefined) return "priority"
@@ -147,7 +152,7 @@ function parseSort(
 }
 
 function resolveOutputFields(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   compactFields: string[],
   defaultCompact = false
 ): string[] | undefined {
@@ -158,21 +163,39 @@ function resolveOutputFields(
   return undefined
 }
 
+function isJsonValue(value: JsonValue | object | null | undefined): value is JsonValue {
+  if (value === null) return true
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return true
+  }
+  if (Array.isArray(value)) {
+    return value.every((item) => isJsonValue(item))
+  }
+  if (typeof value === "object" && value !== null) {
+    return Object.values(value).every((item) => isJsonValue(item))
+  }
+  return false
+}
+
 function pickFields(
-  source: Record<string, unknown>,
+  source: StringMap<JsonValue | undefined>,
   fields: string[] | undefined
-): Record<string, unknown> {
-  if (fields === undefined) return { ...source }
-  const picked: Record<string, unknown> = {}
-  for (const field of fields) {
-    if (field in source) {
-      picked[field] = source[field]
+): JsonObject {
+  const picked: JsonObject = {}
+  const entries: Array<[string, JsonValue | undefined]> = fields === undefined
+    ? Object.entries(source)
+    : fields.map((field): [string, JsonValue | undefined] => [field, source[field]])
+
+  for (const [field, value] of entries) {
+    if (isJsonValue(value)) {
+      picked[field] = value
     }
   }
+
   return picked
 }
 
-async function loadIssueRecord(root: string, issueId: string): Promise<Record<string, unknown> | null> {
+async function loadIssueRecord(root: string, issueId: string): Promise<IssueRecord | null> {
   try {
     const resolved = resolveIssue(issueId, root)
     const issue = resolved.archived
@@ -184,7 +207,7 @@ async function loadIssueRecord(root: string, issueId: string): Promise<Record<st
   }
 }
 
-function sortIssues(issues: Record<string, unknown>[], sort: SortMode): Record<string, unknown>[] {
+function sortIssues(issues: IssueProjection[], sort: SortMode): IssueProjection[] {
   return [...issues].sort((a, b) => {
     if (sort === "updated") {
       const ua = typeof a.updated === "string" ? a.updated : ""
@@ -202,7 +225,7 @@ function sortIssues(issues: Record<string, unknown>[], sort: SortMode): Record<s
   })
 }
 
-function matchesText(issue: Record<string, unknown>, query: string): boolean {
+function matchesText(issue: IssueProjection, query: string): boolean {
   const haystacks: string[] = []
   for (const key of ["id", "title", "description"]) {
     const value = issue[key]
@@ -221,10 +244,10 @@ function matchesText(issue: Record<string, unknown>, query: string): boolean {
 }
 
 function projectIssueRecord(
-  issue: Record<string, unknown>,
+  issue: IssueProjection,
   fields: string[] | undefined
-): Record<string, unknown> {
-  return fields === undefined ? issue : pickFields(issue, fields)
+): JsonObject {
+  return pickFields(issue, fields)
 }
 
 // ---------------------------------------------------------------------------
@@ -232,9 +255,9 @@ function projectIssueRecord(
 // ---------------------------------------------------------------------------
 
 export async function issueCreate(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>> {
+): Promise<IssueRecord> {
   const title = requireFlag(args, "--title")
   const description = args["--description"]
     ? (Array.isArray(args["--description"]) ? args["--description"][0] : args["--description"])
@@ -264,9 +287,9 @@ export async function issueCreate(
 }
 
 export async function issueShow(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<{ id: string; metadata: Record<string, unknown>; stores?: Record<string, string[]> }> {
+): Promise<IssueShowResult> {
   const id = requireFlag(args, "--id")
   const { path, archived } = resolveIssue(id, root)
   const issue = archived
@@ -275,7 +298,7 @@ export async function issueShow(
 
   const fields = resolveOutputFields(args, COMPACT_SHOW_FIELDS)
   const includeStores = "--include-stores" in args || (!("--summary" in args) && fields === undefined)
-  const result: { id: string; metadata: Record<string, unknown>; stores?: Record<string, string[]> } = {
+  const result: IssueShowResult = {
     id: issue.id,
     metadata: pickFields(issue.metadata, fields),
   }
@@ -288,9 +311,9 @@ export async function issueShow(
 }
 
 export async function issueList(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>[]> {
+): Promise<JsonObject[]> {
   const includeAll = "--all" in args
   const whereRaw = args["--where"]
   const conditions: Array<[string, string]> = []
@@ -314,10 +337,8 @@ export async function issueList(
   const sort = parseSort(args)
 
   const results = (await listTrackedIssues(root, includeAll)).filter((issue) => {
-    const issueRecord = issue as Record<string, unknown>
-
     for (const [key, value] of conditions) {
-      if (String(issueRecord[key]) !== value) {
+      if (String(issue[key]) !== value) {
         return false
       }
     }
@@ -344,9 +365,9 @@ export async function issueList(
 }
 
 export async function issueChildren(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>[]> {
+): Promise<JsonObject[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
   const targetId = basename(path)
@@ -358,7 +379,7 @@ export async function issueChildren(
   const matches = (await Promise.all(
     (await listHierarchyChildren(root, targetId, includeAll)).map((childId) => loadIssueRecord(root, childId))
   ))
-    .filter((issue): issue is Record<string, unknown> => issue !== null)
+    .filter((issue): issue is IssueRecord => issue !== null)
     .filter((issue) => includeAll || issue.status !== "closed")
 
   const sortedMatches = sortIssues(matches, sort)
@@ -367,9 +388,9 @@ export async function issueChildren(
 }
 
 export async function issueParents(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>[]> {
+): Promise<JsonObject[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
   const targetId = basename(path)
@@ -379,7 +400,7 @@ export async function issueParents(
 
   const parents = (await Promise.all(
     (await listHierarchyParents(root, targetId)).map((parentId) => loadIssueRecord(root, parentId))
-  )).filter((issue): issue is Record<string, unknown> => issue !== null)
+  )).filter((issue): issue is IssueRecord => issue !== null)
 
   const sortedParents = sortIssues(parents, sort)
   const limitedParents = limit === undefined ? sortedParents : sortedParents.slice(0, limit)
@@ -387,9 +408,9 @@ export async function issueParents(
 }
 
 export async function issueSearch(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>[]> {
+): Promise<JsonObject[]> {
   const positional = args["_"]
   const positionalArgs = positional === undefined ? [] : Array.isArray(positional) ? positional : [positional]
   const queryFromPositional = positionalArgs.join(" ").trim()
@@ -399,10 +420,10 @@ export async function issueSearch(
     throw new Error("search query is required (pass positional text or --text)")
   }
 
-  const nextArgs: Record<string, string | string[] | undefined> = { ...args, "--text": query }
+  const nextArgs: CommandArgs = { ...args, "--text": query }
   delete nextArgs._
   const searchResults = await searchTrackedIssues(root, "--all" in args, query)
-  const filteredArgs: Record<string, string | string[] | undefined> = { ...nextArgs }
+  const filteredArgs: CommandArgs = { ...nextArgs }
   delete filteredArgs["--text"]
 
   const fields = resolveOutputFields(filteredArgs, COMPACT_LIST_FIELDS, true)
@@ -414,9 +435,9 @@ export async function issueSearch(
 }
 
 export async function issueRelated(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>[]> {
+): Promise<JsonObject[]> {
   const id = requireFlag(args, "--id")
   const { path } = resolveIssue(id, root)
   const targetId = basename(path)
@@ -424,18 +445,18 @@ export async function issueRelated(
   const fields = resolveOutputFields(args, COMPACT_RELATED_FIELDS, true)
   const limit = parseLimit(args)
   const sort = parseSort(args)
-  const related = new Map<string, Record<string, unknown>>()
+  const related = new Map<string, RelatedIssueProjection>()
 
   for (const parent of (await Promise.all(
     (await listHierarchyParents(root, targetId)).map((parentId) => loadIssueRecord(root, parentId))
-  )).filter((issue): issue is Record<string, unknown> => issue !== null)) {
+  )).filter((issue): issue is IssueRecord => issue !== null)) {
     related.set(String(parent.id), { ...parent, relation: "parent" })
   }
 
   for (const child of (await Promise.all(
     (await listHierarchyChildren(root, targetId, includeAll)).map((childId) => loadIssueRecord(root, childId))
   ))
-    .filter((issue): issue is Record<string, unknown> => issue !== null)
+    .filter((issue): issue is IssueRecord => issue !== null)
     .filter((issue) => includeAll || issue.status !== "closed")) {
     const existing = related.get(String(child.id))
     if (existing) {
@@ -451,9 +472,9 @@ export async function issueRelated(
 }
 
 export async function issueClose(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>> {
+): Promise<{ closed?: true; already_closed?: true }> {
   const id = requireFlag(args, "--id")
   const { path: issuePath, archived } = resolveIssue(id, root)
   if (archived) {
@@ -464,9 +485,9 @@ export async function issueClose(
 }
 
 export async function issueMetaSet(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>> {
+): Promise<JsonObject> {
   const id = requireFlag(args, "--id")
   const key = requireFlag(args, "--key")
   const value = requireFlag(args, "--value")
@@ -476,9 +497,9 @@ export async function issueMetaSet(
 }
 
 export async function issueMetaGet(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<{ value: unknown | null }> {
+): Promise<{ value: IssueMetadata[string] | null }> {
   const id = requireFlag(args, "--id")
   const key = requireFlag(args, "--key")
   const { path, archived } = resolveIssue(id, root)
@@ -491,7 +512,7 @@ export async function issueMetaGet(
 }
 
 export async function issuePhaseNext(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
 ): Promise<{ value: string }> {
   const id = requireFlag(args, "--id")
@@ -500,9 +521,9 @@ export async function issuePhaseNext(
 }
 
 export async function issuePhaseSet(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>> {
+): Promise<IssueMetadata> {
   const id = requireFlag(args, "--id")
   const value = requireFlag(args, "--value")
   const { path } = resolveIssue(id, root)
@@ -510,9 +531,9 @@ export async function issuePhaseSet(
 }
 
 export async function legacyImport(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string
-): Promise<Record<string, unknown>> {
+) {
   const source = requireFlag(args, "--source")
   return importLegacyTracker(root, source)
 }
@@ -522,7 +543,7 @@ export async function legacyImport(
 // ---------------------------------------------------------------------------
 
 export async function updateArrayField(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   field: string,
   root: string
 ): Promise<{ id: string; field: string; values: string[] }> {
@@ -570,7 +591,7 @@ async function readAllStdin(): Promise<string> {
 }
 
 export async function storeSet(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   readStdin: () => Promise<string>,
   root: string,
 ): Promise<{ stored: true }> {
@@ -598,7 +619,7 @@ export async function storeSet(
 }
 
 export async function storeGet(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string,
 ): Promise<{ value: string | null }> {
   const id = requireFlag(args, "--id")
@@ -612,7 +633,7 @@ export async function storeGet(
 }
 
 export async function storeKeys(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string,
 ): Promise<{ keys: string[] }> {
   const id = requireFlag(args, "--id")
@@ -624,7 +645,7 @@ export async function storeKeys(
 }
 
 export async function storeDelete(
-  args: Record<string, string | string[] | undefined>,
+  args: CommandArgs,
   root: string,
 ): Promise<{ deleted: boolean; kind: "store" | "key"; removedEmptyStore?: boolean }> {
   const id = requireFlag(args, "--id")
@@ -643,7 +664,7 @@ export async function storeDelete(
 // Command registration
 // ---------------------------------------------------------------------------
 
-export const commands: Record<string, Command> = {
+export const commands: StringMap<Command> = {
   create: {
     description: "Create a new issue",
     usage: "task create --title <title> [--description <desc>] [--github-issue <number>] [--priority <0-4>] [--label <label>] [--parent <id>]",
