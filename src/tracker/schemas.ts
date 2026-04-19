@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { jsonValueSchema } from "../json-schema"
-import type { JsonValue } from "../types"
+import type { JsonValue, StringMap } from "../types"
 
 const nonEmptyStringSchema = z.string().min(1)
 const eventTimestampSchema = z.string().refine((value) => Number.isFinite(Date.parse(value)), {
@@ -9,8 +9,7 @@ const eventTimestampSchema = z.string().refine((value) => Number.isFinite(Date.p
 
 export const issueStatusSchema = z.enum(["open", "closed"])
 
-export interface IssueMetadata {
-  [key: string]: JsonValue | undefined
+type IssueMetadataFields = {
   title: string
   description: string
   status: "open" | "closed"
@@ -20,17 +19,17 @@ export interface IssueMetadata {
   updated: string
   refs: string[]
   labels: string[]
-  github_issue?: number | undefined
-}
+} & ({ github_issue: number } | {})
 
-export interface IssueRecord extends IssueMetadata {
+export type IssueMetadata = IssueMetadataFields & StringMap<JsonValue | undefined>
+
+export type IssueRecord = IssueMetadata & {
   id: string
 }
 
 export type IssueCreatedPayload = IssueMetadata & {
   issueId: string
-  parentId?: string | undefined
-}
+} & ({ parentId: string } | {})
 
 export type IssuePhaseChangedPayload = {
   issueId: string
@@ -65,7 +64,7 @@ export type IssueClosedPayload = {
   closedAt: string
 }
 
-export type StoreRevisionSavedPayload = {
+type StoreRevisionSavedPayloadBase = {
   issueId: string
   store: string
   key: string
@@ -74,8 +73,9 @@ export type StoreRevisionSavedPayload = {
   draft: boolean
   content: string
   savedAt: string
-  supersedesRevision?: number | undefined
 }
+
+export type StoreRevisionSavedPayload = StoreRevisionSavedPayloadBase & ({ supersedesRevision: number } | {})
 
 export type StoreRevisionFinalizedPayload = {
   issueId: string
@@ -108,21 +108,21 @@ export type StoredEventFile = {
   timestamp: string
 }
 
-export interface LegacyIssueFile {
-  [key: string]: JsonValue | undefined
+type LegacyIssueFileFields = {
   title: string
-  description?: string | undefined
   status: "open" | "closed"
   phase: string
-  priority?: number | undefined
-  created?: string | undefined
-  updated?: string | undefined
-  refs?: string[] | undefined
-  labels?: string[] | undefined
-  github_issue?: number | undefined
-}
+} & ({ description: string } | {})
+  & ({ priority: number } | {})
+  & ({ created: string } | {})
+  & ({ updated: string } | {})
+  & ({ refs: string[] } | {})
+  & ({ labels: string[] } | {})
+  & ({ github_issue: number } | {})
 
-const issueMetadataBaseSchema = z.object({
+export type LegacyIssueFile = LegacyIssueFileFields & StringMap<JsonValue | undefined>
+
+const issueMetadataObjectSchema = z.object({
   title: z.string(),
   description: z.string(),
   status: issueStatusSchema,
@@ -135,15 +135,26 @@ const issueMetadataBaseSchema = z.object({
   github_issue: z.number().optional(),
 })
 
-export const issueMetadataSchema: z.ZodType<IssueMetadata> = issueMetadataBaseSchema.catchall(jsonValueSchema)
+export const issueMetadataSchema: z.ZodType<IssueMetadata> = issueMetadataObjectSchema.catchall(jsonValueSchema)
 
-export const issueRecordSchema: z.ZodType<IssueRecord> = issueMetadataBaseSchema
+export const issueRecordSchema: z.ZodType<IssueRecord> = issueMetadataObjectSchema
   .extend({ id: nonEmptyStringSchema })
   .catchall(jsonValueSchema)
 
-export const issueCreatedPayloadSchema: z.ZodType<IssueCreatedPayload> = issueMetadataBaseSchema
-  .extend({ issueId: nonEmptyStringSchema, parentId: nonEmptyStringSchema.optional() })
-  .catchall(jsonValueSchema)
+export const issueCreatedPayloadSchema: z.ZodType<IssueCreatedPayload> = z.object({
+  title: z.string(),
+  description: z.string(),
+  status: issueStatusSchema,
+  phase: nonEmptyStringSchema,
+  priority: z.number(),
+  created: nonEmptyStringSchema,
+  updated: nonEmptyStringSchema,
+  refs: z.array(z.string()),
+  labels: z.array(z.string()),
+  github_issue: z.number().optional(),
+  issueId: nonEmptyStringSchema,
+  parentId: nonEmptyStringSchema.optional(),
+}).catchall(jsonValueSchema)
 
 export const issuePhaseChangedPayloadSchema: z.ZodType<IssuePhaseChangedPayload> = z.object({
   issueId: nonEmptyStringSchema,

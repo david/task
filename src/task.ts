@@ -239,8 +239,12 @@ async function main(): Promise<void> {
   process.stdout.write(formatResult(result, flags))
 }
 
-main().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error)
-  process.stderr.write(JSON.stringify({ error: message }))
-  process.exit(1)
-})
+void (async () => {
+  try {
+    await main()
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    process.stderr.write(JSON.stringify({ error: message }))
+    process.exit(1)
+  }
+})()
