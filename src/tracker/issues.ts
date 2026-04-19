@@ -17,6 +17,7 @@ import {
   type IssueMetadata,
   type IssueRecord,
 } from "./events"
+import type { JsonObject, JsonValue, StringMap } from "../types"
 import { materializeHierarchyLink } from "./hierarchy"
 import { getTrackerHandles, listCanonicalIssueIds, listProjectedIssueIds } from "./root"
 import {
@@ -87,7 +88,7 @@ export async function createTrackedIssue(
 export async function loadTrackedIssue(
   root: string,
   issueId: string
-): Promise<{ id: string; metadata: IssueMetadata; stores: Record<string, string[]> }> {
+): Promise<{ id: string; metadata: IssueMetadata; stores: StringMap<string[]> }> {
   const canonical = await rebuildIssueProjection(root, issueId)
   const tracker = getTrackerHandles(root)
 
@@ -176,7 +177,7 @@ export async function searchTrackedIssues(
 export function loadArchivedTrackedIssue(
   root: string,
   issueId: string
-): { id: string; metadata: IssueMetadata; stores: Record<string, string[]> } {
+): { id: string; metadata: IssueMetadata; stores: StringMap<string[]> } {
   const tracker = getTrackerHandles(root)
   const issueDir = join(tracker.archiveRoot, issueId)
   const issue = readLegacyIssueRecord(issueDir, issueId)
@@ -244,8 +245,8 @@ export async function setTrackedIssueMetadata(
   root: string,
   issueId: string,
   key: string,
-  value: unknown
-): Promise<IssueMetadata> {
+  value: JsonValue
+): Promise<JsonObject> {
   if (RESERVED_METADATA_KEYS.has(key)) {
     throw new Error(`Metadata key '${key}' is reserved; use a dedicated command instead`)
   }

@@ -1,11 +1,12 @@
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import type { JsonObject, JsonValue, StringMap } from "../types"
 import { getTrackerRoot } from "./root"
 
 export type TaskSettings = {
   defaultPhase: string
   phases: string[]
-  transitions: Record<string, string[]>
+  transitions: StringMap<string[]>
 }
 
 const DEFAULT_SETTINGS: TaskSettings = {
@@ -14,18 +15,18 @@ const DEFAULT_SETTINGS: TaskSettings = {
   transitions: {},
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isRecord(value: JsonValue | object | null): value is JsonObject {
   return typeof value === "object" && value !== null
 }
 
-function ensurePhaseName(value: unknown, path: string): string {
+function ensurePhaseName(value: JsonValue | object | null, path: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`${path} must be a non-empty string`)
   }
   return value
 }
 
-function ensurePhaseList(value: unknown, path: string, allowEmpty = false): string[] {
+function ensurePhaseList(value: JsonValue | object | null, path: string, allowEmpty = false): string[] {
   if (!Array.isArray(value)) {
     throw new Error(`${path} must be an array of phase names`)
   }
@@ -44,15 +45,15 @@ function ensurePhaseList(value: unknown, path: string, allowEmpty = false): stri
 }
 
 function ensureTransitions(
-  value: unknown,
+  value: JsonValue | object | null,
   phases: ReadonlyArray<string>
-): Record<string, string[]> {
+): StringMap<string[]> {
   if (!isRecord(value)) {
     throw new Error(".task/settings.json transitions must be an object")
   }
 
   const phaseSet = new Set(phases)
-  const transitions: Record<string, string[]> = {}
+  const transitions: StringMap<string[]> = {}
 
   for (const [from, rawTargets] of Object.entries(value)) {
     if (!phaseSet.has(from)) {
@@ -79,7 +80,7 @@ export function loadTaskSettings(root: string): TaskSettings {
     return { ...DEFAULT_SETTINGS, phases: [...DEFAULT_SETTINGS.phases] }
   }
 
-  let parsed: unknown
+  let parsed: JsonValue | object | null
   try {
     parsed = JSON.parse(readFileSync(settingsPath, "utf-8"))
   } catch {

@@ -1,4 +1,5 @@
 import type { DomainEvent, StoredEvent } from "../../packages/esther/src/index.ts"
+import type { JsonObject, JsonValue } from "../types"
 import {
   applyStoreDeleted,
   applyStoreEntryDeleted,
@@ -21,7 +22,7 @@ export type IssueMetadata = {
   refs: string[]
   labels: string[]
   github_issue?: number
-} & Record<string, unknown>
+} & JsonObject
 
 export type IssueRecord = IssueMetadata & {
   id: string
@@ -32,6 +33,8 @@ export type IssueState = {
   parentId?: string
   stores: IssueStoreState
 }
+
+export type TrackerStoredEvent = StoredEvent<string, JsonValue>
 
 export type IssueCreatedPayload = IssueMetadata & {
   issueId: string
@@ -48,7 +51,7 @@ export type IssuePhaseChangedPayload = {
 export type IssueMetadataSetPayload = {
   issueId: string
   key: string
-  value: unknown
+  value: JsonValue
   updatedAt: string
 }
 
@@ -115,8 +118,17 @@ type ParseFailure = {
   error: string
 }
 
+type StoredEventLike = JsonObject & {
+  payload?: JsonValue
+  id?: JsonValue
+  type?: JsonValue
+  tags?: JsonValue
+  position?: JsonValue | bigint
+  timestamp?: JsonValue | Date
+}
+
 export const storedEventSchema = {
-  safeParse(value: unknown): ParseSuccess<StoredEvent> | ParseFailure {
+  safeParse(value: TrackerStoredEvent | StoredEventLike | null): ParseSuccess<TrackerStoredEvent> | ParseFailure {
     if (!isStoredEvent(value)) {
       return { success: false, error: "not a StoredEvent" }
     }
@@ -180,7 +192,7 @@ export function issuePhaseChangedEvent(
 export function issueMetadataSetEvent(
   issueId: string,
   key: string,
-  value: unknown,
+  value: JsonValue,
   updatedAt: string
 ): DomainEvent<"IssueMetadataSet", IssueMetadataSetPayload> {
   return {
@@ -267,11 +279,11 @@ export function storeDeletedEvent(
   }
 }
 
-export function foldIssue(events: ReadonlyArray<StoredEvent>): IssueMetadata | undefined {
+export function foldIssue(events: ReadonlyArray<TrackerStoredEvent>): IssueMetadata | undefined {
   return foldIssueState(events)?.metadata
 }
 
-export function foldIssueState(events: ReadonlyArray<StoredEvent>): IssueState | undefined {
+export function foldIssueState(events: ReadonlyArray<TrackerStoredEvent>): IssueState | undefined {
   let current: IssueState | undefined
 
   for (const event of events) {
@@ -393,31 +405,45 @@ export function foldIssueState(events: ReadonlyArray<StoredEvent>): IssueState |
   return current
 }
 
-function isStoredEvent(value: unknown): value is StoredEvent {
-  if (typeof value !== "object" || value === null) return false
-  const record = value as Record<string, unknown>
+function isStoredEvent(value: TrackerStoredEvent | StoredEventLike | null): value is TrackerStoredEvent {
+  if (!isRecord(value)) return false
   return (
-    typeof record.id === "string" &&
-    typeof record.type === "string" &&
-    Array.isArray(record.tags) &&
-    typeof record.position === "bigint" &&
-    record.timestamp instanceof Date
+    typeof value.id === "string" &&
+    typeof value.type === "string" &&
+    Array.isArray(value.tags) &&
+    isJsonValue(value.payload) &&
+    typeof value.position === "bigint" &&
+    value.timestamp instanceof Date
   )
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
+function isRecord(value: JsonValue | object | null | undefined): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
 }
 
-function isStringArray(value: unknown): value is string[] {
+function isJsonValue(value: JsonValue | object | null | undefined): value is JsonValue {
+  if (value === null) return true
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return true
+  }
+  if (Array.isArray(value)) {
+    return value.every((item) => isJsonValue(item))
+  }
+  if (isRecord(value)) {
+    return Object.values(value).every((item) => isJsonValue(item))
+  }
+  return false
+}
+
+function isStringArray(value: JsonValue | object | null): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string")
 }
 
-function isTimestamp(value: unknown): value is string {
+function isTimestamp(value: JsonValue | object | null): value is string {
   return typeof value === "string" && value.length > 0
 }
 
-export function parseIssueCreatedPayload(value: unknown): IssueCreatedPayload | undefined {
+export function parseIssueCreatedPayload(value: JsonValue | object | null): IssueCreatedPayload | undefined {
   if (!isRecord(value)) return undefined
 
   if (
@@ -460,7 +486,7 @@ export function parseIssueCreatedPayload(value: unknown): IssueCreatedPayload | 
 }
 
 export function parseIssuePhaseChangedPayload(
-  value: unknown
+  value: JsonValue | object | null
 ): IssuePhaseChangedPayload | undefined {
   if (!isRecord(value)) return undefined
   if (
@@ -480,12 +506,13 @@ export function parseIssuePhaseChangedPayload(
 }
 
 export function parseIssueMetadataSetPayload(
-  value: unknown
+  value: JsonValue | object | null
 ): IssueMetadataSetPayload | undefined {
   if (!isRecord(value)) return undefined
   if (
     typeof value.issueId !== "string" ||
     typeof value.key !== "string" ||
+    !isJsonValue(value.value) ||
     !isTimestamp(value.updatedAt)
   ) {
     return undefined
@@ -499,7 +526,7 @@ export function parseIssueMetadataSetPayload(
 }
 
 export function parseIssueLabelsChangedPayload(
-  value: unknown
+  value: JsonValue | object | null
 ): IssueLabelsChangedPayload | undefined {
   if (!isRecord(value)) return undefined
   if (
@@ -519,7 +546,7 @@ export function parseIssueLabelsChangedPayload(
 }
 
 export function parseIssueRefsChangedPayload(
-  value: unknown
+  value: JsonValue | object | null
 ): IssueRefsChangedPayload | undefined {
   if (!isRecord(value)) return undefined
   if (
@@ -538,7 +565,7 @@ export function parseIssueRefsChangedPayload(
   }
 }
 
-export function parseIssueClosedPayload(value: unknown): IssueClosedPayload | undefined {
+export function parseIssueClosedPayload(value: JsonValue | object | null): IssueClosedPayload | undefined {
   if (!isRecord(value)) return undefined
   if (typeof value.issueId !== "string" || !isTimestamp(value.closedAt)) {
     return undefined
@@ -547,7 +574,7 @@ export function parseIssueClosedPayload(value: unknown): IssueClosedPayload | un
 }
 
 export function parseStoreRevisionSavedPayload(
-  value: unknown
+  value: JsonValue | object | null
 ): StoreRevisionSavedPayload | undefined {
   if (!isRecord(value)) return undefined
   if (
@@ -583,7 +610,7 @@ export function parseStoreRevisionSavedPayload(
 }
 
 export function parseStoreRevisionFinalizedPayload(
-  value: unknown
+  value: JsonValue | object | null
 ): StoreRevisionFinalizedPayload | undefined {
   if (!isRecord(value)) return undefined
   if (
@@ -607,7 +634,7 @@ export function parseStoreRevisionFinalizedPayload(
 }
 
 export function parseStoreEntryDeletedPayload(
-  value: unknown
+  value: JsonValue | object | null
 ): StoreEntryDeletedPayload | undefined {
   if (!isRecord(value)) return undefined
   if (
@@ -626,7 +653,7 @@ export function parseStoreEntryDeletedPayload(
   }
 }
 
-export function parseStoreDeletedPayload(value: unknown): StoreDeletedPayload | undefined {
+export function parseStoreDeletedPayload(value: JsonValue | object | null): StoreDeletedPayload | undefined {
   if (!isRecord(value)) return undefined
   if (
     typeof value.issueId !== "string" ||

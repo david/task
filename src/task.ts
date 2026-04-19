@@ -1,7 +1,7 @@
-import type { Command } from "./types"
+import type { Command, CommandArgs, JsonValue } from "./types"
 import { commands } from "./commands"
 
-export type ParsedFlags = Record<string, string | string[] | undefined>
+export type ParsedFlags = CommandArgs
 
 export function parseFlags(argv: string[]): ParsedFlags {
   const flags: ParsedFlags = {}
@@ -42,7 +42,7 @@ export function parseFlags(argv: string[]): ParsedFlags {
   return flags
 }
 
-export function formatResult(result: unknown, flags: ParsedFlags): string {
+export function formatResult(result: JsonValue, flags: ParsedFlags): string {
   if (flags["--jsonl"] !== undefined && Array.isArray(result)) {
     return result.map((item) => JSON.stringify(item)).join("\n")
   }

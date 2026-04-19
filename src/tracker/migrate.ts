@@ -15,6 +15,7 @@ import {
   storeRevisionSavedEvent,
   type IssueRecord,
 } from "./events"
+import type { JsonValue } from "../types"
 import { rebuildCurrentIssueIndex, rebuildHierarchyIndex, readLegacyIssueRecord, readIssueStoreKeys } from "./projections"
 import { getTrackerHandles, listCanonicalIssueIds, listProjectedIssueIds } from "./root"
 
@@ -28,7 +29,7 @@ type LegacyIssueSnapshot = {
 type LegacyIssuePlan = {
   issueId: string
   created: IssueRecord
-  extraMetadata: Array<{ key: string; value: unknown }>
+  extraMetadata: Array<{ key: string; value: JsonValue }>
   storeEntries: Array<{ store: string; key: string; content: string }>
   closed: boolean
   parentId?: string
@@ -317,6 +318,6 @@ function normalizeUpdatedAt(updated: string, created: string): string {
   return new Date().toISOString()
 }
 
-function normalizePriority(priority: unknown): number {
+function normalizePriority(priority: JsonValue | object | null): number {
   return typeof priority === "number" && Number.isFinite(priority) ? priority : 2
 }
