@@ -14,10 +14,9 @@ export type IssueStoreState = {
   entries: StringMap<StringMap<StoreEntryState>>
 }
 
-export type StoreRevisionPlan = {
-  revision: number
-  supersedesRevision?: number
-}
+export type StoreRevisionPlan =
+  | { revision: number }
+  | { revision: number; supersedesRevision: number }
 
 export type StoreDraftRef = {
   store: string

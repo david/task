@@ -8,11 +8,10 @@ import {
   writeFileSync,
 } from "node:fs"
 import { dirname, join } from "node:path"
+import { EventId } from "../../packages/esther/src/index.ts"
 import {
   foldIssueState,
-  issueBoundaryTag,
   parseIssueCreatedPayload,
-  storedEventSchema,
   type IssueRecord,
   type IssueState,
   type TrackerStoredEvent,
@@ -21,15 +20,20 @@ import type { JsonObject, JsonValue, StringMap } from "../types"
 import { getTrackerHandles, listCanonicalIssueIds } from "./root"
 import { getVisibleStores, materializeVisibleStores } from "./stores"
 
-type QueryStoredEventsByTags = <TState>(
-  tags: ReadonlyArray<string>,
-  schemas: ReadonlyArray<typeof storedEventSchema>,
-  fold: (events: ReadonlyArray<TrackerStoredEvent>) => TState
-) => Promise<{ state: TState; maxPosition: bigint | undefined }>
+type MaxPosition = bigint | undefined
+
+type StoredEventFile = JsonObject & {
+  id: string
+  type: string
+  tags: string[]
+  payload: JsonValue
+  position: string
+  timestamp: string
+}
 
 export type IssueAggregate = {
   state: IssueState
-  maxPosition: bigint | undefined
+  maxPosition: MaxPosition
 }
 
 export type HierarchyIndex = {
@@ -85,7 +89,7 @@ function foldHierarchyIndex(events: ReadonlyArray<TrackerStoredEvent>): Hierarch
     }
 
     const payload = parseIssueCreatedPayload(event.payload)
-    if (!payload?.parentId) {
+    if (!payload || typeof payload.parentId !== "string") {
       continue
     }
 
@@ -95,30 +99,94 @@ function foldHierarchyIndex(events: ReadonlyArray<TrackerStoredEvent>): Hierarch
   return index
 }
 
-function queryStoredEventsByTags<TState>(
-  root: string,
-  tags: ReadonlyArray<string>,
-  fold: (events: ReadonlyArray<TrackerStoredEvent>) => TState
-): Promise<{ state: TState; maxPosition: bigint | undefined }> {
-  const queryByTags = getTrackerHandles(root).eventStore.queryByTags as QueryStoredEventsByTags
-  return queryByTags(tags, [storedEventSchema], fold)
+function canonicalEventsDir(root: string): string {
+  return join(getTrackerHandles(root).trackerRoot, "events")
+}
+
+function issueEventsDir(root: string, issueId: string): string {
+  return join(canonicalEventsDir(root), "by-issue", issueId)
+}
+
+function listJsonFilesRecursively(dir: string): string[] {
+  if (!existsSync(dir)) {
+    return []
+  }
+
+  const files: string[] = []
+  for (const entry of readdirSync(dir)) {
+    const entryPath = join(dir, entry)
+    const stats = statSync(entryPath)
+    if (stats.isDirectory()) {
+      files.push(...listJsonFilesRecursively(entryPath))
+      continue
+    }
+    if (stats.isFile() && entry.endsWith(".json")) {
+      files.push(entryPath)
+    }
+  }
+
+  return files
+}
+
+function isStoredEventFile(value: JsonValue | object | null): value is StoredEventFile {
+  return (
+    isRecord(value) &&
+    typeof value.id === "string" &&
+    typeof value.type === "string" &&
+    isStringArray(value.tags) &&
+    typeof value.position === "string" &&
+    /^-?\d+$/.test(value.position) &&
+    typeof value.timestamp === "string" &&
+    Number.isFinite(Date.parse(value.timestamp))
+  )
+}
+
+function readStoredEventFile(path: string): TrackerStoredEvent {
+  const raw = JSON.parse(readFileSync(path, "utf-8"))
+  if (!isStoredEventFile(raw)) {
+    throw new Error(`Invalid stored event file '${path}'`)
+  }
+
+  return {
+    id: EventId(raw.id),
+    type: raw.type,
+    tags: [...raw.tags],
+    payload: raw.payload,
+    position: BigInt(raw.position),
+    timestamp: new Date(raw.timestamp),
+  }
+}
+
+function sortStoredEvents(events: ReadonlyArray<TrackerStoredEvent>): TrackerStoredEvent[] {
+  return [...events].sort((a, b) => {
+    if (a.position < b.position) return -1
+    if (a.position > b.position) return 1
+    return a.id.localeCompare(b.id)
+  })
+}
+
+function readCanonicalEventsForIssue(root: string, issueId: string): TrackerStoredEvent[] {
+  return sortStoredEvents(listJsonFilesRecursively(issueEventsDir(root, issueId)).map(readStoredEventFile))
+}
+
+function readAllCanonicalEvents(root: string): TrackerStoredEvent[] {
+  return sortStoredEvents(listJsonFilesRecursively(canonicalEventsDir(root)).map(readStoredEventFile))
 }
 
 export async function readTrackedIssueAggregate(
   root: string,
   issueId: string
 ): Promise<IssueAggregate> {
-  const result = await queryStoredEventsByTags(root, [issueBoundaryTag(issueId)], (events) =>
-    foldIssueState(events)
-  )
+  const events = readCanonicalEventsForIssue(root, issueId)
+  const state = foldIssueState(events)
 
-  if (result.state === undefined) {
+  if (state === undefined) {
     throw new Error(`Issue '${issueId}' not found`)
   }
 
   return {
-    state: result.state,
-    maxPosition: result.maxPosition,
+    state,
+    maxPosition: events.at(-1)?.position,
   }
 }
 
@@ -171,15 +239,13 @@ export async function rebuildCurrentIssueIndex(root: string): Promise<IssueRecor
 }
 
 export async function rebuildHierarchyIndex(root: string): Promise<HierarchyIndex> {
-  const result = await queryStoredEventsByTags(root, ["kind:issue"], (events) =>
-    foldHierarchyIndex(events)
-  )
+  const index = foldHierarchyIndex(readAllCanonicalEvents(root))
 
   const { parentsPath, childrenPath } = hierarchyIndexPaths(root)
   mkdirSync(hierarchyIndexDir(root), { recursive: true })
-  writeFileSync(parentsPath, `${JSON.stringify(result.state.parentsByChild, null, 2)}\n`)
-  writeFileSync(childrenPath, `${JSON.stringify(result.state.childrenByParent, null, 2)}\n`)
-  return result.state
+  writeFileSync(parentsPath, `${JSON.stringify(index.parentsByChild, null, 2)}\n`)
+  writeFileSync(childrenPath, `${JSON.stringify(index.childrenByParent, null, 2)}\n`)
+  return index
 }
 
 function isRecord(value: JsonValue | object | null): value is JsonObject {
@@ -188,6 +254,49 @@ function isRecord(value: JsonValue | object | null): value is JsonObject {
 
 function isStringArray(value: JsonValue | object | null): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string")
+}
+
+const LEGACY_STANDARD_FIELDS = new Set([
+  "title",
+  "description",
+  "status",
+  "phase",
+  "priority",
+  "created",
+  "updated",
+  "refs",
+  "labels",
+])
+
+function buildLegacyIssueRecord(raw: JsonObject, issueId: string): IssueRecord | undefined {
+  if (
+    typeof raw.title !== "string" ||
+    (raw.status !== "open" && raw.status !== "closed") ||
+    typeof raw.phase !== "string"
+  ) {
+    return undefined
+  }
+
+  const extras: JsonObject = {}
+  for (const [key, value] of Object.entries(raw)) {
+    if (!LEGACY_STANDARD_FIELDS.has(key)) {
+      extras[key] = value
+    }
+  }
+
+  return {
+    id: issueId,
+    ...extras,
+    title: raw.title,
+    description: typeof raw.description === "string" ? raw.description : "",
+    status: raw.status,
+    phase: raw.phase,
+    priority: typeof raw.priority === "number" ? raw.priority : Number.POSITIVE_INFINITY,
+    created: typeof raw.created === "string" ? raw.created : "",
+    updated: typeof raw.updated === "string" ? raw.updated : "",
+    refs: isStringArray(raw.refs) ? [...raw.refs] : [],
+    labels: isStringArray(raw.labels) ? [...raw.labels] : [],
+  }
 }
 
 export function readLegacyIssueRecord(issueDir: string, issueId: string): IssueRecord | undefined {
@@ -201,51 +310,7 @@ export function readLegacyIssueRecord(issueDir: string, issueId: string): IssueR
     if (!isRecord(raw)) {
       return undefined
     }
-    if (
-      typeof raw.title !== "string" ||
-      (raw.status !== "open" && raw.status !== "closed") ||
-      typeof raw.phase !== "string"
-    ) {
-      return undefined
-    }
-
-    const description = typeof raw.description === "string" ? raw.description : ""
-    const refs = isStringArray(raw.refs) ? [...raw.refs] : []
-    const labels = isStringArray(raw.labels) ? [...raw.labels] : []
-    const priority = typeof raw.priority === "number" ? raw.priority : Number.POSITIVE_INFINITY
-    const created = typeof raw.created === "string" ? raw.created : ""
-    const updated = typeof raw.updated === "string" ? raw.updated : ""
-
-    const extras: JsonObject = {}
-    for (const [key, value] of Object.entries(raw)) {
-      if (
-        key !== "title" &&
-        key !== "description" &&
-        key !== "status" &&
-        key !== "phase" &&
-        key !== "priority" &&
-        key !== "created" &&
-        key !== "updated" &&
-        key !== "refs" &&
-        key !== "labels"
-      ) {
-        extras[key] = value
-      }
-    }
-
-    return {
-      id: issueId,
-      ...extras,
-      title: raw.title,
-      description,
-      status: raw.status,
-      phase: raw.phase,
-      priority,
-      created,
-      updated,
-      refs,
-      labels,
-    }
+    return buildLegacyIssueRecord(raw, issueId)
   } catch {
     return undefined
   }

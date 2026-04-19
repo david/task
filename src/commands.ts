@@ -1,19 +1,13 @@
-import { readFileSync, readdirSync, statSync, existsSync } from "node:fs"
-import { join, basename } from "node:path"
-import type { Command, CommandArgs, JsonObject, JsonValue, StringMap } from "./types"
+import { basename } from "node:path"
+import type { CommandArgs, JsonObject } from "./types"
 import type { IssueMetadata, IssueRecord } from "./tracker/events"
-import { detectRepoRoot, getArchiveRoot, getIssueRoot, listCanonicalIssueIds } from "./tracker/root"
 import {
   closeTrackedIssue,
   createTrackedIssue,
-  deleteTrackedStore,
   getTrackedIssueNextPhase,
-  getTrackedStoreValue,
   listTrackedIssues,
-  listTrackedStoreKeys,
   loadArchivedTrackedIssue,
   loadTrackedIssue,
-  saveTrackedStoreValue,
   searchTrackedIssues,
   setTrackedIssueMetadata,
   setTrackedIssuePhase,
@@ -21,260 +15,44 @@ import {
 } from "./tracker/issues"
 import { listHierarchyChildren, listHierarchyParents } from "./tracker/hierarchy"
 import { importLegacyTracker } from "./tracker/migrate"
+import {
+  COMPACT_LIST_FIELDS,
+  COMPACT_RELATED_FIELDS,
+  COMPACT_SHOW_FIELDS,
+  loadIssueRecord,
+  matchesText,
+  optionalFlag,
+  parseLimit,
+  parseSort,
+  pickFields,
+  projectIssueRecord,
+  requireFlag,
+  resolveIssue,
+  resolveOutputFields,
+  sortIssues,
+  type IssueCloseResult,
+  type IssueMetaGetResult,
+  type IssueProjection,
+  type IssueShowResult,
+  type RelatedIssueProjection,
+} from "./commands-shared"
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-export function requireFlag(
-  args: CommandArgs,
-  flag: string
-): string {
-  const val = args[flag]
-  if (val === undefined) throw new Error(`${flag} is required`)
-  return Array.isArray(val) ? val[0] : val
-}
-
-function listDirsWithPrefix(dir: string, prefix: string): string[] {
-  if (!existsSync(dir)) return []
-  return readdirSync(dir).filter(
-    (entry) => entry.startsWith(prefix + "-") && statSync(join(dir, entry)).isDirectory()
-  )
-}
-
-const COMPACT_LIST_FIELDS = ["id", "title", "status", "phase", "priority", "refs"]
-const COMPACT_SHOW_FIELDS = [
-  "title",
-  "status",
-  "phase",
-  "priority",
-  "created",
-  "updated",
-  "refs",
-  "labels",
-  "github_issue",
-]
-const COMPACT_RELATED_FIELDS = ["id", "title", "status", "phase", "priority", "relation"]
-
-type SortMode = "priority" | "updated"
-type IssueProjection = Partial<IssueRecord> & { id: string }
-type IssueRelation = "parent" | "child" | "both"
-type RelatedIssueProjection = IssueProjection & { relation?: IssueRelation }
-type IssueShowResult = { id: string; metadata: JsonObject; stores?: StringMap<string[]> }
-
-export function resolveIssue(
-  id: string,
-  root: string
-): { path: string; archived: boolean } {
-  if (!/^[a-z0-9]+(-[a-z0-9]+)*$/.test(id)) {
-    throw new Error(`Invalid issue ID '${id}': must be lowercase alphanumeric (with optional slug)`)
-  }
-
-  const prefix = id.split("-")[0]
-  const issueRoot = getIssueRoot(root)
-  const archiveDir = getArchiveRoot(root)
-
-  const currentIds = new Set<string>(listDirsWithPrefix(issueRoot, prefix))
-  for (const issueId of listCanonicalIssueIds(root)) {
-    if (issueId.startsWith(prefix + "-")) {
-      currentIds.add(issueId)
-    }
-  }
-
-  const archivedIds = new Set(
-    listDirsWithPrefix(archiveDir, prefix).filter((issueId) => !currentIds.has(issueId))
-  )
-
-  const currentMatches = [...currentIds].sort().map((issueId) => ({
-    path: join(issueRoot, issueId),
-    archived: false,
-  }))
-  const archiveMatches = [...archivedIds].sort().map((issueId) => ({
-    path: join(archiveDir, issueId),
-    archived: true,
-  }))
-  const all = [...currentMatches, ...archiveMatches]
-
-  if (all.length === 0) {
-    throw new Error(`Issue '${id}' not found`)
-  }
-  if (all.length > 1) {
-    const list = all.map((match) => basename(match.path)).join(", ")
-    throw new Error(`Ambiguous ID '${id}': ${list}`)
-  }
-  return all[0]
-}
-
-function optionalFlag(
-  args: CommandArgs,
-  flag: string
-): string | undefined {
-  const val = args[flag]
-  if (val === undefined) return undefined
-  return Array.isArray(val) ? val[0] : val
-}
-
-function parseCsvFlag(
-  args: CommandArgs,
-  flag: string
-): string[] | undefined {
-  const raw = args[flag]
-  if (raw === undefined) return undefined
-  const values = Array.isArray(raw) ? raw : [raw]
-  const fields = values.flatMap((value) =>
-    value
-      .split(",")
-      .map((field) => field.trim())
-      .filter((field) => field.length > 0)
-  )
-  return fields.length > 0 ? fields : undefined
-}
-
-function parseLimit(
-  args: CommandArgs
-): number | undefined {
-  const raw = optionalFlag(args, "--limit")
-  if (raw === undefined) return undefined
-  const limit = Number(raw)
-  if (!Number.isInteger(limit) || limit < 1) {
-    throw new Error("--limit must be a positive integer")
-  }
-  return limit
-}
-
-function parseSort(
-  args: CommandArgs
-): SortMode {
-  const raw = optionalFlag(args, "--sort")
-  if (raw === undefined) return "priority"
-  if (raw === "priority" || raw === "updated") return raw
-  throw new Error("--sort must be one of: priority, updated")
-}
-
-function resolveOutputFields(
-  args: CommandArgs,
-  compactFields: string[],
-  defaultCompact = false
-): string[] | undefined {
-  const explicitFields = parseCsvFlag(args, "--fields")
-  if (explicitFields !== undefined) return explicitFields
-  if ("--full" in args) return undefined
-  if ("--compact" in args || defaultCompact) return compactFields
-  return undefined
-}
-
-function isJsonValue(value: JsonValue | object | null | undefined): value is JsonValue {
-  if (value === null) return true
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-    return true
-  }
-  if (Array.isArray(value)) {
-    return value.every((item) => isJsonValue(item))
-  }
-  if (typeof value === "object" && value !== null) {
-    return Object.values(value).every((item) => isJsonValue(item))
-  }
-  return false
-}
-
-function pickFields(
-  source: StringMap<JsonValue | undefined>,
-  fields: string[] | undefined
-): JsonObject {
-  const picked: JsonObject = {}
-  const entries: Array<[string, JsonValue | undefined]> = fields === undefined
-    ? Object.entries(source)
-    : fields.map((field): [string, JsonValue | undefined] => [field, source[field]])
-
-  for (const [field, value] of entries) {
-    if (isJsonValue(value)) {
-      picked[field] = value
-    }
-  }
-
-  return picked
-}
-
-async function loadIssueRecord(root: string, issueId: string): Promise<IssueRecord | null> {
-  try {
-    const resolved = resolveIssue(issueId, root)
-    const issue = resolved.archived
-      ? loadArchivedTrackedIssue(root, basename(resolved.path))
-      : await loadTrackedIssue(root, basename(resolved.path))
-    return { id: issue.id, ...issue.metadata }
-  } catch {
-    return null
-  }
-}
-
-function sortIssues(issues: IssueProjection[], sort: SortMode): IssueProjection[] {
-  return [...issues].sort((a, b) => {
-    if (sort === "updated") {
-      const ua = typeof a.updated === "string" ? a.updated : ""
-      const ub = typeof b.updated === "string" ? b.updated : ""
-      if (ua === ub) {
-        return String(a.id).localeCompare(String(b.id))
-      }
-      return ub.localeCompare(ua)
-    }
-
-    const pa = typeof a.priority === "number" ? a.priority : Infinity
-    const pb = typeof b.priority === "number" ? b.priority : Infinity
-    if (pa !== pb) return pa - pb
-    return String(a.id).localeCompare(String(b.id))
-  })
-}
-
-function matchesText(issue: IssueProjection, query: string): boolean {
-  const haystacks: string[] = []
-  for (const key of ["id", "title", "description"]) {
-    const value = issue[key]
-    if (typeof value === "string") haystacks.push(value)
-  }
-  for (const key of ["refs", "labels"]) {
-    const value = issue[key]
-    if (Array.isArray(value)) {
-      for (const item of value) {
-        if (typeof item === "string") haystacks.push(item)
-      }
-    }
-  }
-  const normalized = query.toLowerCase()
-  return haystacks.some((value) => value.toLowerCase().includes(normalized))
-}
-
-function projectIssueRecord(
-  issue: IssueProjection,
-  fields: string[] | undefined
-): JsonObject {
-  return pickFields(issue, fields)
-}
-
-// ---------------------------------------------------------------------------
-// Commands
-// ---------------------------------------------------------------------------
+export { requireFlag, resolveIssue } from "./commands-shared"
+export { readAllStdin, storeDelete, storeGet, storeKeys, storeSet } from "./commands-store"
 
 export async function issueCreate(
   args: CommandArgs,
   root: string
 ): Promise<IssueRecord> {
   const title = requireFlag(args, "--title")
-  const description = args["--description"]
-    ? (Array.isArray(args["--description"]) ? args["--description"][0] : args["--description"])
-    : ""
-  const githubIssueRaw = args["--github-issue"]
-    ? (Array.isArray(args["--github-issue"]) ? args["--github-issue"][0] : args["--github-issue"])
-    : undefined
-  const priorityRaw = args["--priority"]
-    ? (Array.isArray(args["--priority"]) ? args["--priority"][0] : args["--priority"])
-    : undefined
+  const description = optionalFlag(args, "--description") ?? ""
+  const githubIssueRaw = optionalFlag(args, "--github-issue")
+  const priorityRaw = optionalFlag(args, "--priority")
   const labelRaw = args["--label"]
-  const labels: string[] = labelRaw
-    ? (Array.isArray(labelRaw) ? labelRaw : [labelRaw])
-    : []
+  const labels: string[] = labelRaw ? (Array.isArray(labelRaw) ? labelRaw : [labelRaw]) : []
   const parentRaw = optionalFlag(args, "--parent")
 
-  const issue = await createTrackedIssue(root, {
+  return createTrackedIssue(root, {
     title,
     description,
     priority: priorityRaw !== undefined ? Number(priorityRaw) : 2,
@@ -282,8 +60,6 @@ export async function issueCreate(
     ...(githubIssueRaw === undefined ? {} : { githubIssue: Number(githubIssueRaw) }),
     ...(parentRaw === undefined ? {} : { parentRef: parentRaw }),
   })
-
-  return issue
 }
 
 export async function issueShow(
@@ -298,16 +74,18 @@ export async function issueShow(
 
   const fields = resolveOutputFields(args, COMPACT_SHOW_FIELDS)
   const includeStores = "--include-stores" in args || (!("--summary" in args) && fields === undefined)
-  const result: IssueShowResult = {
+  if (includeStores) {
+    return {
+      id: issue.id,
+      metadata: pickFields(issue.metadata, fields),
+      stores: issue.stores,
+    }
+  }
+
+  return {
     id: issue.id,
     metadata: pickFields(issue.metadata, fields),
   }
-
-  if (includeStores) {
-    result.stores = issue.stores
-  }
-
-  return result
 }
 
 export async function issueList(
@@ -328,9 +106,7 @@ export async function issueList(
   }
 
   const labelRaw = args["--label"]
-  const labelFilters: string[] = labelRaw
-    ? (Array.isArray(labelRaw) ? labelRaw : [labelRaw])
-    : []
+  const labelFilters: string[] = labelRaw ? (Array.isArray(labelRaw) ? labelRaw : [labelRaw]) : []
   const textFilter = optionalFlag(args, "--text")?.trim().toLowerCase()
   const fields = resolveOutputFields(args, COMPACT_LIST_FIELDS, true)
   const limit = parseLimit(args)
@@ -359,9 +135,20 @@ export async function issueList(
     return true
   })
 
-  const sortedResults = sortIssues(results, sort)
-  const limitedResults = limit === undefined ? sortedResults : sortedResults.slice(0, limit)
-  return limitedResults.map((issue) => projectIssueRecord(issue, fields))
+  return applyLimit(sortIssues(results, sort), limit)
+    .map((issue) => projectIssueRecord(issue, fields))
+}
+
+function applyLimit<T>(values: T[], limit: number | undefined): T[] {
+  return limit === undefined ? values : values.slice(0, limit)
+}
+
+async function loadHierarchyMatches(
+  issueIds: string[],
+  root: string
+): Promise<IssueRecord[]> {
+  return (await Promise.all(issueIds.map((issueId) => loadIssueRecord(root, issueId))))
+    .filter((issue): issue is IssueRecord => issue !== null)
 }
 
 export async function issueChildren(
@@ -376,15 +163,12 @@ export async function issueChildren(
   const limit = parseLimit(args)
   const sort = parseSort(args)
 
-  const matches = (await Promise.all(
-    (await listHierarchyChildren(root, targetId, includeAll)).map((childId) => loadIssueRecord(root, childId))
-  ))
-    .filter((issue): issue is IssueRecord => issue !== null)
-    .filter((issue) => includeAll || issue.status !== "closed")
+  const matches = (await loadHierarchyMatches(
+    await listHierarchyChildren(root, targetId, includeAll),
+    root
+  )).filter((issue) => includeAll || issue.status !== "closed")
 
-  const sortedMatches = sortIssues(matches, sort)
-  const limitedMatches = limit === undefined ? sortedMatches : sortedMatches.slice(0, limit)
-  return limitedMatches.map((issue) => projectIssueRecord(issue, fields))
+  return applyLimit(sortIssues(matches, sort), limit).map((issue) => projectIssueRecord(issue, fields))
 }
 
 export async function issueParents(
@@ -398,13 +182,8 @@ export async function issueParents(
   const limit = parseLimit(args)
   const sort = parseSort(args)
 
-  const parents = (await Promise.all(
-    (await listHierarchyParents(root, targetId)).map((parentId) => loadIssueRecord(root, parentId))
-  )).filter((issue): issue is IssueRecord => issue !== null)
-
-  const sortedParents = sortIssues(parents, sort)
-  const limitedParents = limit === undefined ? sortedParents : sortedParents.slice(0, limit)
-  return limitedParents.map((issue) => projectIssueRecord(issue, fields))
+  const parents = await loadHierarchyMatches(await listHierarchyParents(root, targetId), root)
+  return applyLimit(sortIssues(parents, sort), limit).map((issue) => projectIssueRecord(issue, fields))
 }
 
 export async function issueSearch(
@@ -422,16 +201,14 @@ export async function issueSearch(
 
   const nextArgs: CommandArgs = { ...args, "--text": query }
   delete nextArgs._
-  const searchResults = await searchTrackedIssues(root, "--all" in args, query)
   const filteredArgs: CommandArgs = { ...nextArgs }
   delete filteredArgs["--text"]
 
   const fields = resolveOutputFields(filteredArgs, COMPACT_LIST_FIELDS, true)
   const limit = parseLimit(filteredArgs)
   const sort = parseSort(filteredArgs)
-  const sortedResults = sortIssues(searchResults, sort)
-  const limitedResults = limit === undefined ? sortedResults : sortedResults.slice(0, limit)
-  return limitedResults.map((issue) => projectIssueRecord(issue, fields))
+  const results = await searchTrackedIssues(root, "--all" in args, query)
+  return applyLimit(sortIssues(results, sort), limit).map((issue) => projectIssueRecord(issue, fields))
 }
 
 export async function issueRelated(
@@ -447,40 +224,30 @@ export async function issueRelated(
   const sort = parseSort(args)
   const related = new Map<string, RelatedIssueProjection>()
 
-  for (const parent of (await Promise.all(
-    (await listHierarchyParents(root, targetId)).map((parentId) => loadIssueRecord(root, parentId))
-  )).filter((issue): issue is IssueRecord => issue !== null)) {
+  for (const parent of await loadHierarchyMatches(await listHierarchyParents(root, targetId), root)) {
     related.set(String(parent.id), { ...parent, relation: "parent" })
   }
 
-  for (const child of (await Promise.all(
-    (await listHierarchyChildren(root, targetId, includeAll)).map((childId) => loadIssueRecord(root, childId))
-  ))
-    .filter((issue): issue is IssueRecord => issue !== null)
-    .filter((issue) => includeAll || issue.status !== "closed")) {
+  for (const child of (await loadHierarchyMatches(
+    await listHierarchyChildren(root, targetId, includeAll),
+    root
+  )).filter((issue) => includeAll || issue.status !== "closed")) {
     const existing = related.get(String(child.id))
-    if (existing) {
-      related.set(String(child.id), { ...existing, relation: "both" })
-    } else {
-      related.set(String(child.id), { ...child, relation: "child" })
-    }
+    related.set(String(child.id), existing ? { ...existing, relation: "both" } : { ...child, relation: "child" })
   }
 
-  const relatedIssues = sortIssues([...related.values()], sort)
-  const limitedRelated = limit === undefined ? relatedIssues : relatedIssues.slice(0, limit)
-  return limitedRelated.map((issue) => projectIssueRecord(issue, fields))
+  return applyLimit(sortIssues([...related.values()], sort), limit).map((issue) => projectIssueRecord(issue, fields))
 }
 
 export async function issueClose(
   args: CommandArgs,
   root: string
-): Promise<{ closed?: true; already_closed?: true }> {
+): Promise<IssueCloseResult> {
   const id = requireFlag(args, "--id")
   const { path: issuePath, archived } = resolveIssue(id, root)
   if (archived) {
     return { already_closed: true }
   }
-
   return closeTrackedIssue(root, basename(issuePath))
 }
 
@@ -492,23 +259,20 @@ export async function issueMetaSet(
   const key = requireFlag(args, "--key")
   const value = requireFlag(args, "--value")
   const { path: issuePath } = resolveIssue(id, root)
-
   return setTrackedIssueMetadata(root, basename(issuePath), key, value)
 }
 
 export async function issueMetaGet(
   args: CommandArgs,
   root: string
-): Promise<{ value: IssueMetadata[string] | null }> {
+): Promise<IssueMetaGetResult> {
   const id = requireFlag(args, "--id")
   const key = requireFlag(args, "--key")
   const { path, archived } = resolveIssue(id, root)
   const issue = archived
     ? loadArchivedTrackedIssue(root, basename(path))
     : await loadTrackedIssue(root, basename(path))
-
-  const val = issue.metadata[key]
-  return { value: val !== undefined ? val : null }
+  return { value: issue.metadata[key] ?? null }
 }
 
 export async function issuePhaseNext(
@@ -530,17 +294,9 @@ export async function issuePhaseSet(
   return setTrackedIssuePhase(root, basename(path), value)
 }
 
-export async function legacyImport(
-  args: CommandArgs,
-  root: string
-) {
-  const source = requireFlag(args, "--source")
-  return importLegacyTracker(root, source)
+export async function legacyImport(args: CommandArgs, root: string) {
+  return importLegacyTracker(root, requireFlag(args, "--source"))
 }
-
-// ---------------------------------------------------------------------------
-// Array field update
-// ---------------------------------------------------------------------------
 
 export async function updateArrayField(
   args: CommandArgs,
@@ -554,7 +310,6 @@ export async function updateArrayField(
   if (addRaw === undefined && removeRaw === undefined) {
     throw new Error("At least one of --add or --remove is required")
   }
-
   if (field !== "labels" && field !== "refs") {
     throw new Error(`Unsupported array field '${field}'`)
   }
@@ -562,429 +317,5 @@ export async function updateArrayField(
   const toAdd = addRaw ? (Array.isArray(addRaw) ? addRaw : [addRaw]) : []
   const toRemove = removeRaw ? (Array.isArray(removeRaw) ? removeRaw : [removeRaw]) : []
   const { path: issuePath } = resolveIssue(id, root)
-
   return updateTrackedIssueArrayField(root, basename(issuePath), field, toAdd, toRemove)
-}
-
-// ---------------------------------------------------------------------------
-// Store commands
-// ---------------------------------------------------------------------------
-
-const SAFE_NAME_RE = /^[a-zA-Z0-9_.-]+$/
-
-function validateStoreName(name: string): void {
-  if (!SAFE_NAME_RE.test(name) || name.includes("..")) {
-    throw new Error(`Invalid store name '${name}'`)
-  }
-}
-
-function validateStoreKey(key: string): void {
-  if (!SAFE_NAME_RE.test(key) || key.includes("..")) {
-    throw new Error(`Invalid key '${key}'`)
-  }
-}
-
-async function readAllStdin(): Promise<string> {
-  const chunks: Buffer[] = []
-  for await (const chunk of process.stdin) chunks.push(chunk)
-  return Buffer.concat(chunks).toString()
-}
-
-export async function storeSet(
-  args: CommandArgs,
-  readStdin: () => Promise<string>,
-  root: string,
-): Promise<{ stored: true }> {
-  const id = requireFlag(args, "--id")
-  const store = requireFlag(args, "--store")
-  const key = requireFlag(args, "--key")
-  validateStoreName(store)
-  validateStoreKey(key)
-
-  const { path } = resolveIssue(id, root)
-
-  const valueFlag = args["--value"]
-  const fileFlag = args["--file"]
-  let content: string
-  if (valueFlag !== undefined) {
-    content = Array.isArray(valueFlag) ? valueFlag[0] : valueFlag
-  } else if (fileFlag !== undefined) {
-    const filePath = Array.isArray(fileFlag) ? fileFlag[0] : fileFlag
-    content = readFileSync(filePath, "utf-8")
-  } else {
-    content = await readStdin()
-  }
-
-  return saveTrackedStoreValue(root, basename(path), store, key, content)
-}
-
-export async function storeGet(
-  args: CommandArgs,
-  root: string,
-): Promise<{ value: string | null }> {
-  const id = requireFlag(args, "--id")
-  const store = requireFlag(args, "--store")
-  const key = requireFlag(args, "--key")
-  validateStoreName(store)
-  validateStoreKey(key)
-
-  const { path } = resolveIssue(id, root)
-  return { value: await getTrackedStoreValue(root, basename(path), store, key) }
-}
-
-export async function storeKeys(
-  args: CommandArgs,
-  root: string,
-): Promise<{ keys: string[] }> {
-  const id = requireFlag(args, "--id")
-  const store = requireFlag(args, "--store")
-  validateStoreName(store)
-
-  const { path } = resolveIssue(id, root)
-  return { keys: await listTrackedStoreKeys(root, basename(path), store) }
-}
-
-export async function storeDelete(
-  args: CommandArgs,
-  root: string,
-): Promise<{ deleted: boolean; kind: "store" | "key"; removedEmptyStore?: boolean }> {
-  const id = requireFlag(args, "--id")
-  const store = requireFlag(args, "--store")
-  const keyRaw = args["--key"]
-  validateStoreName(store)
-
-  const key = keyRaw !== undefined ? (Array.isArray(keyRaw) ? keyRaw[0] : keyRaw) : undefined
-  if (key !== undefined) validateStoreKey(key)
-
-  const { path } = resolveIssue(id, root)
-  return deleteTrackedStore(root, basename(path), store, key)
-}
-
-// ---------------------------------------------------------------------------
-// Command registration
-// ---------------------------------------------------------------------------
-
-export const commands: StringMap<Command> = {
-  create: {
-    description: "Create a new issue",
-    usage: "task create --title <title> [--description <desc>] [--github-issue <number>] [--priority <0-4>] [--label <label>] [--parent <id>]",
-    flags: {
-      "--title": { description: "Issue title", required: true },
-      "--description": { description: "Issue description" },
-      "--github-issue": { description: "GitHub issue number" },
-      "--priority": { description: "Priority (0=highest, default 2)" },
-      "--label": { description: "Label (repeatable)" },
-      "--parent": { description: "Parent issue ID for hierarchy" },
-    },
-    examples: [
-      'task create --title "Fix login bug"',
-      'task create --title "Urgent fix" --priority 0',
-      'task create --title "New feature" --github-issue 42',
-      'task create --title "Fix PDF" --label cli --label bug',
-      'task create --title "Add child command" --parent ab12',
-    ],
-    run: (args) => issueCreate(args, detectRepoRoot(process.cwd())),
-  },
-  show: {
-    description: "Show issue details",
-    usage: "task show <id> [--fields <csv>] [--compact] [--summary] [--include-stores]",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--fields": { description: "Comma-separated metadata fields to return" },
-      "--compact": { description: "Return a compact metadata projection suitable for agents" },
-      "--summary": { description: "Return metadata only (omit stores unless --include-stores is passed)" },
-      "--include-stores": { description: "Include store names and keys in the output" },
-    },
-    examples: [
-      "task show ab12",
-      "task show ab12 --summary",
-      "task show ab12 --compact",
-      "task show ab12 --fields title,phase,refs",
-      "task show --id ab12",
-    ],
-    positionalId: true,
-    run: (args) => issueShow(args, detectRepoRoot(process.cwd())),
-  },
-  list: {
-    description: "List issues",
-    usage: "task list [--where key=value] [--label <label>] [--text <query>] [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
-    flags: {
-      "--where": { description: "Filter by key=value (repeatable, AND logic)" },
-      "--label": { description: "Filter by label (repeatable, AND logic)" },
-      "--text": { description: "Case-insensitive text search across id, title, description, refs, and labels" },
-      "--fields": { description: "Comma-separated fields to return for each issue" },
-      "--compact": { description: "Return a compact issue projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include closed issues" },
-    },
-    examples: [
-      "task list",
-      "task list --where status=open",
-      "task list --label cli",
-      "task list --label cli --label bug",
-      "task list --text \"packet session\"",
-      "task list --sort updated",
-      "task list --jsonl --all --limit 10",
-      "task list --full --limit 1",
-    ],
-    run: (args) => issueList(args, detectRepoRoot(process.cwd())),
-  },
-  search: {
-    description: "Search issues by text",
-    usage: "task search <query> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
-    flags: {
-      "--text": { description: "Optional explicit search query (otherwise uses positional query text)" },
-      "--fields": { description: "Comma-separated fields to return for each issue" },
-      "--compact": { description: "Return a compact issue projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include closed issues" },
-    },
-    examples: [
-      "task search packet session",
-      "task search \"new packet session page\" --sort updated",
-      "task search --text \"packet session\" --jsonl",
-    ],
-    run: (args) => issueSearch(args, detectRepoRoot(process.cwd())),
-  },
-  children: {
-    description: "List child issues in the hierarchy under a parent issue",
-    usage: "task children <id> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
-    flags: {
-      "--id": { description: "Parent issue ID (or pass as the first positional argument)" },
-      "--fields": { description: "Comma-separated fields to return for each child issue" },
-      "--compact": { description: "Return a compact issue projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include closed issues" },
-    },
-    examples: [
-      "task children gh549",
-      "task children gh549 --sort updated",
-      "task children gh549 --fields id,title,phase,status",
-      "task children gh549 --full",
-      "task children --id gh549",
-    ],
-    positionalId: true,
-    run: (args) => issueChildren(args, detectRepoRoot(process.cwd())),
-  },
-  parents: {
-    description: "List parent issues for an issue in the hierarchy",
-    usage: "task parents <id> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl]",
-    flags: {
-      "--id": { description: "Child issue ID (or pass as the first positional argument)" },
-      "--fields": { description: "Comma-separated fields to return for each parent issue" },
-      "--compact": { description: "Return a compact issue projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-    },
-    examples: [
-      "task parents ojyb",
-      "task parents ojyb --sort updated",
-      "task parents ojyb --fields id,title,phase,status",
-      "task parents ojyb --full",
-      "task parents --id ojyb",
-    ],
-    positionalId: true,
-    run: (args) => issueParents(args, detectRepoRoot(process.cwd())),
-  },
-  related: {
-    description: "List parent and child issues related to an issue",
-    usage: "task related <id> [--fields <csv>] [--compact|--full] [--sort priority|updated] [--limit <n>] [--jsonl] [--all]",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--fields": { description: "Comma-separated fields to return for each related issue" },
-      "--compact": { description: "Return a compact relation projection suitable for agents (default)" },
-      "--full": { description: "Return full issue objects instead of the default compact projection" },
-      "--sort": { description: "Sort by priority (default) or updated" },
-      "--limit": { description: "Maximum number of results to return" },
-      "--jsonl": { description: "Format array output as one JSON object per line" },
-      "--all": { description: "Include closed child issues in the results" },
-    },
-    examples: [
-      "task related gh549",
-      "task related gh549 --sort updated",
-      "task related gh549 --fields id,title,relation,status",
-      "task related gh549 --full",
-      "task related --id gh549",
-    ],
-    positionalId: true,
-    run: (args) => issueRelated(args, detectRepoRoot(process.cwd())),
-  },
-  close: {
-    description: "Close an issue (append IssueClosed and keep it in place)",
-    usage: "task close <id>",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-    },
-    examples: ["task close ab12", "task close --id ab12"],
-    positionalId: true,
-    run: (args) => issueClose(args, detectRepoRoot(process.cwd())),
-  },
-  "phase next": {
-    description: "Get the next configured phase for an issue",
-    usage: "task phase next <id>",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-    },
-    examples: ["task phase next ab12", "task phase next --id ab12"],
-    positionalId: true,
-    run: (args) => issuePhaseNext(args, detectRepoRoot(process.cwd())),
-  },
-  "phase set": {
-    description: "Advance an issue to a configured phase",
-    usage: "task phase set <id> --value <phase>",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--value": { description: "Next phase", required: true },
-    },
-    examples: [
-      "task phase set 0ov2 --value ready-to-code",
-      "task phase set --id 0ov2 --value ready-to-code",
-    ],
-    positionalId: true,
-    run: (args) => issuePhaseSet(args, detectRepoRoot(process.cwd())),
-  },
-  "legacy import": {
-    description: "Import a legacy tracker snapshot into the repo-local .task event store",
-    usage: "task legacy import --source <path>",
-    flags: {
-      "--source": { description: "Path to the legacy tracker root", required: true },
-    },
-    examples: [
-      "task legacy import --source /tmp/old-issues",
-    ],
-    run: (args) => legacyImport(args, detectRepoRoot(process.cwd())),
-  },
-  "meta set": {
-    description: "Set a non-reserved metadata field on an issue",
-    usage: "task meta set <id> --key <key> --value <value>",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--key": { description: "Metadata key", required: true },
-      "--value": { description: "Metadata value", required: true },
-    },
-    examples: [
-      "task meta set 0ov2 --key owner --value backend",
-      "task meta set --id 0ov2 --key owner --value backend",
-    ],
-    positionalId: true,
-    run: (args) => issueMetaSet(args, detectRepoRoot(process.cwd())),
-  },
-  "meta get": {
-    description: "Get a metadata field from an issue",
-    usage: "task meta get <id> --key <key>",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--key": { description: "Metadata key", required: true },
-    },
-    examples: ["task meta get 0ov2 --key phase", "task meta get --id 0ov2 --key phase"],
-    positionalId: true,
-    run: (args) => issueMetaGet(args, detectRepoRoot(process.cwd())),
-  },
-  "update label": {
-    description: "Add or remove labels on an issue",
-    usage: "task update label <id> [--add <label>] [--remove <label>]",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--add": { description: "Label to add (repeatable)" },
-      "--remove": { description: "Label to remove (repeatable)" },
-    },
-    examples: [
-      "task update label ab12 --add cli",
-      "task update label ab12 --add cli --add bug",
-      "task update label ab12 --remove cli",
-      "task update label ab12 --remove old --add new",
-      "task update label --id ab12 --add cli",
-    ],
-    positionalId: true,
-    run: (args) => updateArrayField(args, "labels", detectRepoRoot(process.cwd())),
-  },
-  "update refs": {
-    description: "Add or remove refs on an issue",
-    usage: "task update refs <id> [--add <ref>] [--remove <ref>]",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--add": { description: "Ref to add (repeatable)" },
-      "--remove": { description: "Ref to remove (repeatable)" },
-    },
-    examples: [
-      "task update refs ab12 --add m85s",
-      "task update refs ab12 --remove m85s",
-      "task update refs --id ab12 --add m85s",
-    ],
-    positionalId: true,
-    run: (args) => updateArrayField(args, "refs", detectRepoRoot(process.cwd())),
-  },
-  "store set": {
-    description: "Store a value (from --value, --file, or stdin)",
-    usage:
-      "task store set <id> --store <store> --key <key> [--value <val> | --file <path>]",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--store": { description: "Store name", required: true },
-      "--key": { description: "Key name", required: true },
-      "--value": { description: "Value to store (for simple strings)" },
-      "--file": { description: "Read value from file path (for multiline content)" },
-    },
-    examples: [
-      'task store set ab12 --store research --key summary --value "quick note"',
-      "task store set ab12 --store research --key details --file /tmp/details.md",
-      "echo 'content' | task store set ab12 --store research --key summary",
-      'task store set --id ab12 --store research --key summary --value "quick note"',
-    ],
-    positionalId: true,
-    run: (args) => storeSet(args, readAllStdin, detectRepoRoot(process.cwd())),
-  },
-  "store get": {
-    description: "Get a stored value",
-    usage: "task store get <id> --store <store> --key <key>",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--store": { description: "Store name", required: true },
-      "--key": { description: "Key name", required: true },
-    },
-    examples: [
-      "task store get ab12 --store research --key summary",
-      "task store get --id ab12 --store research --key summary",
-    ],
-    positionalId: true,
-    run: (args) => storeGet(args, detectRepoRoot(process.cwd())),
-  },
-  "store keys": {
-    description: "List keys in a store",
-    usage: "task store keys <id> --store <store>",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--store": { description: "Store name", required: true },
-    },
-    examples: ["task store keys ab12 --store research", "task store keys --id ab12 --store research"],
-    positionalId: true,
-    run: (args) => storeKeys(args, detectRepoRoot(process.cwd())),
-  },
-  "store delete": {
-    description: "Delete a key from a store, or delete the entire store if --key is omitted",
-    usage: "task store delete <id> --store <store> [--key <key>]",
-    flags: {
-      "--id": { description: "Issue ID (or pass as the first positional argument)" },
-      "--store": { description: "Store name", required: true },
-      "--key": { description: "Key name (omit to delete the whole store)" },
-    },
-    examples: [
-      "task store delete ab12 --store research --key summary",
-      "task store delete ab12 --store research",
-      "task store delete --id ab12 --store research --key summary",
-    ],
-    positionalId: true,
-    run: (args) => storeDelete(args, detectRepoRoot(process.cwd())),
-  },
 }

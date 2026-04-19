@@ -26,14 +26,17 @@ type LegacyIssueSnapshot = {
   archived: boolean
 }
 
-type LegacyIssuePlan = {
+type LegacyIssuePlanBase = {
   issueId: string
   created: IssueRecord
   extraMetadata: Array<{ key: string; value: JsonValue }>
   storeEntries: Array<{ store: string; key: string; content: string }>
   closed: boolean
-  parentId?: string
 }
+
+type LegacyIssuePlan =
+  | LegacyIssuePlanBase
+  | (LegacyIssuePlanBase & { parentId: string })
 
 export type LegacyImportResult = {
   imported: true
@@ -68,58 +71,8 @@ export async function importLegacyTracker(root: string, sourceRoot: string): Pro
 
   const plans = planLegacyImport(snapshots)
   const tracker = getTrackerHandles(root)
-
   for (const plan of plans) {
-    const updatedAt = normalizeUpdatedAt(plan.created.updated, plan.created.created)
-    const createdDate = normalizeCreatedDate(plan.created.created, updatedAt)
-    const createdEventIssue: IssueRecord = {
-      ...plan.created,
-      status: "open",
-      created: createdDate,
-      updated: updatedAt,
-      priority: normalizePriority(plan.created.priority),
-    }
-
-    const events: DomainEvent[] = [issueCreatedEvent(createdEventIssue, plan.parentId)]
-
-    for (const extra of plan.extraMetadata) {
-      events.push(issueMetadataSetEvent(plan.issueId, extra.key, extra.value, updatedAt))
-    }
-
-    for (const storeEntry of plan.storeEntries) {
-      events.push(
-        storeRevisionSavedEvent({
-          issueId: plan.issueId,
-          store: storeEntry.store,
-          key: storeEntry.key,
-          revision: 1,
-          phase: createdEventIssue.phase,
-          draft: true,
-          content: storeEntry.content,
-          savedAt: updatedAt,
-        }),
-        storeRevisionFinalizedEvent({
-          issueId: plan.issueId,
-          store: storeEntry.store,
-          key: storeEntry.key,
-          revision: 1,
-          phase: createdEventIssue.phase,
-          finalizedAt: updatedAt,
-        })
-      )
-    }
-
-    if (plan.closed) {
-      events.push(issueClosedEvent(plan.issueId, updatedAt))
-    }
-
-    const appended = await tracker.eventStore.append(events, {
-      expectedPosition: undefined,
-      boundaryTags: [issueBoundaryTag(plan.issueId)],
-    })
-    if (appended.isErr()) {
-      throw new Error("message" in appended.error ? appended.error.message : "Tracker operation failed")
-    }
+    await appendLegacyPlan(tracker, plan)
   }
 
   await rebuildCurrentIssueIndex(root)
@@ -130,6 +83,68 @@ export async function importLegacyTracker(root: string, sourceRoot: string): Pro
     source: resolvedSource,
     issueCount: plans.length,
     storeCount: plans.reduce((sum, plan) => sum + plan.storeEntries.length, 0),
+  }
+}
+
+function buildLegacyPlanEvents(plan: LegacyIssuePlan): DomainEvent[] {
+  const updatedAt = normalizeUpdatedAt(plan.created.updated, plan.created.created)
+  const createdDate = normalizeCreatedDate(plan.created.created, updatedAt)
+  const createdEventIssue: IssueRecord = {
+    ...plan.created,
+    status: "open",
+    created: createdDate,
+    updated: updatedAt,
+    priority: normalizePriority(plan.created.priority),
+  }
+
+  const events: DomainEvent[] = [
+    issueCreatedEvent(createdEventIssue, "parentId" in plan ? plan.parentId : undefined),
+  ]
+
+  for (const extra of plan.extraMetadata) {
+    events.push(issueMetadataSetEvent(plan.issueId, extra.key, extra.value, updatedAt))
+  }
+
+  for (const storeEntry of plan.storeEntries) {
+    events.push(
+      storeRevisionSavedEvent({
+        issueId: plan.issueId,
+        store: storeEntry.store,
+        key: storeEntry.key,
+        revision: 1,
+        phase: createdEventIssue.phase,
+        draft: true,
+        content: storeEntry.content,
+        savedAt: updatedAt,
+      }),
+      storeRevisionFinalizedEvent({
+        issueId: plan.issueId,
+        store: storeEntry.store,
+        key: storeEntry.key,
+        revision: 1,
+        phase: createdEventIssue.phase,
+        finalizedAt: updatedAt,
+      })
+    )
+  }
+
+  if (plan.closed) {
+    events.push(issueClosedEvent(plan.issueId, updatedAt))
+  }
+
+  return events
+}
+
+async function appendLegacyPlan(
+  tracker: ReturnType<typeof getTrackerHandles>,
+  plan: LegacyIssuePlan
+): Promise<void> {
+  const appended = await tracker.eventStore.append(buildLegacyPlanEvents(plan), {
+    expectedPosition: undefined,
+    boundaryTags: [issueBoundaryTag(plan.issueId)],
+  })
+  if (appended.isErr()) {
+    throw new Error("message" in appended.error ? appended.error.message : "Tracker operation failed")
   }
 }
 
@@ -243,7 +258,7 @@ function planLegacyImport(snapshots: ReadonlyArray<LegacyIssueSnapshot>): Legacy
       extraMetadata,
       storeEntries: snapshot.storeEntries,
       closed: snapshot.archived || snapshot.metadata.status === "closed",
-      ...(parentResolution.parentId === undefined ? {} : { parentId: parentResolution.parentId }),
+      ...("parentId" in parentResolution ? { parentId: parentResolution.parentId } : {}),
     }
   })
 }
@@ -252,7 +267,7 @@ function inferLegacyParent(
   refs: ReadonlyArray<string>,
   issueId: string,
   issueIds: ReadonlyArray<string>
-): { parentId?: string; externalRefs: string[] } {
+): { externalRefs: string[] } | { parentId: string; externalRefs: string[] } {
   const externalRefs: string[] = []
   const localParents = new Set<string>()
 
