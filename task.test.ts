@@ -1,6 +1,13 @@
 import { describe, test, expect } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { parseFlags, formatResult, normalizeCommandFlags } from "./task"
-import type { Command } from "./types"
+import type { Command } from "./src/types"
+
+function parseError(stderr: string): { error: string } {
+  return JSON.parse(stderr) as { error: string }
+}
 
 describe("parseFlags", () => {
   test("single flag with value", () => {
@@ -124,53 +131,94 @@ describe("formatResult", () => {
 
 describe("task subprocess", () => {
   const repoRoot = import.meta.dir
-  const run = (...args: string[]) =>
-    Bun.spawnSync(["bun", "task.ts", ...args], {
-      cwd: repoRoot,
+  const taskScript = join(repoRoot, "task.ts")
+  const run = (cwd: string, ...args: string[]) =>
+    Bun.spawnSync(["bun", taskScript, ...args], {
+      cwd,
     })
 
-  test("--help exits 0 and shows task", () => {
-    const result = run("--help")
+  test("--help exits 0 and shows the approved document surface", () => {
+    const result = run(repoRoot, "--help")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("task")
     expect(stdout).toContain("Commands:")
     expect(stdout).toContain("related")
     expect(stdout).toContain("search")
+    expect(stdout).toContain("set")
+    expect(stdout).toContain("get")
+    expect(stdout).toContain("delete")
+    expect(stdout).not.toContain("store set")
+    expect(stdout).not.toContain("store get")
+    expect(stdout).not.toContain("store keys")
+    expect(stdout).not.toContain("store delete")
   })
 
   test("-h exits 0 same as --help", () => {
-    const result = run("-h")
+    const result = run(repoRoot, "-h")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("task")
     expect(stdout).toContain("Commands:")
   })
 
-  test("create --help exits 0 and shows flags", () => {
-    const result = run("create", "--help")
+  test("set --help exits 0 and shows document flags", () => {
+    const result = run(repoRoot, "set", "--help")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("Flags:")
-    expect(stdout).toContain("--title")
+    expect(stdout).toContain("--key")
+    expect(stdout).toContain("--value")
+    expect(stdout).toContain("--file")
+    expect(stdout).toContain("document")
+  })
+
+  test("document commands work through bun task.ts", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "task-root-cli-docs-"))
+
+    const created = run(cwd, "create", "--title", "Document CLI")
+    expect(created.exitCode).toBe(0)
+    const createdJson = JSON.parse(created.stdout.toString()) as { id: string }
+    expect(typeof createdJson.id).toBe("string")
+
+    const saved = run(cwd, "set", createdJson.id, "--key", "research/notes/today", "--value", "hello")
+    expect(saved.exitCode).toBe(0)
+    expect(saved.stdout.toString()).toBe('{"stored":true}')
+
+    const exact = run(cwd, "get", createdJson.id, "--key", "research/notes/today")
+    expect(exact.exitCode).toBe(0)
+    expect(exact.stdout.toString()).toBe(
+      '{"entries":{"research":{"entries":{"notes":{"entries":{"today":{"value":"hello"}}}}}}}'
+    )
+  })
+
+  test("invalid exact document selectors fail clearly through bun task.ts", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "task-root-cli-invalid-key-"))
+
+    const created = run(cwd, "create", "--title", "Invalid Path")
+    expect(created.exitCode).toBe(0)
+    const createdJson = JSON.parse(created.stdout.toString()) as { id: string }
+
+    const invalid = run(cwd, "set", createdJson.id, "--key", "research/", "--value", "hello")
+    expect(invalid.exitCode).toBe(1)
+    const err = parseError(invalid.stderr.toString())
+    expect(err.error).toContain("Subtree selector 'research/' is not allowed here")
+    expect(invalid.stdout.toString()).toBe("")
   })
 
   test("unknown command exits 1 with error JSON", () => {
-    const result = run("foo")
+    const result = run(repoRoot, "foo")
     expect(result.exitCode).toBe(1)
-    const stderr = result.stderr.toString()
-    const err = JSON.parse(stderr)
+    const err = parseError(result.stderr.toString())
     expect(err.error).toContain("Unknown command")
     expect(err.error).toContain("foo")
-    // stdout must be empty on error
     expect(result.stdout.toString()).toBe("")
   })
 
   test("partial two-word command lists available subcommands", () => {
-    const result = run("meta")
+    const result = run(repoRoot, "meta")
     expect(result.exitCode).toBe(1)
-    const stderr = result.stderr.toString()
-    const err = JSON.parse(stderr)
+    const err = parseError(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'meta'")
     expect(err.error).toContain("meta set")
     expect(err.error).toContain("meta get")
