@@ -1,6 +1,6 @@
 # Project management
 
-This repo's main product is a local issue tracker. Use this doc when you need to decide how to represent work inside issue metadata and stores.
+This repo's main product is a local issue tracker. Use this doc when you need to decide how to represent work inside issue metadata and issue documents.
 
 ## Standard issue shape
 
@@ -26,18 +26,20 @@ Recommended standard fields:
 
 1. Create an issue with the title, initial priority, and labels.
 2. Keep high-signal summary fields in `issue.json`.
-3. Put larger notes, plans, or research into stores.
+3. Put larger notes, plans, or generated artifacts into issue documents.
 4. Use `task create --parent <id>` for local parent/child hierarchy. Keep `refs` for external or non-hierarchy links.
-5. Close issues with `task close`; do not manually move directories.
+5. Advance workflow with `task phase next` / `task phase set`, not `meta set --key phase`.
+6. Close issues with `task close`; do not manually move or archive issue directories.
 
 ## Phase conventions
 
-`phase` is not schema-enforced, so consistency is a team rule. Current examples in the codebase use:
+Workflow phases come from `.task/settings.json`:
 
-- `research`
-- `ready-to-code`
+- `defaultPhase` chooses the phase for newly created issues
+- `phases` declares the allowed phase names
+- `transitions` declares which next phases are valid from each current phase
 
-If you introduce more phase names, keep them deliberate and reusable instead of inventing one-off values.
+Use `task phase next <id>` to read the configured next phase and `task phase set <id> --value <phase>` to advance an issue. `meta set` must not be used for reserved workflow fields like `phase`.
 
 ## Priority conventions
 
@@ -66,29 +68,42 @@ Use labels for durable filtering dimensions, not transient state. Good examples:
 
 Avoid encoding workflow stage in labels when `phase` already carries that meaning.
 
-## When to use stores
+## When to use issue documents
 
-Use stores for content that is too large or too structured for metadata fields, such as:
+Use issue documents for content that is too large or too structured for metadata fields, such as:
 
 - research notes
 - implementation plans
 - copied logs or repro steps
 - generated artifacts that should stay attached to the issue
 
-A store is a directory inside the issue directory. A key is a file inside that store.
+A document path is a slash-delimited logical key inside the issue, such as `research/summary` or `qa/results/run-1`.
 
-Example:
+Use exact paths for writes and exact, subtree, or root selectors for reads and deletes:
 
 ```bash
-task store set ab12 --store research --key summary --file /tmp/summary.md
+task set ab12 --key research/summary --file /tmp/summary.md
+task get ab12 --key research/
+task delete ab12 --key /
 ```
 
-## Store naming rules
+Document writes are append-only in canonical history:
 
-Store names and keys must be path-safe:
+- `task set` writes a draft revision for one exact document path on the issue’s current phase
+- `task phase set` finalizes every open draft revision on that issue
+- later `task set` calls for the same document path create a new revision in the new phase instead of mutating finalized history
+- `task get` returns the latest visible view for an exact path, subtree, or the full tree
+- `task show --include-keys` lists the current logical document paths
 
-- allowed characters: letters, numbers, `_`, `.`, `-`
-- disallowed: path separators and `..`
+## Document path rules
+
+Document selectors must stay path-safe:
+
+- exact path segments may use letters, numbers, `_`, and `-`
+- use `/` between segments to nest documents
+- exact write paths may not start or end with `/`
+- subtree selectors add a trailing `/`; `/` alone selects the full tree for `get` or `delete`
+- empty segments and `..` are invalid
 
 Do not bypass these rules with manual file writes.
 
@@ -96,8 +111,9 @@ Do not bypass these rules with manual file writes.
 
 The CLI expects a stable on-disk layout. Prefer commands over hand-editing files, especially for:
 
-- archiving issues
+- closing issues by hand-editing projections or moving directories
+- changing phase
 - updating labels or refs
-- writing store contents
+- writing or deleting documents by hand inside `.task/issues/`
 
 If you must edit `issue.json` manually, preserve valid JSON and existing field meanings.
