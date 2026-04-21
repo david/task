@@ -40,6 +40,7 @@ import {
 } from "./commands-shared"
 
 export { requireFlag, resolveIssue } from "./commands-shared"
+export { documentDelete, documentGet, documentSet } from "./commands-document"
 export { readAllStdin, storeDelete, storeGet, storeKeys, storeSet } from "./commands-store"
 
 function parseIntegerFlag(raw: string, flag: string): number {

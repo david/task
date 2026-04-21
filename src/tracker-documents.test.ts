@@ -10,6 +10,67 @@ import {
 
 const getRoot = useTempRoot("tracker-documents-")
 
+function researchTree(): { entries: { research: { value: string; entries: { notes: { entries: { today: { value: string } } } } } } } {
+  return {
+    entries: {
+      research: {
+        value: "overview",
+        entries: {
+          notes: {
+            entries: {
+              today: { value: "hello" },
+            },
+          },
+        },
+      },
+    },
+  }
+}
+
+function fullTree(): {
+  entries: {
+    qa: { entries: { checklist: { value: string } } }
+    research: { value: string; entries: { notes: { entries: { today: { value: string } } } } }
+  }
+} {
+  return {
+    entries: {
+      qa: {
+        entries: {
+          checklist: { value: "done" },
+        },
+      },
+      research: researchTree().entries.research,
+    },
+  }
+}
+
+function researchSubtreeWithoutRootValue(): {
+  entries: { research: { entries: { notes: { entries: { today: { value: string } } } } } }
+} {
+  return {
+    entries: {
+      research: {
+        entries: {
+          notes: {
+            entries: {
+              today: { value: "hello" },
+            },
+          },
+        },
+      },
+    },
+  }
+}
+
+async function createSeededDocumentIssue(root: string, title: string): Promise<{ id: string }> {
+  const created = await issueCreate({ "--title": title }, root)
+  await saveTrackedDocument(root, created.id, "research", "overview")
+  await saveTrackedDocument(root, created.id, "research/notes/today", "hello")
+  await saveTrackedDocument(root, created.id, "qa/checklist", "done")
+  return { id: created.id }
+}
+
 describe("document path parsing", () => {
   test("accepts exact paths, subtree selectors, and the root selector", () => {
     expect(parseExactDocumentPath("research/notes/today")).toBe("research/notes/today")
@@ -28,64 +89,14 @@ describe("document path parsing", () => {
   })
 })
 
-describe("tracked document core", () => {
+describe("tracked document reads", () => {
   test("saves exact paths and reads exact, subtree, and root trees", async () => {
     const root = getRoot()
-    const created = await issueCreate({ "--title": "Document Tree" }, root)
+    const created = await createSeededDocumentIssue(root, "Document Tree")
 
-    await saveTrackedDocument(root, created.id, "research", "overview")
-    await saveTrackedDocument(root, created.id, "research/notes/today", "hello")
-    await saveTrackedDocument(root, created.id, "qa/checklist", "done")
-
-    expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("research"))).toEqual({
-      entries: {
-        research: {
-          value: "overview",
-          entries: {
-            notes: {
-              entries: {
-                today: { value: "hello" },
-              },
-            },
-          },
-        },
-      },
-    })
-
-    expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("research/"))).toEqual({
-      entries: {
-        research: {
-          value: "overview",
-          entries: {
-            notes: {
-              entries: {
-                today: { value: "hello" },
-              },
-            },
-          },
-        },
-      },
-    })
-
-    expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("/"))).toEqual({
-      entries: {
-        qa: {
-          entries: {
-            checklist: { value: "done" },
-          },
-        },
-        research: {
-          value: "overview",
-          entries: {
-            notes: {
-              entries: {
-                today: { value: "hello" },
-              },
-            },
-          },
-        },
-      },
-    })
+    expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("research"))).toEqual(researchTree())
+    expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("research/"))).toEqual(researchTree())
+    expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("/"))).toEqual(fullTree())
   })
 
   test("missing selectors return an empty tree", async () => {
@@ -96,32 +107,20 @@ describe("tracked document core", () => {
     expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("research/"))).toEqual({ entries: {} })
     expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("/"))).toEqual({ entries: {} })
   })
+})
 
+describe("tracked document deletes", () => {
   test("exact, subtree, and root deletes update only the targeted visible documents", async () => {
     const root = getRoot()
-    const created = await issueCreate({ "--title": "Delete Tree" }, root)
-
-    await saveTrackedDocument(root, created.id, "research", "overview")
-    await saveTrackedDocument(root, created.id, "research/notes/today", "hello")
-    await saveTrackedDocument(root, created.id, "qa/checklist", "done")
+    const created = await createSeededDocumentIssue(root, "Delete Tree")
 
     expect(await deleteTrackedDocument(root, created.id, parseDocumentSelector("research"))).toEqual({
       deleted: true,
       kind: "exact",
     })
-    expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("research"))).toEqual({
-      entries: {
-        research: {
-          entries: {
-            notes: {
-              entries: {
-                today: { value: "hello" },
-              },
-            },
-          },
-        },
-      },
-    })
+    expect(await getTrackedDocumentTree(root, created.id, parseDocumentSelector("research"))).toEqual(
+      researchSubtreeWithoutRootValue()
+    )
 
     expect(await deleteTrackedDocument(root, created.id, parseDocumentSelector("research/"))).toEqual({
       deleted: true,

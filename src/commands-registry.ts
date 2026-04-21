@@ -1,6 +1,9 @@
 import type { Command, FlagDef, StringMap } from "./types"
 import { detectRepoRoot } from "./tracker/root"
 import {
+  documentDelete,
+  documentGet,
+  documentSet,
   issueChildren,
   issueClose,
   issueCreate,
@@ -14,9 +17,9 @@ import {
   issueSearch,
   issueShow,
   legacyImport,
+  readAllStdin,
   updateArrayField,
 } from "./commands"
-import { readAllStdin, storeDelete, storeGet, storeKeys, storeSet } from "./commands-store"
 
 type FlagOptions = {
   required: boolean
@@ -302,65 +305,54 @@ export const commands: StringMap<Command> = {
     positionalId: true,
     run: (args) => updateArrayField(args, "refs", detectRepoRoot(process.cwd())),
   },
-  "store set": {
-    description: "Store a value (from --value, --file, or stdin)",
-    usage: "task store set <id> --store <store> --key <key> [--value <val> | --file <path>]",
+  set: {
+    description: "Save an issue document from --value, --file, or stdin",
+    usage: "task set <id> --key <path> [--value <val> | --file <path>]",
     flags: {
       "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
-      "--store": valueFlag("Store name", { required: true }),
-      "--key": valueFlag("Key name", { required: true }),
-      "--value": valueFlag("Value to store (for simple strings)"),
+      "--key": valueFlag("Document key path (exact path only)", { required: true }),
+      "--value": valueFlag("Value to save (for simple strings)"),
       "--file": valueFlag("Read value from file path (for multiline content)"),
     },
     examples: [
-      'task store set ab12 --store research --key summary --value "quick note"',
-      "task store set ab12 --store research --key details --file /tmp/details.md",
-      "echo 'content' | task store set ab12 --store research --key summary",
-      'task store set --id ab12 --store research --key summary --value "quick note"',
+      'task set ab12 --key research/summary --value "quick note"',
+      "task set ab12 --key research/details --file /tmp/details.md",
+      "echo 'content' | task set ab12 --key research/summary",
+      'task set --id ab12 --key research/summary --value "quick note"',
     ],
     positionalId: true,
-    run: (args) => storeSet(args, readAllStdin, detectRepoRoot(process.cwd())),
+    run: (args) => documentSet(args, readAllStdin, detectRepoRoot(process.cwd())),
   },
-  "store get": {
-    description: "Get a stored value",
-    usage: "task store get <id> --store <store> --key <key>",
+  get: {
+    description: "Read an issue document path, subtree, or the full document tree",
+    usage: "task get <id> --key <path|path/|/>",
     flags: {
       "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
-      "--store": valueFlag("Store name", { required: true }),
-      "--key": valueFlag("Key name", { required: true }),
+      "--key": valueFlag("Exact path, subtree selector with trailing '/', or '/' for the full tree", { required: true }),
     },
     examples: [
-      "task store get ab12 --store research --key summary",
-      "task store get --id ab12 --store research --key summary",
+      "task get ab12 --key research/summary",
+      "task get ab12 --key research/",
+      "task get ab12 --key /",
+      "task get --id ab12 --key research/summary",
     ],
     positionalId: true,
-    run: (args) => storeGet(args, detectRepoRoot(process.cwd())),
+    run: (args) => documentGet(args, detectRepoRoot(process.cwd())),
   },
-  "store keys": {
-    description: "List keys in a store",
-    usage: "task store keys <id> --store <store>",
+  delete: {
+    description: "Delete an issue document path, subtree, or the full document tree",
+    usage: "task delete <id> --key <path|path/|/>",
     flags: {
       "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
-      "--store": valueFlag("Store name", { required: true }),
-    },
-    examples: ["task store keys ab12 --store research", "task store keys --id ab12 --store research"],
-    positionalId: true,
-    run: (args) => storeKeys(args, detectRepoRoot(process.cwd())),
-  },
-  "store delete": {
-    description: "Delete a key from a store, or delete the entire store if --key is omitted",
-    usage: "task store delete <id> --store <store> [--key <key>]",
-    flags: {
-      "--id": valueFlag("Issue ID (or pass as the first positional argument)"),
-      "--store": valueFlag("Store name", { required: true }),
-      "--key": valueFlag("Key name (omit to delete the whole store)"),
+      "--key": valueFlag("Exact path, subtree selector with trailing '/', or '/' for the full tree", { required: true }),
     },
     examples: [
-      "task store delete ab12 --store research --key summary",
-      "task store delete ab12 --store research",
-      "task store delete --id ab12 --store research --key summary",
+      "task delete ab12 --key research/summary",
+      "task delete ab12 --key research/",
+      "task delete ab12 --key /",
+      "task delete --id ab12 --key research/summary",
     ],
     positionalId: true,
-    run: (args) => storeDelete(args, detectRepoRoot(process.cwd())),
+    run: (args) => documentDelete(args, detectRepoRoot(process.cwd())),
   },
 }
