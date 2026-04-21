@@ -17,6 +17,18 @@ function parseError(stderr: string): { error: string } {
   return { error: errorValue }
 }
 
+function parseCreatedIssueId(stdout: string): string {
+  const parsed = JSON.parse(stdout)
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new Error("Expected stdout JSON object")
+  }
+  const idValue = Reflect.get(parsed, "id")
+  if (typeof idValue !== "string") {
+    throw new Error("Expected stdout JSON id string")
+  }
+  return idValue
+}
+
 type SupportedDocExpectation = {
   path: string
   mustContain: string[]
@@ -232,14 +244,13 @@ describe("task subprocess", () => {
 
     const created = run(cwd, "create", "--title", "Document CLI")
     expect(created.exitCode).toBe(0)
-    const createdJson = JSON.parse(created.stdout.toString()) as { id: string }
-    expect(typeof createdJson.id).toBe("string")
+    const createdId = parseCreatedIssueId(created.stdout.toString())
 
-    const saved = run(cwd, "set", createdJson.id, "--key", "research/notes/today", "--value", "hello")
+    const saved = run(cwd, "set", createdId, "--key", "research/notes/today", "--value", "hello")
     expect(saved.exitCode).toBe(0)
     expect(saved.stdout.toString()).toBe('{"stored":true}')
 
-    const exact = run(cwd, "get", createdJson.id, "--key", "research/notes/today")
+    const exact = run(cwd, "get", createdId, "--key", "research/notes/today")
     expect(exact.exitCode).toBe(0)
     expect(exact.stdout.toString()).toBe(
       '{"entries":{"research":{"entries":{"notes":{"entries":{"today":{"value":"hello"}}}}}}}'
@@ -251,9 +262,9 @@ describe("task subprocess", () => {
 
     const created = run(cwd, "create", "--title", "Invalid Path")
     expect(created.exitCode).toBe(0)
-    const createdJson = JSON.parse(created.stdout.toString()) as { id: string }
+    const createdId = parseCreatedIssueId(created.stdout.toString())
 
-    const invalid = run(cwd, "set", createdJson.id, "--key", "research/", "--value", "hello")
+    const invalid = run(cwd, "set", createdId, "--key", "research/", "--value", "hello")
     expect(invalid.exitCode).toBe(1)
     const err = parseError(invalid.stderr.toString())
     expect(err.error).toContain("Subtree selector 'research/' is not allowed here")
