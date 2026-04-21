@@ -4,14 +4,15 @@ import {
   RESERVED_METADATA_KEYS,
   issueBoundaryTag,
   issueClosedEvent,
+  issueDocumentDeletedEvent,
+  issueDocumentRevisionFinalizedEvent,
+  issueDocumentRevisionSavedEvent,
+  issueDocumentSubtreeDeletedEvent,
+  issueDocumentsClearedEvent,
   issueLabelsChangedEvent,
   issueMetadataSetEvent,
   issuePhaseChangedEvent,
   issueRefsChangedEvent,
-  storeDeletedEvent,
-  storeEntryDeletedEvent,
-  storeRevisionFinalizedEvent,
-  storeRevisionSavedEvent,
   type IssueMetadata,
   type IssueRecord,
 } from "./events"
@@ -25,8 +26,9 @@ import {
   rebuildIssueProjection,
   type IssueAggregate,
 } from "./projections"
+import { parseDocumentSelector, parseExactDocumentPath, type DocumentSelector, joinLegacyStorePath } from "./document-paths"
 import { assertAllowedPhaseTransition, getNextPhase, loadTaskSettings } from "./settings"
-import { getOpenStoreDrafts, getStoreKeys, getStoreValue, planStoreRevision } from "./stores"
+import { getOpenStoreDrafts, getStoreKeys, getStoreTree, getStoreValue, hasVisibleEntries, hasVisibleEntriesUnderPrefix, hasVisibleEntry, planStoreRevision } from "./stores"
 
 export { createTrackedIssue, type CreateIssueInput } from "./issue-create"
 
@@ -248,10 +250,9 @@ export async function setTrackedIssuePhase(
   const events: DomainEvent[] = [
     issuePhaseChangedEvent(issueId, currentPhase, nextPhase, changedAt),
     ...getOpenStoreDrafts(aggregate.state.stores).map((draft) =>
-      storeRevisionFinalizedEvent({
+      issueDocumentRevisionFinalizedEvent({
         issueId,
-        store: draft.store,
-        key: draft.key,
+        path: draft.path,
         revision: draft.revision,
         phase: draft.phase,
         finalizedAt: changedAt,
@@ -263,26 +264,25 @@ export async function setTrackedIssuePhase(
   return next.state.metadata
 }
 
-export async function saveTrackedStoreValue(
+export async function saveTrackedDocument(
   root: string,
   issueId: string,
-  store: string,
-  key: string,
+  path: string,
   content: string
 ): Promise<{ stored: true }> {
+  const canonicalPath = parseExactDocumentPath(path)
   const aggregate = await readAggregate(root, issueId)
   const phase = aggregate.state.metadata.phase
-  const revision = planStoreRevision(aggregate.state.stores, store, key, phase)
+  const revision = planStoreRevision(aggregate.state.stores, canonicalPath, phase)
   const savedAt = new Date().toISOString()
 
   await appendTrackedIssueEvents(
     root,
     issueId,
     [
-      storeRevisionSavedEvent({
+      issueDocumentRevisionSavedEvent({
         issueId,
-        store,
-        key,
+        path: canonicalPath,
         revision: revision.revision,
         phase,
         draft: true,
@@ -299,6 +299,79 @@ export async function saveTrackedStoreValue(
   return { stored: true }
 }
 
+export async function getTrackedDocumentTree(root: string, issueId: string, selector: DocumentSelector) {
+  const aggregate = await readMaterializedIssueAggregate(root, issueId)
+  return getStoreTree(aggregate.state.stores, selector)
+}
+
+type DocumentDeleteResult = { deleted: boolean; kind: "exact" | "subtree" | "root" }
+
+type StoreDeleteResult =
+  | { deleted: false; kind: "store" }
+  | { deleted: true; kind: "store" }
+  | { deleted: false; kind: "key" }
+  | { deleted: true; kind: "key" }
+  | { deleted: true; kind: "key"; removedEmptyStore: true }
+
+export async function deleteTrackedDocument(
+  root: string,
+  issueId: string,
+  selector: DocumentSelector
+): Promise<DocumentDeleteResult> {
+  const aggregate = await readAggregate(root, issueId)
+  const deletedAt = new Date().toISOString()
+
+  if (selector.kind === "root") {
+    if (!hasVisibleEntries(aggregate.state.stores)) {
+      return { deleted: false, kind: "root" }
+    }
+
+    await appendTrackedIssueEvents(
+      root,
+      issueId,
+      [issueDocumentsClearedEvent({ issueId, deletedAt })],
+      aggregate.maxPosition
+    )
+    return { deleted: true, kind: "root" }
+  }
+
+  if (selector.kind === "subtree") {
+    if (!hasVisibleEntriesUnderPrefix(aggregate.state.stores, selector.path)) {
+      return { deleted: false, kind: "subtree" }
+    }
+
+    await appendTrackedIssueEvents(
+      root,
+      issueId,
+      [issueDocumentSubtreeDeletedEvent({ issueId, pathPrefix: selector.path, deletedAt })],
+      aggregate.maxPosition
+    )
+    return { deleted: true, kind: "subtree" }
+  }
+
+  if (!hasVisibleEntry(aggregate.state.stores, selector.path)) {
+    return { deleted: false, kind: "exact" }
+  }
+
+  await appendTrackedIssueEvents(
+    root,
+    issueId,
+    [issueDocumentDeletedEvent({ issueId, path: selector.path, deletedAt })],
+    aggregate.maxPosition
+  )
+  return { deleted: true, kind: "exact" }
+}
+
+export async function saveTrackedStoreValue(
+  root: string,
+  issueId: string,
+  store: string,
+  key: string,
+  content: string
+): Promise<{ stored: true }> {
+  return saveTrackedDocument(root, issueId, joinLegacyStorePath(store, key), content)
+}
+
 export async function getTrackedStoreValue(
   root: string,
   issueId: string,
@@ -306,7 +379,7 @@ export async function getTrackedStoreValue(
   key: string
 ): Promise<string | null> {
   const aggregate = await readMaterializedIssueAggregate(root, issueId)
-  return getStoreValue(aggregate.state.stores, store, key)
+  return getStoreValue(aggregate.state.stores, joinLegacyStorePath(store, key))
 }
 
 export async function listTrackedStoreKeys(
@@ -323,42 +396,22 @@ export async function deleteTrackedStore(
   issueId: string,
   store: string,
   key?: string
-): Promise<
-  | { deleted: false; kind: "store" }
-  | { deleted: true; kind: "store" }
-  | { deleted: false; kind: "key" }
-  | { deleted: true; kind: "key" }
-  | { deleted: true; kind: "key"; removedEmptyStore: true }
-> {
-  const aggregate = await readAggregate(root, issueId)
-  const deletedAt = new Date().toISOString()
+): Promise<StoreDeleteResult> {
+  const result = await deleteTrackedDocument(
+    root,
+    issueId,
+    key === undefined ? parseDocumentSelector(`${store}/`) : parseDocumentSelector(joinLegacyStorePath(store, key))
+  )
 
   if (key === undefined) {
-    if (getStoreKeys(aggregate.state.stores, store).length === 0) {
-      return { deleted: false, kind: "store" }
-    }
-
-    await appendTrackedIssueEvents(
-      root,
-      issueId,
-      [storeDeletedEvent({ issueId, store, deletedAt })],
-      aggregate.maxPosition
-    )
-    return { deleted: true, kind: "store" }
+    return { deleted: result.deleted, kind: "store" }
   }
 
-  if (getStoreValue(aggregate.state.stores, store, key) === null) {
+  if (!result.deleted) {
     return { deleted: false, kind: "key" }
   }
 
-  const next = await appendTrackedIssueEvents(
-    root,
-    issueId,
-    [storeEntryDeletedEvent({ issueId, store, key, deletedAt })],
-    aggregate.maxPosition
-  )
-
-  const remainingKeys = getStoreKeys(next.state.stores, store)
+  const remainingKeys = await listTrackedStoreKeys(root, issueId, store)
   return remainingKeys.length === 0
     ? { deleted: true, kind: "key", removedEmptyStore: true }
     : { deleted: true, kind: "key" }

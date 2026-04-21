@@ -146,8 +146,8 @@ function assertLegacyImportEvents(targetRoot: string): void {
   const childEventTypes = childEvents.map((event) => event.type)
   expect(childEventTypes).toContain("IssueCreated")
   expect(childEventTypes).toContain("IssueMetadataSet")
-  expect(childEventTypes).toContain("StoreRevisionSaved")
-  expect(childEventTypes).toContain("StoreRevisionFinalized")
+  expect(childEventTypes).toContain("IssueDocumentRevisionSaved")
+  expect(childEventTypes).toContain("IssueDocumentRevisionFinalized")
 
   const closedEvents = readCanonicalEvents(targetRoot, "cccc-closed-task")
   expect(closedEvents.map((event) => event.type)).toContain("IssueClosed")
