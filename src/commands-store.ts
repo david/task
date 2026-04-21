@@ -14,7 +14,7 @@ import {
   type StoreLookupResult,
 } from "./commands-shared"
 
-const SAFE_NAME_RE = /^[a-zA-Z0-9_.-]+$/
+const SAFE_NAME_RE = /^[a-zA-Z0-9_-]+$/
 
 function validateStoreName(name: string): void {
   if (!SAFE_NAME_RE.test(name) || name.includes("..")) {

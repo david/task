@@ -8,10 +8,11 @@ import type {
   IssueMetadataSetPayload,
   IssuePhaseChangedPayload,
   IssueRefsChangedPayload,
-  StoreDeletedPayload,
-  StoreEntryDeletedPayload,
-  StoreRevisionFinalizedPayload,
-  StoreRevisionSavedPayload,
+  IssueDocumentDeletedPayload,
+  IssueDocumentRevisionFinalizedPayload,
+  IssueDocumentRevisionSavedPayload,
+  IssueDocumentSubtreeDeletedPayload,
+  IssueDocumentsClearedPayload,
   TrackerStoredEvent,
 } from "./event-core"
 import {
@@ -21,10 +22,11 @@ import {
   issueMetadataSetPayloadSchema,
   issuePhaseChangedPayloadSchema,
   issueRefsChangedPayloadSchema,
-  storeDeletedPayloadSchema,
-  storeEntryDeletedPayloadSchema,
-  storeRevisionFinalizedPayloadSchema,
-  storeRevisionSavedPayloadSchema,
+  issueDocumentDeletedPayloadSchema,
+  issueDocumentRevisionFinalizedPayloadSchema,
+  issueDocumentRevisionSavedPayloadSchema,
+  issueDocumentSubtreeDeletedPayloadSchema,
+  issueDocumentsClearedPayloadSchema,
   trackerStoredEventSchema,
 } from "./event-core"
 
@@ -78,18 +80,22 @@ export function parseIssueClosedPayload(value: JsonValue): IssueClosedPayload | 
   return safeParseWithSchema(issueClosedPayloadSchema, value)
 }
 
-export function parseStoreRevisionSavedPayload(value: JsonValue): StoreRevisionSavedPayload | undefined {
-  return safeParseWithSchema(storeRevisionSavedPayloadSchema, value)
+export function parseIssueDocumentRevisionSavedPayload(value: JsonValue): IssueDocumentRevisionSavedPayload | undefined {
+  return safeParseWithSchema(issueDocumentRevisionSavedPayloadSchema, value)
 }
 
-export function parseStoreRevisionFinalizedPayload(value: JsonValue): StoreRevisionFinalizedPayload | undefined {
-  return safeParseWithSchema(storeRevisionFinalizedPayloadSchema, value)
+export function parseIssueDocumentRevisionFinalizedPayload(value: JsonValue): IssueDocumentRevisionFinalizedPayload | undefined {
+  return safeParseWithSchema(issueDocumentRevisionFinalizedPayloadSchema, value)
 }
 
-export function parseStoreEntryDeletedPayload(value: JsonValue): StoreEntryDeletedPayload | undefined {
-  return safeParseWithSchema(storeEntryDeletedPayloadSchema, value)
+export function parseIssueDocumentDeletedPayload(value: JsonValue): IssueDocumentDeletedPayload | undefined {
+  return safeParseWithSchema(issueDocumentDeletedPayloadSchema, value)
 }
 
-export function parseStoreDeletedPayload(value: JsonValue): StoreDeletedPayload | undefined {
-  return safeParseWithSchema(storeDeletedPayloadSchema, value)
+export function parseIssueDocumentSubtreeDeletedPayload(value: JsonValue): IssueDocumentSubtreeDeletedPayload | undefined {
+  return safeParseWithSchema(issueDocumentSubtreeDeletedPayloadSchema, value)
+}
+
+export function parseIssueDocumentsClearedPayload(value: JsonValue): IssueDocumentsClearedPayload | undefined {
+  return safeParseWithSchema(issueDocumentsClearedPayloadSchema, value)
 }

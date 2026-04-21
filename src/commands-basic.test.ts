@@ -149,11 +149,11 @@ describe("issueShow basics", () => {
   test("lists store names and keys", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Store Test" }, root))
-    await storeSet({ "--id": created["id"], "--store": "tasks", "--key": "01-setup.md" }, fakeStdin("content"), root)
-    await storeSet({ "--id": created["id"], "--store": "tasks", "--key": "02-impl.md" }, fakeStdin("content"), root)
+    await storeSet({ "--id": created["id"], "--store": "tasks", "--key": "01-setup" }, fakeStdin("content"), root)
+    await storeSet({ "--id": created["id"], "--store": "tasks", "--key": "02-impl" }, fakeStdin("content"), root)
 
     const result = await issueShow({ "--id": created["id"] }, root)
-    expect("stores" in result ? result.stores["tasks"] : undefined).toEqual(["01-setup.md", "02-impl.md"])
+    expect("stores" in result ? result.stores["tasks"] : undefined).toEqual(["01-setup", "02-impl"])
   })
 
   test("throws for unknown ID", async () => {

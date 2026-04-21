@@ -132,12 +132,12 @@ describe("phase change finalization", () => {
     })
 
     const finalized = readCanonicalEvents(phaseRoot, issueId)
-      .filter((event) => event.type === "StoreRevisionFinalized")
+      .filter((event) => event.type === "IssueDocumentRevisionFinalized")
       .map((event) => expectJsonObject(event.payload))
 
     expect(finalized).toHaveLength(2)
-    expectRecordWithFields(finalized, { store: "research", key: "summary", revision: 1, phase: "research" })
-    expectRecordWithFields(finalized, { store: "tasks", key: "plan", revision: 1, phase: "research" })
+    expectRecordWithFields(finalized, { path: "research/summary", revision: 1, phase: "research" })
+    expectRecordWithFields(finalized, { path: "tasks/plan", revision: 1, phase: "research" })
   })
 })
 
@@ -159,9 +159,9 @@ describe("phase-scoped store revisions", () => {
     })
 
     const saved = readCanonicalEvents(revisionRoot, created.id)
-      .filter((event) => event.type === "StoreRevisionSaved")
+      .filter((event) => event.type === "IssueDocumentRevisionSaved")
       .map((event) => expectJsonObject(event.payload))
-      .filter((payload) => payload["store"] === "research" && payload["key"] === "summary")
+      .filter((payload) => payload["path"] === "research/summary")
 
     expect(saved).toHaveLength(2)
     expectRecordWithFields(saved, { revision: 1, phase: "research", content: "phase one" })

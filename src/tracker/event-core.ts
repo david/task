@@ -4,16 +4,17 @@ import type { IssueStoreState } from "./stores"
 import type {
   IssueClosedPayload,
   IssueCreatedPayload,
+  IssueDocumentDeletedPayload,
+  IssueDocumentRevisionFinalizedPayload,
+  IssueDocumentRevisionSavedPayload,
+  IssueDocumentSubtreeDeletedPayload,
+  IssueDocumentsClearedPayload,
   IssueLabelsChangedPayload,
   IssueMetadata,
   IssueMetadataSetPayload,
   IssuePhaseChangedPayload,
   IssueRecord,
   IssueRefsChangedPayload,
-  StoreDeletedPayload,
-  StoreEntryDeletedPayload,
-  StoreRevisionFinalizedPayload,
-  StoreRevisionSavedPayload,
 } from "./schemas"
 
 export {
@@ -28,13 +29,19 @@ export {
   issueStatusSchema,
   legacyIssueFileSchema,
   storedEventFileSchema,
-  storeDeletedPayloadSchema,
-  storeEntryDeletedPayloadSchema,
-  storeRevisionFinalizedPayloadSchema,
-  storeRevisionSavedPayloadSchema,
+  issueDocumentDeletedPayloadSchema,
+  issueDocumentRevisionFinalizedPayloadSchema,
+  issueDocumentRevisionSavedPayloadSchema,
+  issueDocumentSubtreeDeletedPayloadSchema,
+  issueDocumentsClearedPayloadSchema,
   trackerStoredEventSchema,
   type IssueClosedPayload,
   type IssueCreatedPayload,
+  type IssueDocumentDeletedPayload,
+  type IssueDocumentRevisionFinalizedPayload,
+  type IssueDocumentRevisionSavedPayload,
+  type IssueDocumentSubtreeDeletedPayload,
+  type IssueDocumentsClearedPayload,
   type IssueLabelsChangedPayload,
   type IssueMetadata,
   type IssueMetadataSetPayload,
@@ -43,10 +50,6 @@ export {
   type IssueRefsChangedPayload,
   type LegacyIssueFile,
   type StoredEventFile,
-  type StoreDeletedPayload,
-  type StoreEntryDeletedPayload,
-  type StoreRevisionFinalizedPayload,
-  type StoreRevisionSavedPayload,
 } from "./schemas"
 
 export const RESERVED_METADATA_KEYS = new Set(["status", "phase", "parentId"])
@@ -65,8 +68,8 @@ export function parentTag(parentId: string): string {
   return `parent:${parentId}`
 }
 
-export function storeTag(store: string): string {
-  return `store:${store}`
+export function documentPathTag(path: string): string {
+  return `document:${path}`
 }
 
 export function issueCreatedEvent(
@@ -160,42 +163,52 @@ export function issueClosedEvent(
   }
 }
 
-export function storeRevisionSavedEvent(
-  payload: StoreRevisionSavedPayload
-): DomainEvent<"StoreRevisionSaved", StoreRevisionSavedPayload> {
+export function issueDocumentRevisionSavedEvent(
+  payload: IssueDocumentRevisionSavedPayload
+): DomainEvent<"IssueDocumentRevisionSaved", IssueDocumentRevisionSavedPayload> {
   return {
-    type: "StoreRevisionSaved",
-    tags: [issueBoundaryTag(payload.issueId), storeTag(payload.store)],
+    type: "IssueDocumentRevisionSaved",
+    tags: [issueBoundaryTag(payload.issueId), documentPathTag(payload.path)],
     payload,
   }
 }
 
-export function storeRevisionFinalizedEvent(
-  payload: StoreRevisionFinalizedPayload
-): DomainEvent<"StoreRevisionFinalized", StoreRevisionFinalizedPayload> {
+export function issueDocumentRevisionFinalizedEvent(
+  payload: IssueDocumentRevisionFinalizedPayload
+): DomainEvent<"IssueDocumentRevisionFinalized", IssueDocumentRevisionFinalizedPayload> {
   return {
-    type: "StoreRevisionFinalized",
-    tags: [issueBoundaryTag(payload.issueId), storeTag(payload.store)],
+    type: "IssueDocumentRevisionFinalized",
+    tags: [issueBoundaryTag(payload.issueId), documentPathTag(payload.path)],
     payload,
   }
 }
 
-export function storeEntryDeletedEvent(
-  payload: StoreEntryDeletedPayload
-): DomainEvent<"StoreEntryDeleted", StoreEntryDeletedPayload> {
+export function issueDocumentDeletedEvent(
+  payload: IssueDocumentDeletedPayload
+): DomainEvent<"IssueDocumentDeleted", IssueDocumentDeletedPayload> {
   return {
-    type: "StoreEntryDeleted",
-    tags: [issueBoundaryTag(payload.issueId), storeTag(payload.store)],
+    type: "IssueDocumentDeleted",
+    tags: [issueBoundaryTag(payload.issueId), documentPathTag(payload.path)],
     payload,
   }
 }
 
-export function storeDeletedEvent(
-  payload: StoreDeletedPayload
-): DomainEvent<"StoreDeleted", StoreDeletedPayload> {
+export function issueDocumentSubtreeDeletedEvent(
+  payload: IssueDocumentSubtreeDeletedPayload
+): DomainEvent<"IssueDocumentSubtreeDeleted", IssueDocumentSubtreeDeletedPayload> {
   return {
-    type: "StoreDeleted",
-    tags: [issueBoundaryTag(payload.issueId), storeTag(payload.store)],
+    type: "IssueDocumentSubtreeDeleted",
+    tags: [issueBoundaryTag(payload.issueId), documentPathTag(payload.pathPrefix)],
+    payload,
+  }
+}
+
+export function issueDocumentsClearedEvent(
+  payload: IssueDocumentsClearedPayload
+): DomainEvent<"IssueDocumentsCleared", IssueDocumentsClearedPayload> {
+  return {
+    type: "IssueDocumentsCleared",
+    tags: [issueBoundaryTag(payload.issueId)],
     payload,
   }
 }

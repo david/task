@@ -10,13 +10,14 @@ import {
   issueBoundaryTag,
   issueClosedEvent,
   issueCreatedEvent,
+  issueDocumentRevisionFinalizedEvent,
+  issueDocumentRevisionSavedEvent,
   issueMetadataSetEvent,
-  storeRevisionFinalizedEvent,
-  storeRevisionSavedEvent,
   type IssueRecord,
 } from "./events"
 import type { JsonValue } from "../types"
 import { rebuildCurrentIssueIndex, rebuildHierarchyIndex, readLegacyIssueRecord, readIssueStoreKeys } from "./projections"
+import { joinLegacyStorePath } from "./document-paths"
 import { getTrackerHandles, listCanonicalIssueIds, listProjectedIssueIds } from "./root"
 
 type LegacyIssueSnapshot = {
@@ -115,21 +116,20 @@ function buildLegacyPlanEvents(plan: LegacyIssuePlan): DomainEvent[] {
   }
 
   for (const storeEntry of plan.storeEntries) {
+    const path = joinLegacyStorePath(storeEntry.store, storeEntry.key)
     events.push(
-      storeRevisionSavedEvent({
+      issueDocumentRevisionSavedEvent({
         issueId: plan.issueId,
-        store: storeEntry.store,
-        key: storeEntry.key,
+        path,
         revision: 1,
         phase: createdEventIssue.phase,
         draft: true,
         content: storeEntry.content,
         savedAt: updatedAt,
       }),
-      storeRevisionFinalizedEvent({
+      issueDocumentRevisionFinalizedEvent({
         issueId: plan.issueId,
-        store: storeEntry.store,
-        key: storeEntry.key,
+        path,
         revision: 1,
         phase: createdEventIssue.phase,
         finalizedAt: updatedAt,

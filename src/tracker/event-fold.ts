@@ -3,6 +3,7 @@ import {
   applyStoreEntryDeleted,
   applyStoreRevisionFinalized,
   applyStoreRevisionSaved,
+  applyStoreSubtreeDeleted,
   createEmptyIssueStoreState,
 } from "./stores"
 import {
@@ -18,10 +19,11 @@ import {
   parseIssueMetadataSetPayload,
   parseIssuePhaseChangedPayload,
   parseIssueRefsChangedPayload,
-  parseStoreDeletedPayload,
-  parseStoreEntryDeletedPayload,
-  parseStoreRevisionFinalizedPayload,
-  parseStoreRevisionSavedPayload,
+  parseIssueDocumentDeletedPayload,
+  parseIssueDocumentRevisionFinalizedPayload,
+  parseIssueDocumentRevisionSavedPayload,
+  parseIssueDocumentSubtreeDeletedPayload,
+  parseIssueDocumentsClearedPayload,
 } from "./event-parsers"
 
 function createIssueState(event: TrackerStoredEvent): IssueState | undefined {
@@ -87,12 +89,11 @@ function applyRefsChanged(current: IssueState, event: TrackerStoredEvent): void 
   current.metadata.updated = payload.updatedAt
 }
 
-function applyStoreRevisionSavedEvent(current: IssueState, event: TrackerStoredEvent): void {
-  const payload = parseStoreRevisionSavedPayload(event.payload)
+function applyIssueDocumentRevisionSavedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseIssueDocumentRevisionSavedPayload(event.payload)
   if (!payload) return
   applyStoreRevisionSaved(current.stores, {
-    store: payload.store,
-    key: payload.key,
+    path: payload.path,
     revision: payload.revision,
     phase: payload.phase,
     content: payload.content,
@@ -101,24 +102,31 @@ function applyStoreRevisionSavedEvent(current: IssueState, event: TrackerStoredE
   current.metadata.updated = payload.savedAt
 }
 
-function applyStoreRevisionFinalizedEvent(current: IssueState, event: TrackerStoredEvent): void {
-  const payload = parseStoreRevisionFinalizedPayload(event.payload)
+function applyIssueDocumentRevisionFinalizedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseIssueDocumentRevisionFinalizedPayload(event.payload)
   if (!payload) return
   applyStoreRevisionFinalized(current.stores, payload)
   current.metadata.updated = payload.finalizedAt
 }
 
-function applyStoreEntryDeletedEvent(current: IssueState, event: TrackerStoredEvent): void {
-  const payload = parseStoreEntryDeletedPayload(event.payload)
+function applyIssueDocumentDeletedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseIssueDocumentDeletedPayload(event.payload)
   if (!payload) return
-  applyStoreEntryDeleted(current.stores, payload.store, payload.key)
+  applyStoreEntryDeleted(current.stores, payload.path)
   current.metadata.updated = payload.deletedAt
 }
 
-function applyStoreDeletedEvent(current: IssueState, event: TrackerStoredEvent): void {
-  const payload = parseStoreDeletedPayload(event.payload)
+function applyIssueDocumentSubtreeDeletedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseIssueDocumentSubtreeDeletedPayload(event.payload)
   if (!payload) return
-  applyStoreDeleted(current.stores, payload.store)
+  applyStoreSubtreeDeleted(current.stores, payload.pathPrefix)
+  current.metadata.updated = payload.deletedAt
+}
+
+function applyIssueDocumentsClearedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseIssueDocumentsClearedPayload(event.payload)
+  if (!payload) return
+  applyStoreDeleted(current.stores)
   current.metadata.updated = payload.deletedAt
 }
 
@@ -139,17 +147,20 @@ function applyEvent(current: IssueState, event: TrackerStoredEvent): void {
     case "IssueRefsChanged":
       applyRefsChanged(current, event)
       return
-    case "StoreRevisionSaved":
-      applyStoreRevisionSavedEvent(current, event)
+    case "IssueDocumentRevisionSaved":
+      applyIssueDocumentRevisionSavedEvent(current, event)
       return
-    case "StoreRevisionFinalized":
-      applyStoreRevisionFinalizedEvent(current, event)
+    case "IssueDocumentRevisionFinalized":
+      applyIssueDocumentRevisionFinalizedEvent(current, event)
       return
-    case "StoreEntryDeleted":
-      applyStoreEntryDeletedEvent(current, event)
+    case "IssueDocumentDeleted":
+      applyIssueDocumentDeletedEvent(current, event)
       return
-    case "StoreDeleted":
-      applyStoreDeletedEvent(current, event)
+    case "IssueDocumentSubtreeDeleted":
+      applyIssueDocumentSubtreeDeletedEvent(current, event)
+      return
+    case "IssueDocumentsCleared":
+      applyIssueDocumentsClearedEvent(current, event)
       return
   }
 }
