@@ -1,12 +1,66 @@
 import { describe, test, expect } from "bun:test"
-import { mkdtempSync } from "node:fs"
+import { mkdtempSync, readFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { parseFlags, formatResult, normalizeCommandFlags } from "./task"
 import type { Command } from "./src/types"
 
 function parseError(stderr: string): { error: string } {
-  return JSON.parse(stderr) as { error: string }
+  const parsed = JSON.parse(stderr)
+  if (typeof parsed !== "object" || parsed === null) {
+    throw new Error("Expected stderr JSON object")
+  }
+  const errorValue = Reflect.get(parsed, "error")
+  if (typeof errorValue !== "string") {
+    throw new Error("Expected stderr JSON error string")
+  }
+  return { error: errorValue }
+}
+
+type SupportedDocExpectation = {
+  path: string
+  mustContain: string[]
+}
+
+const forbiddenSupportedDocStrings = [
+  "task store",
+  "store set",
+  "store get",
+  "store keys",
+  "store delete",
+  "src/bin/task",
+  "bun src/task.ts",
+]
+
+const supportedDocExpectations: SupportedDocExpectation[] = [
+  {
+    path: "doc/commands.md",
+    mustContain: ["bin/task", "bun task.ts", "task set <id> --key <path>", "task get <id>", "task delete <id>"],
+  },
+  {
+    path: "src/doc/commands.md",
+    mustContain: ["bin/task", "bun task.ts", "task set <id> --key <path>", "task get <id>", "task delete <id>"],
+  },
+  {
+    path: "doc/project-management.md",
+    mustContain: ["task set ab12 --key research/summary", "task get ab12 --key research/", "task delete ab12 --key /"],
+  },
+  {
+    path: "src/doc/project-management.md",
+    mustContain: ["task set ab12 --key research/summary", "task get ab12 --key research/", "task delete ab12 --key /"],
+  },
+  {
+    path: "doc/architecture.md",
+    mustContain: ["bin/task", "bun task.ts", "research/summary.md"],
+  },
+  {
+    path: "src/doc/architecture.md",
+    mustContain: ["bin/task", "bun task.ts", "research/summary.md"],
+  },
+]
+
+function readSupportedDoc(repoRoot: string, relativePath: string): string {
+  return readFileSync(join(repoRoot, relativePath), "utf8")
 }
 
 describe("parseFlags", () => {
@@ -204,6 +258,18 @@ describe("task subprocess", () => {
     const err = parseError(invalid.stderr.toString())
     expect(err.error).toContain("Subtree selector 'research/' is not allowed here")
     expect(invalid.stdout.toString()).toBe("")
+  })
+
+  test("supported docs stay aligned with the approved document surface", () => {
+    for (const doc of supportedDocExpectations) {
+      const contents = readSupportedDoc(repoRoot, doc.path)
+      for (const required of doc.mustContain) {
+        expect(contents).toContain(required)
+      }
+      for (const forbidden of forbiddenSupportedDocStrings) {
+        expect(contents).not.toContain(forbidden)
+      }
+    }
   })
 
   test("unknown command exits 1 with error JSON", () => {
