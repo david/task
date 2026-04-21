@@ -1,4 +1,7 @@
 import { describe, test, expect } from "bun:test"
+import { mkdtempSync } from "node:fs"
+import { tmpdir } from "node:os"
+import { join } from "node:path"
 import { commands } from "./commands-registry"
 import { expectJsonObject } from "./commands-test-helpers"
 import { parseJsonText } from "./infrastructure/json"
@@ -171,34 +174,44 @@ describe("formatResult", () => {
 })
 
 const repoRoot = import.meta.dir
-const runTask = (...args: string[]) =>
-  Bun.spawnSync(["bun", "task.ts", ...args], {
-    cwd: repoRoot,
+const taskScript = join(repoRoot, "task.ts")
+const runTask = (cwd: string, ...args: string[]) =>
+  Bun.spawnSync(["bun", taskScript, ...args], {
+    cwd,
   })
 
-describe("task subprocess help", () => {
+describe("task subprocess root help", () => {
   test("--help exits 0 and shows task", () => {
-    const result = runTask("--help")
+    const result = runTask(repoRoot, "--help")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("task")
     expect(stdout).toContain("Commands:")
     expect(stdout).toContain("related")
     expect(stdout).toContain("search")
+    expect(stdout).toContain("set")
+    expect(stdout).toContain("get")
+    expect(stdout).toContain("delete")
     expect(stdout).toContain("phase next")
     expect(stdout).toContain("phase set")
     expect(stdout).toContain("legacy import")
     expect(stdout).toContain("owner")
+    expect(stdout).not.toContain("store set")
+    expect(stdout).not.toContain("store get")
+    expect(stdout).not.toContain("store keys")
+    expect(stdout).not.toContain("store delete")
   })
 
   test("-h exits 0 same as --help", () => {
-    const result = runTask("-h")
+    const result = runTask(repoRoot, "-h")
     expect(result.exitCode).toBe(0)
     expect(result.stdout.toString()).toContain("Commands:")
   })
+})
 
+describe("task subprocess command help", () => {
   test("create --help exits 0 and shows flags", () => {
-    const result = runTask("create", "--help")
+    const result = runTask(repoRoot, "create", "--help")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("Flags:")
@@ -207,17 +220,67 @@ describe("task subprocess help", () => {
   })
 
   test("legacy import --help exits 0 and shows flags", () => {
-    const result = runTask("legacy", "import", "--help")
+    const result = runTask(repoRoot, "legacy", "import", "--help")
     expect(result.exitCode).toBe(0)
     const stdout = result.stdout.toString()
     expect(stdout).toContain("--source")
     expect(stdout).toContain("legacy tracker")
   })
+
+  test("set --help exits 0 and shows document flags", () => {
+    const result = runTask(repoRoot, "set", "--help")
+    expect(result.exitCode).toBe(0)
+    const stdout = result.stdout.toString()
+    expect(stdout).toContain("--key")
+    expect(stdout).toContain("--value")
+    expect(stdout).toContain("--file")
+    expect(stdout).toContain("document")
+  })
+})
+
+describe("task subprocess document commands", () => {
+  test("save nested content, read exact, read subtree, delete subtree, and confirm removal", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "task-cli-docs-"))
+
+    const created = runTask(cwd, "create", "--title", "Document CLI")
+    expect(created.exitCode).toBe(0)
+    const createdJson = expectJsonObject(parseJsonText(
+      created.stdout.toString(),
+      jsonValueSchema,
+      "Expected create stdout JSON value",
+      "Expected create stdout JSON value"
+    ))
+    const id = createdJson["id"]
+    expect(typeof id).toBe("string")
+    if (typeof id !== "string") {
+      throw new Error("Expected create result to include string id")
+    }
+
+    const saved = runTask(cwd, "set", id, "--key", "research/notes/today", "--value", "hello")
+    expect(saved.exitCode).toBe(0)
+    expect(saved.stdout.toString()).toBe('{"stored":true}')
+
+    const exact = runTask(cwd, "get", id, "--key", "research/notes/today")
+    expect(exact.exitCode).toBe(0)
+    expect(exact.stdout.toString()).toBe('{"entries":{"research":{"entries":{"notes":{"entries":{"today":{"value":"hello"}}}}}}}')
+
+    const subtree = runTask(cwd, "get", id, "--key", "research/")
+    expect(subtree.exitCode).toBe(0)
+    expect(subtree.stdout.toString()).toBe('{"entries":{"research":{"entries":{"notes":{"entries":{"today":{"value":"hello"}}}}}}}')
+
+    const deleted = runTask(cwd, "delete", id, "--key", "research/")
+    expect(deleted.exitCode).toBe(0)
+    expect(deleted.stdout.toString()).toBe('{"deleted":true,"kind":"subtree"}')
+
+    const root = runTask(cwd, "get", id, "--key", "/")
+    expect(root.exitCode).toBe(0)
+    expect(root.stdout.toString()).toBe('{"entries":{}}')
+  })
 })
 
 describe("task subprocess command errors", () => {
   test("unknown command exits 1 with error JSON", () => {
-    const result = runTask("foo")
+    const result = runTask(repoRoot, "foo")
     expect(result.exitCode).toBe(1)
     const err = parseErrorJson(result.stderr.toString())
     expect(err.error).toContain("Unknown command")
@@ -226,7 +289,7 @@ describe("task subprocess command errors", () => {
   })
 
   test("partial two-word command lists available subcommands", () => {
-    const result = runTask("meta")
+    const result = runTask(repoRoot, "meta")
     expect(result.exitCode).toBe(1)
     const err = parseErrorJson(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'meta'")
@@ -235,7 +298,7 @@ describe("task subprocess command errors", () => {
   })
 
   test("partial phase command lists phase subcommands", () => {
-    const result = runTask("phase")
+    const result = runTask(repoRoot, "phase")
     expect(result.exitCode).toBe(1)
     const err = parseErrorJson(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'phase'")
@@ -244,7 +307,7 @@ describe("task subprocess command errors", () => {
   })
 
   test("partial legacy command lists legacy subcommands", () => {
-    const result = runTask("legacy")
+    const result = runTask(repoRoot, "legacy")
     expect(result.exitCode).toBe(1)
     const err = parseErrorJson(result.stderr.toString())
     expect(err.error).toContain("Unknown command 'legacy'")
