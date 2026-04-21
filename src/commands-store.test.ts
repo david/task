@@ -126,7 +126,7 @@ describe("store delete", () => {
     })
     expect(await storeKeys({ "--id": last.id, "--store": "docs" }, root)).toEqual({ keys: [] })
     const shown = await issueShow({ "--id": last.id }, root)
-    expect("stores" in shown ? shown.stores : undefined).toEqual({})
+    expect("keys" in shown ? shown.keys : undefined).toEqual([])
   })
 
   test("storeDelete removes whole stores and is idempotent for missing targets", async () => {

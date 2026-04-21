@@ -10,64 +10,57 @@ function neverReadStdin(): never {
   throw new Error("stdin should not be read")
 }
 
+function researchTree(): { entries: { research: { value: string; entries: { notes: { entries: { today: { value: string } } } } } } } {
+  return {
+    entries: {
+      research: {
+        value: "overview",
+        entries: {
+          notes: {
+            entries: {
+              today: { value: "hello" },
+            },
+          },
+        },
+      },
+    },
+  }
+}
+
+function fullTree(): {
+  entries: {
+    qa: { entries: { checklist: { value: string } } }
+    research: { value: string; entries: { notes: { entries: { today: { value: string } } } } }
+  }
+} {
+  return {
+    entries: {
+      qa: {
+        entries: {
+          checklist: { value: "done" },
+        },
+      },
+      research: researchTree().entries.research,
+    },
+  }
+}
+
+async function createSeededDocumentIssue(root: string, title: string): Promise<{ id: string }> {
+  const created = await issueCreate({ "--title": title }, root)
+  await documentSet({ "--id": created.id, "--key": "research" }, fakeStdin("overview"), root)
+  await documentSet({ "--id": created.id, "--key": "research/notes/today" }, fakeStdin("hello"), root)
+  await documentSet({ "--id": created.id, "--key": "qa/checklist" }, fakeStdin("done"), root)
+  return { id: created.id }
+}
+
 describe("document set and get", () => {
   test("documentSet saves exact paths and documentGet reads exact, subtree, and root trees", async () => {
     const root = getRoot()
-    const created = await issueCreate({ "--title": "Document Commands" }, root)
+    const created = await createSeededDocumentIssue(root, "Document Commands")
 
-    await documentSet({ "--id": created.id, "--key": "research" }, fakeStdin("overview"), root)
-    await documentSet({ "--id": created.id, "--key": "research/notes/today" }, fakeStdin("hello"), root)
-    await documentSet({ "--id": created.id, "--key": "qa/checklist" }, fakeStdin("done"), root)
-
-    expect(await documentGet({ "--id": created.id, "--key": "research" }, root)).toEqual({
-      entries: {
-        research: {
-          value: "overview",
-          entries: {
-            notes: {
-              entries: {
-                today: { value: "hello" },
-              },
-            },
-          },
-        },
-      },
-    })
-
-    expect(await documentGet({ "--id": created.id, "--key": "research/" }, root)).toEqual({
-      entries: {
-        research: {
-          value: "overview",
-          entries: {
-            notes: {
-              entries: {
-                today: { value: "hello" },
-              },
-            },
-          },
-        },
-      },
-    })
-
-    expect(await documentGet({ "--id": created.id, "--key": "/" }, root)).toEqual({
-      entries: {
-        qa: {
-          entries: {
-            checklist: { value: "done" },
-          },
-        },
-        research: {
-          value: "overview",
-          entries: {
-            notes: {
-              entries: {
-                today: { value: "hello" },
-              },
-            },
-          },
-        },
-      },
-    })
+    expect(await documentGet({ "--id": created.id, "--key": "research" }, root)).toEqual(researchTree())
+    expect(await documentGet({ "--id": created.id, "--key": "research/" }, root)).toEqual(researchTree())
+    expect(await documentGet({ "--id": created.id, "--key": "/" }, root)).toEqual(fullTree())
   })
 
   test("documentSet accepts --value and --file without reading stdin", async () => {

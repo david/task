@@ -104,12 +104,14 @@ export async function issueShow(
     : await loadTrackedIssue(root, basename(path))
 
   const fields = resolveOutputFields(args, COMPACT_SHOW_FIELDS)
-  const includeStores = args["--include-stores"] !== undefined || (args["--summary"] === undefined && fields === undefined)
-  if (includeStores) {
+  const includeKeys = args["--include-keys"] !== undefined
+    || args["--include-stores"] !== undefined
+    || (args["--summary"] === undefined && fields === undefined)
+  if (includeKeys) {
     return {
       id: issue.id,
       metadata: pickFields(issue.metadata, fields),
-      stores: issue.stores,
+      keys: issue.keys,
     }
   }
 

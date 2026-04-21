@@ -43,7 +43,7 @@ export type RelatedIssueProjection = IssueProjection & { relation: IssueRelation
 export type RelatedIssueProjectionOutput = JsonObject
 export type IssueShowResult =
   | { id: string; metadata: ProjectedIssueMetadata }
-  | { id: string; metadata: ProjectedIssueMetadata; stores: StringMap<string[]> }
+  | { id: string; metadata: ProjectedIssueMetadata; keys: string[] }
 export type IssueCloseResult = { closed: true } | { already_closed: true }
 export type MetadataLookupValue = Exclude<IssueMetadata[string], undefined> | null
 export type IssueMetaGetResult = { value: MetadataLookupValue }
