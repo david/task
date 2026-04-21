@@ -129,13 +129,13 @@ describe("resolveIssue", () => {
 })
 
 describe("issueShow basics", () => {
-  test("returns metadata and empty stores for a new issue", async () => {
+  test("returns metadata and empty document keys for a new issue", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Show Test" }, root))
     const result = await issueShow({ "--id": created["id"] }, root)
     expect(result["id"]).toBe(created["id"])
     expect(result.metadata["title"]).toBe("Show Test")
-    expect("stores" in result ? result.stores : undefined).toEqual({})
+    expect("keys" in result ? result.keys : undefined).toEqual([])
   })
 
   test("finds closed issues", async () => {
@@ -146,14 +146,14 @@ describe("issueShow basics", () => {
     expect(result.metadata["status"]).toBe("closed")
   })
 
-  test("lists store names and keys", async () => {
+  test("lists logical document keys", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Store Test" }, root))
     await storeSet({ "--id": created["id"], "--store": "tasks", "--key": "01-setup" }, fakeStdin("content"), root)
     await storeSet({ "--id": created["id"], "--store": "tasks", "--key": "02-impl" }, fakeStdin("content"), root)
 
     const result = await issueShow({ "--id": created["id"] }, root)
-    expect("stores" in result ? result.stores["tasks"] : undefined).toEqual(["01-setup", "02-impl"])
+    expect("keys" in result ? result.keys : undefined).toEqual(["tasks/01-setup", "tasks/02-impl"])
   })
 
   test("throws for unknown ID", async () => {
@@ -162,12 +162,12 @@ describe("issueShow basics", () => {
 })
 
 describe("issueShow projections", () => {
-  test("summary omits stores", async () => {
+  test("summary omits document keys", async () => {
     const root = getRoot()
     const created = (await issueCreate({ "--title": "Summary Show" }, root))
     const result = await issueShow({ "--id": created["id"], "--summary": "true" }, root)
     expect(result.metadata["title"]).toBe("Summary Show")
-    expect(result).not.toHaveProperty("stores")
+    expect(result).not.toHaveProperty("keys")
   })
 
   test("compact returns agent-friendly metadata", async () => {
@@ -182,10 +182,10 @@ describe("issueShow projections", () => {
     expect(typeof result.metadata["updated"]).toBe("string")
     expect(result.metadata["refs"]).toEqual([])
     expect(result.metadata["labels"]).toEqual([])
-    expect(result).not.toHaveProperty("stores")
+    expect(result).not.toHaveProperty("keys")
   })
 
-  test("fields narrows metadata and include-stores restores stores", async () => {
+  test("fields narrows metadata and include-keys restores logical document keys", async () => {
     const root = getRoot()
     const basic = (await issueCreate({ "--title": "Field Show" }, root))
     const withStores = (await issueCreate({ "--title": "Field Show Stores" }, root))
@@ -193,14 +193,14 @@ describe("issueShow projections", () => {
 
     const narrowed = await issueShow({ "--id": basic["id"], "--fields": "title,phase" }, root)
     const full = await issueShow(
-      { "--id": withStores["id"], "--fields": "title", "--include-stores": "true" },
+      { "--id": withStores["id"], "--fields": "title", "--include-keys": "true" },
       root
     )
 
     expect(narrowed.metadata).toEqual({ title: "Field Show", phase: "research" })
-    expect(narrowed).not.toHaveProperty("stores")
+    expect(narrowed).not.toHaveProperty("keys")
     expect(full.metadata).toEqual({ title: "Field Show Stores" })
-    expect("stores" in full ? full.stores["research"] : undefined).toEqual(["summary"])
+    expect("keys" in full ? full.keys : undefined).toEqual(["research/summary"])
   })
 })
 

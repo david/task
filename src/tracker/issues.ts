@@ -16,10 +16,10 @@ import {
   type IssueMetadata,
   type IssueRecord,
 } from "./events"
-import type { JsonValue, StringMap } from "../types"
+import type { JsonValue } from "../types"
 import { getTrackerHandles, listProjectedIssueIds } from "./root"
 import {
-  readIssueStoreKeys,
+  readIssueDocumentKeys,
   readLegacyIssueRecord,
   readTrackedIssueAggregate as readAggregate,
   rebuildCurrentIssueIndex,
@@ -35,7 +35,7 @@ export { createTrackedIssue, type CreateIssueInput } from "./issue-create"
 export async function loadTrackedIssue(
   root: string,
   issueId: string
-): Promise<{ id: string; metadata: IssueMetadata; stores: StringMap<string[]> }> {
+): Promise<{ id: string; metadata: IssueMetadata; keys: string[] }> {
   const canonical = await rebuildIssueProjection(root, issueId)
   const tracker = getTrackerHandles(root)
 
@@ -44,7 +44,7 @@ export async function loadTrackedIssue(
     return {
       id: issueId,
       metadata: canonical.state.metadata,
-      stores: readIssueStoreKeys(issueDir),
+      keys: readIssueDocumentKeys(issueDir),
     }
   }
 
@@ -54,7 +54,7 @@ export async function loadTrackedIssue(
     return {
       id: issueId,
       metadata: stripIssueId(current),
-      stores: readIssueStoreKeys(currentDir),
+      keys: readIssueDocumentKeys(currentDir),
     }
   }
 
@@ -64,7 +64,7 @@ export async function loadTrackedIssue(
     return {
       id: issueId,
       metadata: stripIssueId(archived),
-      stores: readIssueStoreKeys(archiveDir),
+      keys: readIssueDocumentKeys(archiveDir),
     }
   }
 
@@ -124,7 +124,7 @@ export async function searchTrackedIssues(
 export function loadArchivedTrackedIssue(
   root: string,
   issueId: string
-): { id: string; metadata: IssueMetadata; stores: StringMap<string[]> } {
+): { id: string; metadata: IssueMetadata; keys: string[] } {
   const tracker = getTrackerHandles(root)
   const issueDir = join(tracker.archiveRoot, issueId)
   const issue = readLegacyIssueRecord(issueDir, issueId)
@@ -135,7 +135,7 @@ export function loadArchivedTrackedIssue(
   return {
     id: issueId,
     metadata: stripIssueId(issue),
-    stores: readIssueStoreKeys(issueDir),
+    keys: readIssueDocumentKeys(issueDir),
   }
 }
 

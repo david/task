@@ -6,7 +6,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs"
-import { dirname, join } from "node:path"
+import { dirname, join, relative, sep } from "node:path"
 import { EventId } from "../../packages/esther/src/index.ts"
 import { readJsonFile } from "../infrastructure/json"
 import type { JsonObject, JsonValue, StringMap } from "../types"
@@ -20,7 +20,7 @@ import {
 } from "./events"
 import { legacyIssueFileSchema, parseIssueCreatedPayload, storedEventFileSchema } from "./events"
 import { getTrackerHandles, listCanonicalIssueIds } from "./root"
-import { getVisibleStores, materializeVisibleStores } from "./stores"
+import { materializeVisibleDocuments } from "./stores"
 
 type MaxPosition = bigint | undefined
 
@@ -178,7 +178,7 @@ function materializeIssueProjection(root: string, issueId: string, aggregate: Is
   const issueDir = join(tracker.issueRoot, issueId)
   mkdirSync(issueDir, { recursive: true })
   writeFileSync(join(issueDir, "issue.json"), `${JSON.stringify(aggregate.state.metadata, null, 2)}\n`)
-  materializeVisibleStores(issueDir, getVisibleStores(aggregate.state.stores))
+  materializeVisibleDocuments(issueDir, aggregate.state.stores)
 
   const legacyArchiveDir = join(tracker.archiveRoot, issueId)
   if (existsSync(legacyArchiveDir)) {
@@ -316,6 +316,43 @@ export function readLegacyIssueRecord(issueDir: string, issueId: string): IssueR
   } catch {
     return undefined
   }
+}
+
+function toDocumentKey(issueDir: string, entryPath: string): string {
+  const relativePath = relative(issueDir, entryPath).split(sep).join("/")
+  return relativePath.endsWith(".md")
+    ? relativePath.slice(0, -".md".length)
+    : relativePath
+}
+
+function collectIssueDocumentKeys(issueDir: string, dir: string, keys: Set<string>): void {
+  for (const entry of readdirSync(dir)) {
+    const entryPath = join(dir, entry)
+    const stats = statSync(entryPath)
+    if (stats.isDirectory()) {
+      collectIssueDocumentKeys(issueDir, entryPath, keys)
+      continue
+    }
+
+    if (!stats.isFile()) {
+      continue
+    }
+
+    const key = toDocumentKey(issueDir, entryPath)
+    if (key !== "issue.json") {
+      keys.add(key)
+    }
+  }
+}
+
+export function readIssueDocumentKeys(issueDir: string): string[] {
+  if (!existsSync(issueDir)) {
+    return []
+  }
+
+  const keys = new Set<string>()
+  collectIssueDocumentKeys(issueDir, issueDir, keys)
+  return [...keys].sort()
 }
 
 export function readIssueStoreKeys(issueDir: string): StringMap<string[]> {

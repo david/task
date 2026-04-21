@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test"
 import { join } from "node:path"
 import {
+  documentGet,
+  documentSet,
   issueCreate,
   issueMetaGet,
   issueMetaSet,
@@ -8,8 +10,6 @@ import {
   issuePhaseNext,
   issuePhaseSet,
   issueShow,
-  storeGet,
-  storeSet,
 } from "./commands"
 import { appendTrackedIssueEvents, readTrackedIssueAggregate } from "./tracker/issues"
 import { issueMetadataSetEvent } from "./tracker/events"
@@ -117,18 +117,24 @@ async function setupPhaseDraftFixture(root: string): Promise<string> {
     transitions: { research: ["ready-to-code"], "ready-to-code": [] },
   })
   const created = (await issueCreate({ "--title": "Finalize Drafts" }, phaseRoot))
-  await storeSet({ "--id": created.id, "--store": "research", "--key": "summary" }, fakeStdin("draft summary"), phaseRoot)
-  await storeSet({ "--id": created.id, "--store": "tasks", "--key": "plan" }, fakeStdin("draft plan"), phaseRoot)
+  await documentSet({ "--id": created.id, "--key": "research/summary" }, fakeStdin("draft summary"), phaseRoot)
+  await documentSet({ "--id": created.id, "--key": "tasks/plan" }, fakeStdin("draft plan"), phaseRoot)
   await issuePhaseSet({ "--id": created.id, "--value": "ready-to-code" }, phaseRoot)
   return created.id
 }
 
 describe("phase change finalization", () => {
-  test("phase change finalizes open store drafts", async () => {
+  test("phase change finalizes open document drafts by full path", async () => {
     const phaseRoot = join(getRoot(), "phase-finalizes-drafts")
     const issueId = await setupPhaseDraftFixture(getRoot())
-    expect(await storeGet({ "--id": issueId, "--store": "research", "--key": "summary" }, phaseRoot)).toEqual({
-      value: "draft summary",
+    expect(await documentGet({ "--id": issueId, "--key": "research/summary" }, phaseRoot)).toEqual({
+      entries: {
+        research: {
+          entries: {
+            summary: { value: "draft summary" },
+          },
+        },
+      },
     })
 
     const finalized = readCanonicalEvents(phaseRoot, issueId)
@@ -141,8 +147,8 @@ describe("phase change finalization", () => {
   })
 })
 
-describe("phase-scoped store revisions", () => {
-  test("editing the same key in a later phase creates a new revision", async () => {
+describe("phase-scoped document revisions", () => {
+  test("editing the same path in a later phase creates a superseding revision", async () => {
     const revisionRoot = join(getRoot(), "phase-store-revisions")
     writeTaskSettings(revisionRoot, {
       defaultPhase: "research",
@@ -151,11 +157,17 @@ describe("phase-scoped store revisions", () => {
     })
 
     const created = (await issueCreate({ "--title": "Store Revisions" }, revisionRoot))
-    await storeSet({ "--id": created.id, "--store": "research", "--key": "summary" }, fakeStdin("phase one"), revisionRoot)
+    await documentSet({ "--id": created.id, "--key": "research/summary" }, fakeStdin("phase one"), revisionRoot)
     await issuePhaseSet({ "--id": created.id, "--value": "ready-to-code" }, revisionRoot)
-    await storeSet({ "--id": created.id, "--store": "research", "--key": "summary" }, fakeStdin("phase two"), revisionRoot)
-    expect(await storeGet({ "--id": created.id, "--store": "research", "--key": "summary" }, revisionRoot)).toEqual({
-      value: "phase two",
+    await documentSet({ "--id": created.id, "--key": "research/summary" }, fakeStdin("phase two"), revisionRoot)
+    expect(await documentGet({ "--id": created.id, "--key": "research/summary" }, revisionRoot)).toEqual({
+      entries: {
+        research: {
+          entries: {
+            summary: { value: "phase two" },
+          },
+        },
+      },
     })
 
     const saved = readCanonicalEvents(revisionRoot, created.id)

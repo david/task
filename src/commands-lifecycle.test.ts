@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path"
 import {
+  documentSet,
   issueChildren,
   issueClose,
   issueCreate,
@@ -55,7 +56,7 @@ async function setupProjectionRebuild(root: string): Promise<{ rebuildRoot: stri
 function corruptProjectionArtifacts(rebuildRoot: string, parentId: string, childId: string): void {
   rmSync(join(rebuildRoot, ".task", "indexes", "hierarchy"), { recursive: true, force: true })
   rmSync(join(rebuildRoot, ".task", "indexes", "issues"), { recursive: true, force: true })
-  rmSync(join(issueProjectionRoot(rebuildRoot), childId, "research"), { recursive: true, force: true })
+  rmSync(join(issueProjectionRoot(rebuildRoot), childId, "research", "summary.md"), { force: true })
   rmSync(join(issueProjectionRoot(rebuildRoot), parentId, "issue.json"), { force: true })
   writeFileSync(
     join(issueProjectionRoot(rebuildRoot), childId, "issue.json"),
@@ -91,7 +92,7 @@ function assertProjectionArtifacts(rebuildRoot: string, parentId: string, childI
   const rebuiltIssue = readIssueMetadata(join(issueProjectionRoot(rebuildRoot), childId, "issue.json"))
   expect(rebuiltIssue["title"]).toBe("Rebuild Child")
   expect(rebuiltIssue["status"]).toBe("closed")
-  expect(readFileSync(join(issueProjectionRoot(rebuildRoot), childId, "research", "summary"), "utf-8")).toBe(
+  expect(readFileSync(join(issueProjectionRoot(rebuildRoot), childId, "research", "summary.md"), "utf-8")).toBe(
     "canonical summary"
   )
   expect(existsSync(join(issueProjectionRoot(rebuildRoot), parentId, "issue.json"))).toBe(true)
@@ -123,6 +124,19 @@ describe("issueClose", () => {
 })
 
 describe("projection rebuilds", () => {
+  test("materializes a document path as both markdown file and subtree root", async () => {
+    const root = join(getRoot(), "document-projection-tree")
+    const created = (await issueCreate({ "--title": "Projection Tree" }, root))
+
+    await documentSet({ "--id": created["id"], "--key": "research" }, fakeStdin("overview"), root)
+    await documentSet({ "--id": created["id"], "--key": "research/notes/today" }, fakeStdin("hello"), root)
+
+    expect(readFileSync(join(issueProjectionRoot(root), created["id"], "research.md"), "utf-8")).toBe("overview")
+    expect(readFileSync(join(issueProjectionRoot(root), created["id"], "research", "notes", "today.md"), "utf-8")).toBe(
+      "hello"
+    )
+  })
+
   test("rebuilds missing and corrupt projections from canonical history", async () => {
     const setup = await setupProjectionRebuild(getRoot())
     corruptProjectionArtifacts(setup.rebuildRoot, setup.parentId, setup.childId)

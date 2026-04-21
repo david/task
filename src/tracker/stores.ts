@@ -220,31 +220,12 @@ export function getStoreTree(
   return { entries: pruneEmptyNodes(treeEntries) }
 }
 
-export function getVisibleStores(state: IssueStoreState): StringMap<StringMap<string>> {
-  const grouped: StringMap<StringMap<string>> = {}
+export function getVisibleDocumentKeys(state: IssueStoreState): string[] {
+  return visibleEntries(state).map(([path]) => path)
+}
 
-  for (const [path, entry] of visibleEntries(state)) {
-    const [store, ...rest] = splitDocumentPath(path)
-    if (store === undefined || rest.length === 0) {
-      continue
-    }
-
-    const key = rest.join("/")
-    const storeEntries = grouped[store] ?? {}
-    storeEntries[key] = entry.content
-    grouped[store] = storeEntries
-  }
-
-  return Object.fromEntries(
-    Object.entries(grouped)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([store, storeEntries]) => [
-        store,
-        Object.fromEntries(
-          Object.entries(storeEntries).sort(([a], [b]) => a.localeCompare(b))
-        ),
-      ])
-  )
+function documentProjectionPath(issueDir: string, path: string): string {
+  return `${join(issueDir, ...splitDocumentPath(path))}.md`
 }
 
 export function getOpenStoreDrafts(state: IssueStoreState): StoreDraftRef[] {
@@ -269,10 +250,7 @@ export function hasVisibleEntriesUnderPrefix(state: IssueStoreState, pathPrefix:
   return visibleEntries(state).some(([path]) => isPathWithinPrefix(path, pathPrefix))
 }
 
-export function materializeVisibleStores(
-  issueDir: string,
-  stores: StringMap<StringMap<string>>
-): void {
+export function materializeVisibleDocuments(issueDir: string, state: IssueStoreState): void {
   mkdirSync(issueDir, { recursive: true })
 
   for (const entry of readdirSync(issueDir)) {
@@ -280,13 +258,9 @@ export function materializeVisibleStores(
     rmSync(join(issueDir, entry), { recursive: true, force: true })
   }
 
-  for (const [store, keys] of Object.entries(stores)) {
-    const storeDir = join(issueDir, store)
-    mkdirSync(storeDir, { recursive: true })
-    for (const [key, content] of Object.entries(keys)) {
-      const filePath = join(storeDir, key)
-      mkdirSync(dirname(filePath), { recursive: true })
-      writeFileSync(filePath, content)
-    }
+  for (const [path, entry] of visibleEntries(state)) {
+    const filePath = documentProjectionPath(issueDir, path)
+    mkdirSync(dirname(filePath), { recursive: true })
+    writeFileSync(filePath, entry.content)
   }
 }
