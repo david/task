@@ -13,6 +13,23 @@ type TestIssueEvent = {
   payload: JsonValue
 }
 
+type LegacyStoreRevisionSavedEventInputBase = {
+  issueId: string
+  store: string
+  key: string
+  revision: number
+  phase: string
+  draft: boolean
+  content: string
+  savedAt: string
+}
+
+type LegacyStoreRevisionSavedEventInput =
+  | LegacyStoreRevisionSavedEventInputBase
+  | (LegacyStoreRevisionSavedEventInputBase & {
+      supersedesRevision: number
+    })
+
 const getRoot = useTempRoot("commands-document-legacy-history-")
 
 async function appendLegacyStoreEvents(
@@ -24,17 +41,7 @@ async function appendLegacyStoreEvents(
   await appendTrackedIssueEvents(root, issueId, events, aggregate.maxPosition)
 }
 
-function legacyStoreRevisionSavedEvent(input: {
-  issueId: string
-  store: string
-  key: string
-  revision: number
-  phase: string
-  draft: boolean
-  content: string
-  savedAt: string
-  supersedesRevision?: number
-}): TestIssueEvent {
+function legacyStoreRevisionSavedEvent(input: LegacyStoreRevisionSavedEventInput): TestIssueEvent {
   return {
     type: "StoreRevisionSaved",
     tags: [`issue:${input.issueId}`, `store:${input.store}`],
@@ -47,7 +54,7 @@ function legacyStoreRevisionSavedEvent(input: {
       draft: input.draft,
       content: input.content,
       savedAt: input.savedAt,
-      ...(input.supersedesRevision === undefined ? {} : { supersedesRevision: input.supersedesRevision }),
+      ...("supersedesRevision" in input ? { supersedesRevision: input.supersedesRevision } : {}),
     },
   }
 }
