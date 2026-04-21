@@ -149,7 +149,7 @@ export async function readTrackedIssueAggregate(
 export async function appendTrackedIssueEvents(
   root: string,
   issueId: string,
-  events: ReadonlyArray<DomainEvent>,
+  events: ReadonlyArray<DomainEvent<string, JsonValue>>,
   expectedPosition: bigint | undefined
 ): Promise<IssueAggregate> {
   const tracker = getTrackerHandles(root)
@@ -247,7 +247,7 @@ export async function setTrackedIssuePhase(
   assertAllowedPhaseTransition(settings, currentPhase, nextPhase)
 
   const changedAt = new Date().toISOString()
-  const events: DomainEvent[] = [
+  const events: Array<DomainEvent<string, JsonValue>> = [
     issuePhaseChangedEvent(issueId, currentPhase, nextPhase, changedAt),
     ...getOpenStoreDrafts(aggregate.state.stores).map((draft) =>
       issueDocumentRevisionFinalizedEvent({

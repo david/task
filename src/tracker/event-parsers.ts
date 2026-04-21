@@ -13,6 +13,10 @@ import type {
   IssueDocumentRevisionSavedPayload,
   IssueDocumentSubtreeDeletedPayload,
   IssueDocumentsClearedPayload,
+  StoreDeletedPayload,
+  StoreEntryDeletedPayload,
+  StoreRevisionFinalizedPayload,
+  StoreRevisionSavedPayload,
   TrackerStoredEvent,
 } from "./event-core"
 import {
@@ -27,6 +31,10 @@ import {
   issueDocumentRevisionSavedPayloadSchema,
   issueDocumentSubtreeDeletedPayloadSchema,
   issueDocumentsClearedPayloadSchema,
+  storeDeletedPayloadSchema,
+  storeEntryDeletedPayloadSchema,
+  storeRevisionFinalizedPayloadSchema,
+  storeRevisionSavedPayloadSchema,
   trackerStoredEventSchema,
 } from "./event-core"
 
@@ -78,6 +86,22 @@ export function parseIssueRefsChangedPayload(value: JsonValue): IssueRefsChanged
 
 export function parseIssueClosedPayload(value: JsonValue): IssueClosedPayload | undefined {
   return safeParseWithSchema(issueClosedPayloadSchema, value)
+}
+
+export function parseStoreRevisionSavedPayload(value: JsonValue): StoreRevisionSavedPayload | undefined {
+  return safeParseWithSchema(storeRevisionSavedPayloadSchema, value)
+}
+
+export function parseStoreRevisionFinalizedPayload(value: JsonValue): StoreRevisionFinalizedPayload | undefined {
+  return safeParseWithSchema(storeRevisionFinalizedPayloadSchema, value)
+}
+
+export function parseStoreEntryDeletedPayload(value: JsonValue): StoreEntryDeletedPayload | undefined {
+  return safeParseWithSchema(storeEntryDeletedPayloadSchema, value)
+}
+
+export function parseStoreDeletedPayload(value: JsonValue): StoreDeletedPayload | undefined {
+  return safeParseWithSchema(storeDeletedPayloadSchema, value)
 }
 
 export function parseIssueDocumentRevisionSavedPayload(value: JsonValue): IssueDocumentRevisionSavedPayload | undefined {
