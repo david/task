@@ -64,6 +64,39 @@ export type IssueClosedPayload = {
   closedAt: string
 }
 
+export type StoreRevisionSavedPayload = {
+  issueId: string
+  store: string
+  key: string
+  revision: number
+  phase: string
+  draft: boolean
+  content: string
+  savedAt: string
+} & ({ supersedesRevision: number } | {})
+
+export type StoreRevisionFinalizedPayload = {
+  issueId: string
+  store: string
+  key: string
+  revision: number
+  phase: string
+  finalizedAt: string
+}
+
+export type StoreEntryDeletedPayload = {
+  issueId: string
+  store: string
+  key: string
+  deletedAt: string
+}
+
+export type StoreDeletedPayload = {
+  issueId: string
+  store: string
+  deletedAt: string
+}
+
 type IssueDocumentRevisionSavedPayloadBase = {
   issueId: string
   path: string
@@ -189,6 +222,40 @@ export const issueRefsChangedPayloadSchema: z.ZodType<IssueRefsChangedPayload> =
 export const issueClosedPayloadSchema: z.ZodType<IssueClosedPayload> = z.object({
   issueId: nonEmptyStringSchema,
   closedAt: eventTimestampSchema,
+})
+
+export const storeRevisionSavedPayloadSchema: z.ZodType<StoreRevisionSavedPayload> = z.object({
+  issueId: nonEmptyStringSchema,
+  store: nonEmptyStringSchema,
+  key: nonEmptyStringSchema,
+  revision: z.number(),
+  phase: nonEmptyStringSchema,
+  draft: z.boolean(),
+  content: z.string(),
+  savedAt: eventTimestampSchema,
+  supersedesRevision: z.number().optional(),
+})
+
+export const storeRevisionFinalizedPayloadSchema: z.ZodType<StoreRevisionFinalizedPayload> = z.object({
+  issueId: nonEmptyStringSchema,
+  store: nonEmptyStringSchema,
+  key: nonEmptyStringSchema,
+  revision: z.number(),
+  phase: nonEmptyStringSchema,
+  finalizedAt: eventTimestampSchema,
+})
+
+export const storeEntryDeletedPayloadSchema: z.ZodType<StoreEntryDeletedPayload> = z.object({
+  issueId: nonEmptyStringSchema,
+  store: nonEmptyStringSchema,
+  key: nonEmptyStringSchema,
+  deletedAt: eventTimestampSchema,
+})
+
+export const storeDeletedPayloadSchema: z.ZodType<StoreDeletedPayload> = z.object({
+  issueId: nonEmptyStringSchema,
+  store: nonEmptyStringSchema,
+  deletedAt: eventTimestampSchema,
 })
 
 export const issueDocumentRevisionSavedPayloadSchema: z.ZodType<IssueDocumentRevisionSavedPayload> = z.object({

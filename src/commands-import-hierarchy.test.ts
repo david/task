@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 import {
+  documentGet,
   issueChildren,
   issueClose,
   issueCreate,
@@ -11,7 +12,6 @@ import {
   issueShow,
   issueList,
   legacyImport,
-  storeGet,
   updateArrayField,
 } from "./commands"
 import {
@@ -122,15 +122,23 @@ async function assertLegacyImportMetadata(targetRoot: string): Promise<void> {
   expect(closed.metadata).toMatchObject({ title: "Closed Task", status: "closed", phase: "done" })
 }
 
-async function assertLegacyImportRelationsAndStores(targetRoot: string): Promise<void> {
+async function assertLegacyImportRelationsAndDocuments(targetRoot: string): Promise<void> {
   await expect(issueChildren({ "--id": "aaaa-parent-epic", "--fields": "id,title,status" }, targetRoot)).resolves.toEqual([
     { id: "bbbb-child-task", title: "Child Task", status: "open" },
   ])
   await expect(issueParents({ "--id": "bbbb-child-task", "--fields": "id,title,status" }, targetRoot)).resolves.toEqual([
     { id: "aaaa-parent-epic", title: "Parent Epic", status: "open" },
   ])
-  await expect(storeGet({ "--id": "bbbb-child-task", "--store": "research", "--key": "summary" }, targetRoot)).resolves.toEqual({ value: "child summary" })
-  await expect(storeGet({ "--id": "bbbb-child-task", "--store": "tasks", "--key": "plan" }, targetRoot)).resolves.toEqual({ value: "child plan" })
+  await expect(documentGet({ "--id": "bbbb-child-task", "--key": "research/summary" }, targetRoot)).resolves.toEqual({
+    entries: {
+      research: { entries: { summary: { value: "child summary" } } },
+    },
+  })
+  await expect(documentGet({ "--id": "bbbb-child-task", "--key": "tasks/plan" }, targetRoot)).resolves.toEqual({
+    entries: {
+      tasks: { entries: { plan: { value: "child plan" } } },
+    },
+  })
   expect((await issueSearch({ "--text": "external-child-ref" }, targetRoot)).map((issue) => issue["id"])).toEqual([
     "bbbb-child-task",
   ])
@@ -161,7 +169,7 @@ function registerLegacyImportSuccessTest(): void {
 
     await assertLegacyImportListings(targetRoot)
     await assertLegacyImportMetadata(targetRoot)
-    await assertLegacyImportRelationsAndStores(targetRoot)
+    await assertLegacyImportRelationsAndDocuments(targetRoot)
     assertLegacyImportEvents(targetRoot)
   })
 }

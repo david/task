@@ -34,6 +34,10 @@ export {
   issueDocumentRevisionSavedPayloadSchema,
   issueDocumentSubtreeDeletedPayloadSchema,
   issueDocumentsClearedPayloadSchema,
+  storeDeletedPayloadSchema,
+  storeEntryDeletedPayloadSchema,
+  storeRevisionFinalizedPayloadSchema,
+  storeRevisionSavedPayloadSchema,
   trackerStoredEventSchema,
   type IssueClosedPayload,
   type IssueCreatedPayload,
@@ -50,6 +54,10 @@ export {
   type IssueRefsChangedPayload,
   type LegacyIssueFile,
   type StoredEventFile,
+  type StoreDeletedPayload,
+  type StoreEntryDeletedPayload,
+  type StoreRevisionFinalizedPayload,
+  type StoreRevisionSavedPayload,
 } from "./schemas"
 
 export const RESERVED_METADATA_KEYS = new Set(["status", "phase", "parentId"])

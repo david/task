@@ -12,6 +12,7 @@ import {
   type IssueState,
   type TrackerStoredEvent,
 } from "./event-core"
+import { joinLegacyStorePath } from "./document-paths"
 import {
   parseIssueClosedPayload,
   parseIssueCreatedPayload,
@@ -24,6 +25,10 @@ import {
   parseIssueDocumentRevisionSavedPayload,
   parseIssueDocumentSubtreeDeletedPayload,
   parseIssueDocumentsClearedPayload,
+  parseStoreDeletedPayload,
+  parseStoreEntryDeletedPayload,
+  parseStoreRevisionFinalizedPayload,
+  parseStoreRevisionSavedPayload,
 } from "./event-parsers"
 
 function createIssueState(event: TrackerStoredEvent): IssueState | undefined {
@@ -89,6 +94,49 @@ function applyRefsChanged(current: IssueState, event: TrackerStoredEvent): void 
   current.metadata.updated = payload.updatedAt
 }
 
+function applyStoreRevisionSavedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseStoreRevisionSavedPayload(event.payload)
+  if (!payload) return
+  applyStoreRevisionSaved(current.stores, {
+    path: joinLegacyStorePath(payload.store, payload.key),
+    revision: payload.revision,
+    phase: payload.phase,
+    content: payload.content,
+    draft: payload.draft,
+  })
+  current.metadata.updated = payload.savedAt
+}
+
+function applyStoreRevisionFinalizedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseStoreRevisionFinalizedPayload(event.payload)
+  if (!payload) return
+  applyStoreRevisionFinalized(current.stores, {
+    path: joinLegacyStorePath(payload.store, payload.key),
+    revision: payload.revision,
+    phase: payload.phase,
+  })
+  current.metadata.updated = payload.finalizedAt
+}
+
+function applyStoreEntryDeletedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseStoreEntryDeletedPayload(event.payload)
+  if (!payload) return
+  applyStoreEntryDeleted(current.stores, joinLegacyStorePath(payload.store, payload.key))
+  current.metadata.updated = payload.deletedAt
+}
+
+function applyStoreDeletedEvent(current: IssueState, event: TrackerStoredEvent): void {
+  const payload = parseStoreDeletedPayload(event.payload)
+  if (!payload) return
+  const pathPrefix = `${payload.store}/`
+  for (const [path, entry] of Object.entries(current.stores.entries)) {
+    if (path.startsWith(pathPrefix)) {
+      entry.visible = false
+    }
+  }
+  current.metadata.updated = payload.deletedAt
+}
+
 function applyIssueDocumentRevisionSavedEvent(current: IssueState, event: TrackerStoredEvent): void {
   const payload = parseIssueDocumentRevisionSavedPayload(event.payload)
   if (!payload) return
@@ -146,6 +194,18 @@ function applyEvent(current: IssueState, event: TrackerStoredEvent): void {
       return
     case "IssueRefsChanged":
       applyRefsChanged(current, event)
+      return
+    case "StoreRevisionSaved":
+      applyStoreRevisionSavedEvent(current, event)
+      return
+    case "StoreRevisionFinalized":
+      applyStoreRevisionFinalizedEvent(current, event)
+      return
+    case "StoreEntryDeleted":
+      applyStoreEntryDeletedEvent(current, event)
+      return
+    case "StoreDeleted":
+      applyStoreDeletedEvent(current, event)
       return
     case "IssueDocumentRevisionSaved":
       applyIssueDocumentRevisionSavedEvent(current, event)
