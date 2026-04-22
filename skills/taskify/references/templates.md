@@ -1,9 +1,8 @@
 # Taskify Templates
 
-Use these headings as the default structure. Adapt artifact names and paths to
-the current repo.
+Use these headings and key shapes for the task-backed workflow.
 
-## Durable task template
+## Durable task template (`tasks/NN-*`)
 
 ```markdown
 ---
@@ -11,8 +10,8 @@ name: 01-short-slug
 role: coder
 depends_on: []
 source: plan
-source_key: <approved handoff or check artifact>
-batch: <taskification history key>
+source_key: research:plan | check-report:run-00N
+batch: taskify-history:run-001
 ---
 
 # 01 — Short title
@@ -45,17 +44,17 @@ Why this task exists and how it fits the approved handoff or failed check.
 - no leftover partial edits for this task
 ```
 
-## Durable taskification-history template
+## Durable taskification-history template (`taskify-history/run-*`)
 
 ```markdown
 # Taskify Run
 
 ## Metadata
-- Work item: <id or none>
+- Issue: <id>
 - Timestamp: <ISO-8601 UTC>
-- Source: plan | check | conversation
-- Source key: <artifact key or none>
-- Trigger: <exact command>
+- Source: plan | check
+- Source key: research/plan | check-report/run-00N
+- Trigger: /skill:taskify <id> --from plan|check
 
 ## Existing Task State
 - Existing task count: <n>
@@ -65,9 +64,9 @@ Why this task exists and how it fits the approved handoff or failed check.
   - none
 
 ## Taskification Policy
-- Mode: append-only | fresh conversation list
-- Start numbering at: <NN or 01>
-- Why this shape: <short explanation>
+- Mode: append-only
+- Start numbering at: <NN>
+- Why append instead of rewrite: preserve prior approved/task execution history
 
 ## Tasks Created
 - <NN-key> — <short title>
@@ -87,40 +86,17 @@ Why this task exists and how it fits the approved handoff or failed check.
 
 ## Next Step
 - First new task: <first-new-task-key or none>
-- Final handoff line: <exact next line>
+- Final handoff line: Next: /skill:code <id> <first-new-task-key>
 ```
 
-## Conversation response template
+## Latest pointer template (`taskify-history/latest`)
 
 ```markdown
-# Task Breakdown
+# Latest Taskify Run
 
-## Metadata
-- Source: conversation
-- Trigger: <exact command>
-
-## Assumptions
-- none
-
-## Tasks
-
-### 01 — Short title
-- Depends on: none
-- Goal: concrete outcome for this task
-- Context: why this task exists in the current conversation
-- Files:
-  - likely/file.ts
-- Surfaces:
-  - related docs, tests, or mirrored user-facing surfaces
-  - None
-- Verification:
-  - targeted proof for this task
-- Out of scope:
-  - what this task must not expand into
-- Done when:
-  - concrete completion conditions
-
-## Suggested Next Step
-- Suggested next command: /skill:code
-- First task: 01
+- Latest key: run-00N
+- Source: plan | check
+- Tasks created:
+  - <NN-key>
+  - none
 ```

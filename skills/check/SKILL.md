@@ -12,24 +12,27 @@ description: >
 
 Run automated quality checks against the codebase.
 
-If the repo has a project-local override or project docs for check workflow,
-follow them. Treat this skill as the generalized base workflow.
+If `doc/task-workflow.md` exists, read it before acting.
+If `doc/skill-check.md` exists, read it before acting.
+
+Treat repo docs as project-specific extensions of this skill.
 
 ## Workflow role
 
-This is the post-code full-branch confirmation step.
+This is the post-code full-branch confirmation step in the task-backed workflow.
 `/skill:code` should already have performed targeted verification for the active
 slice. `/skill:check` confirms whether the branch is clean enough for QA or the
-next stage, runs `/skill:global-review --branch`, and writes a durable report
-when the repo's workflow expects one.
+next stage, runs `/skill:global-review --branch`, and writes a durable report to
+`check-report/run-*` plus `check-report/latest`.
 
 ## Context reads for issue-backed runs
 
-If an issue or work item is in play, read the repo's documented durable context:
-- task graph or work items
-- task status / run history
-- prior check reports
-- approved handoff artifacts
+In the standard task-backed workflow, read:
+- `research/plan` when present
+- `tasks/*`
+- `task-status/*`
+- `code-history/*`
+- prior `check-report/*`
 
 Use those signals to understand what was just implemented and whether this is a
 recheck. Do not gate execution on bookkeeping alone.
@@ -64,8 +67,10 @@ If it surfaces a concrete blocker, fail the overall check.
 
 ## Durable report policy
 
-If the repo defines a durable check-report artifact, append a new report even on
-pass and refresh any latest-pointer artifact the project uses.
+Append a new durable check report even on pass and refresh the latest pointer.
+In the standard task-backed workflow, write:
+- `check-report/run-00N`
+- `check-report/latest`
 
 At minimum, record:
 - metadata (issue/work item, timestamp, verdict)
@@ -76,10 +81,10 @@ At minimum, record:
 
 ## Handoff
 
-- standalone => report the results
-- issue-backed pass => hand off to the repo's QA step when there is one
-- issue-backed fail => hand off to decomposition or diagnosis based on whether
-  the failures are already clearly separable
+- standalone => report the results only when the user explicitly asked for standalone mode
+- issue-backed pass => `Next: /skill:qa <id>`
+- issue-backed fail with clear repair slices => `Next: /skill:taskify <id> --from check`
+- issue-backed fail needing diagnosis => `Next: /skill:debug <id>`
 
 ## Rules
 

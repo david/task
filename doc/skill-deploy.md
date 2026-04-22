@@ -1,21 +1,4 @@
----
-name: deploy
-description: Project-local shipping workflow for the task CLI repo. Extends the packaged deploy skill with repo-local issue-document reads and readiness checks.
----
-
-# Deploy — task repo local override
-
-This repo overrides the packaged `deploy` skill for the task repo.
-
-Read these before acting:
-1. `../../../skills/deploy/SKILL.md`
-2. `../task/SKILL.md`
-3. `../../task-workflow.md`
-4. `../../../AGENTS.md`
-5. `../../../doc/testing.md`
-
-Apply the packaged base skill as the base workflow. The rules below replace generic
-issue-artifact lookup instructions.
+# Local rules for `/skill:deploy`
 
 ## Local readiness evidence
 

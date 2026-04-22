@@ -13,8 +13,10 @@ Run the end-to-end shipping flow for the current branch: validate readiness,
 push and open or reuse a PR, wait for CI, merge on green, then watch the
 deployment target and report the outcome.
 
-If the repo has a project-local override or project docs for deployment,
-follow them. Treat this skill as the generalized base workflow.
+If `doc/task-workflow.md` exists, read it before acting.
+If `doc/skill-deploy.md` exists, read it before acting.
+
+Treat repo docs as project-specific extensions of this skill.
 
 ## Project-specific deployment guidance
 
@@ -42,8 +44,16 @@ Run these first:
 5. doc freshness
 6. diff size / review context
 
-If an issue or work item is available and the repo has durable workflow
-artifacts, read them as the source of truth for check/QA readiness.
+If an issue or work item is available, read the durable workflow artifacts as
+the source of truth for check/QA readiness. In the standard task-backed
+workflow, this means:
+- `check-report/latest`
+- `check-report/*`
+- `tasks/*`
+- `task-status/*`
+- `qa-results/*`
+- `qa-context/*`
+
 Otherwise ask the user.
 
 ## Shipping steps
@@ -62,5 +72,5 @@ If readiness is GO:
 - Do not merge while required CI is pending or failing.
 - After merge, inspect deployment status whenever the project documents a way to
   do so.
-- Keep this skill read-only with respect to issue/workflow artifacts unless the
+- Keep this skill read-only with respect to task-backed workflow artifacts unless the
   project explicitly requires a deploy log.

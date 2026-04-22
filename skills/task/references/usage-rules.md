@@ -16,6 +16,7 @@ task show <id> --include-keys
 
 | Intent | Preferred command | Notes |
 |---|---|---|
+| Scaffold task-backed workflow docs | `task bootstrap` | Writes `doc/task-workflow.md` and `doc/skill-*.md`. Use `--force` only when you intend to overwrite existing scaffolded docs. |
 | Create a new issue | `task create` | Set `--priority`, `--label`, `--github-issue`, and `--parent` at creation time when known. |
 | Read one issue | `task show` | Use `--summary` for metadata only, `--include-keys` to list current document keys. |
 | Find issues | `task list`, `task search` | `list` is for structured filters; `search` is for free text. Closed issues are hidden unless `--all` is passed. |
@@ -75,8 +76,9 @@ Important:
 
 ## High-signal gotchas
 
+- `task bootstrap` writes repo docs, not tracker issue data.
 - `task meta set` writes raw strings; later changing `priority` this way can convert it from number to string.
 - `task list` and `task search` ignore closed issues unless `--all` is passed.
-- `task phase set` validates transitions and finalizes open draft document revisions.
+- `task phase set` validates transitions and may finalize open draft document revisions depending on repo rules.
 - `task close` appends canonical history and keeps data under `.task/`; do not try to remove issue data manually.
-- If behavior is unclear, read `../../doc/commands.md` and `../../doc/project-management.md` instead of guessing.
+- If behavior is unclear, read the repo's task docs when present instead of guessing.

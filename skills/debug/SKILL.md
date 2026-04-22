@@ -27,19 +27,21 @@ Also read these when the investigation touches the relevant surface:
 Also read repo context files such as `AGENTS.md`, `CLAUDE.md`, and relevant
 project docs before choosing issue workflow, artifact paths, or handoffs.
 
-If the repo has a project-local override or project docs for bug workflow,
-follow them. Treat this skill as the generalized base workflow.
+If `doc/task-workflow.md` exists, read it before acting.
+If `doc/skill-debug.md` exists, read it before acting.
+
+Treat repo docs as project-specific extensions of this skill.
 
 ## Workflow model
 
-Prefer an issue-backed, artifact-first workflow when the project documents one:
+This package's standard workflow is task-backed and issue-backed:
 - reuse the issue already in play when possible
 - otherwise create one once the bug is framed clearly enough
 - read durable reproduction / QA / prior-planning artifacts before asking for
   missing context
-- write durable diagnosis artifacts when the repo documents where they belong
-- if the repo does not define durable artifacts, present the diagnosis directly
-  in the conversation
+- write the diagnosis to `research/diagnosis` or `research/diagnosis-retry-N`
+- write `research/plan` when the disposition is implementation-ready
+- hand off with an exact next command
 
 Do not rely on rigid workflow-state metadata unless the project explicitly does.
 
@@ -75,12 +77,14 @@ Summarize the bug back before deeper root-cause hunting.
 Inspect repo docs and current context to determine:
 - whether an issue should be reused or created
 - whether QA artifacts or prior diagnoses exist
-- where durable diagnosis / plan artifacts belong
-- what the exact next command is after diagnosis when it is knowable
-  (`/skill:taskify <id> --from plan`, `/skill:code <id> <task-key>`,
-  `/skill:feature <id>`, `/skill:refactor <id>`, or none)
+- whether `research/diagnosis*` and `research/plan` already exist
+- what the exact next command is after diagnosis, which should normally be one of:
+  - `/skill:taskify <id> --from plan`
+  - `/skill:feature <id>`
+  - `/skill:refactor <id>`
 
-If the project has no issue workflow, continue in conversation-only mode.
+If the repo explicitly rejects the task-backed workflow contract, stop and ask
+instead of inventing a parallel workflow.
 
 ### 3. Research & diagnose
 
@@ -131,18 +135,16 @@ Disposition should resolve to one of:
 
 ### 5. Persist and hand off
 
-If the project defines durable diagnosis artifacts, write them before claiming
-completion.
-
-If the diagnosis is implementation-ready and the project defines an approved
-handoff artifact, write that too.
+Always write the diagnosis artifact before claiming completion.
+When the fix is implementation-ready in this task-backed workflow, also write
+`research/plan`.
 
 Then hand off according to the repo workflow:
 - print the exact next command, not just the skill name
-- include issue ID, task key, and flags when known
-- use implementation decomposition or coding when the fix is clear
-- use feature planning when the solution is really a behavior change
-- use refactor planning when structural change dominates
+- include issue ID and flags when known
+- use `/skill:taskify <id> --from plan` when the fix is clear and ready for execution
+- use `/skill:feature <id>` when the solution is really a behavior change
+- use `/skill:refactor <id>` when structural change dominates
 
 ## Rules
 

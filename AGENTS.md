@@ -7,8 +7,23 @@ Bun/TypeScript CLI for managing local agent issues in the filesystem. The root p
 - Repo layout and command/data flow: [doc/architecture.md](doc/architecture.md)
 - How to run and use the CLI safely: [doc/commands.md](doc/commands.md)
 - Issue fields, phases, refs, labels, and stores: [doc/project-management.md](doc/project-management.md)
+- Task-backed workflow skill conventions: [doc/task-workflow.md](doc/task-workflow.md)
 - Full-project verification before finishing work: [doc/testing.md](doc/testing.md)
 - Correctness rules for new and modified code: [doc/code-style.md](doc/code-style.md)
+
+## Workflow philosophy
+
+`task` is the workflow substrate for this project, not just a standalone CLI.
+The packaged workflow skills in this repo are intentionally task-backed:
+`feature`, `debug`, `refactor`, `taskify`, `code`, `check`, and `deploy`
+coordinate through `task` issue documents and metadata.
+
+When extending or using this workflow:
+- prefer durable `task` artifacts over ad hoc workflow files
+- treat issue documents such as `research/*`, `tasks/*`, `task-status/*`, `code-history/*`, `check-report/*`, and `taskify-history/*` as the canonical workflow surface
+- treat `doc/task-workflow.md` as the shared workflow reference the packaged skills consult
+- use `doc/skill-*.md` only for skill-specific refinements or repo-local deviations, not as a replacement for the shared workflow contract
+- do not bypass `task`
 
 ## Correctness policy
 
@@ -37,5 +52,6 @@ Ergonomics is not a valid justification for unsoundness. Unsafe constructs are a
 - [doc/architecture.md](doc/architecture.md) — Open first when changing repo layout, issue storage, command dispatch, output contracts, or anything touching `~/.local/share/issues`.
 - [doc/commands.md](doc/commands.md) — Open when you need the exact CLI grammar, command families, output modes, or command-specific traps.
 - [doc/project-management.md](doc/project-management.md) — Open when deciding how work should be represented in issue metadata, phases, refs, labels, priorities, or stores.
+- [doc/task-workflow.md](doc/task-workflow.md) — Open when changing or using the packaged task-backed workflow skills, their durable artifact paths, or their repo-local doc-based customization points.
 - [doc/testing.md](doc/testing.md) — Open when changing behavior and deciding what to test, which test file to edit, and what must pass before finishing.
 - [doc/code-style.md](doc/code-style.md) — Open when writing or reviewing code to apply the repo's correctness-first policy and unsafe-construct rules.

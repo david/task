@@ -1,22 +1,4 @@
----
-name: refactor
-description: Project-local `task` workflow for behavior-preserving refactor plans in the task CLI repo. Extends the packaged refactor skill with repo-local issue documents and handoffs.
----
-
-# Refactor — task repo local override
-
-This repo overrides the packaged `refactor` skill for the task repo.
-
-Read these before acting:
-1. `../../../skills/refactor/SKILL.md`
-2. `../task/SKILL.md`
-3. `../../task-workflow.md`
-4. `../../../AGENTS.md`
-5. `../../../doc/commands.md`
-6. `../../../doc/project-management.md`
-
-Apply the packaged base skill as the base workflow. The rules below replace generic
-issue-storage and handoff instructions.
+# Local rules for `/skill:refactor`
 
 ## Local workflow contract
 

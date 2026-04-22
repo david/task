@@ -27,18 +27,22 @@ Also read these when the feature touches the relevant surface:
 Also read repo context files such as `AGENTS.md`, `CLAUDE.md`, and relevant
 project docs before choosing issue workflow, artifact paths, or handoffs.
 
-If the repo has a project-local override or project docs for feature planning,
-follow them. Treat this skill as the generalized base workflow.
+If `doc/task-workflow.md` exists, read it before acting.
+If `doc/skill-feature.md` exists, read it before acting.
+
+Treat repo docs as project-specific extensions of this skill.
 
 ## Workflow model
 
-Prefer an issue-backed, artifact-first workflow when the project documents one:
+This package's standard workflow is task-backed and issue-backed:
 - reuse an issue already in play when possible
 - otherwise create one only after the feature is framed well enough to title
-- write durable planning artifacts when the repo documents where they belong
-- if the repo does not define durable artifacts, present the PRD and approved
-  handoff directly in the conversation
+- write the PRD to `research/prd`
+- write the approved implementation handoff to `research/plan`
+- hand off with `Next: /skill:taskify <id> --from plan`
 
+Treat those document paths and that handoff as the default contract unless repo
+ docs explicitly narrow or extend the workflow.
 Do not rely on rigid workflow-state metadata unless the project explicitly does.
 
 ## User-facing response style
@@ -80,14 +84,13 @@ Do not ask questions the code can answer.
 Before writing anything durable, inspect repo docs and the current context.
 Determine:
 - whether an issue should be reused or created
-- whether the project expects durable planning artifacts
-- the canonical artifact names/paths
-- the canonical approved-handoff artifact, if any
-- the exact next command after approval when it is knowable
-  (`/skill:taskify <id> --from plan`, `/skill:code <id>`, another planner, or
-  none)
+- whether existing `research/prd` or `research/plan` artifacts already exist
+- whether repo docs refine the standard `research/prd` and `research/plan` contract
+- the exact next command after approval, which should normally be
+  `/skill:taskify <id> --from plan`
 
-If the project has no issue workflow, continue in conversation-only mode.
+If the repo explicitly rejects the task-backed workflow contract, stop and ask
+instead of inventing a parallel workflow.
 
 ### 3. Do targeted research
 
@@ -163,20 +166,14 @@ full PRD.
 
 ### 7. Persist and hand off
 
-If the project defines durable artifact locations, do not claim completion until
-those writes succeed.
-
-If the project defines an implementation handoff artifact, write it after the
-PRD is approved.
+Do not claim completion until `research/prd` and `research/plan` are both
+written successfully when this task-backed workflow is in use.
 
 Then hand off according to the repo workflow:
 - print the exact next command, not just the skill name
-- include issue ID, task key, and flags when known
-- use decomposition skill such as `/skill:taskify <id> --from plan` when the
-  repo uses one
-- otherwise use the exact coding handoff such as `/skill:code <id>` or
-  `/skill:code <id> <task-key>` when recoverable
-- or present the approved next step if the repo is conversation-only
+- include issue ID and flags when known
+- default to `Next: /skill:taskify <id> --from plan`
+- deviate only when repo docs explicitly require a different next step
 
 ## Rules
 

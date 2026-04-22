@@ -10,11 +10,18 @@ Use the `task` CLI from `PATH` instead of manually editing `.task/`.
 Read `references/usage-rules.md` before acting.
 Read `references/examples.md` when you need concrete command shapes.
 
+Also read repo context files such as `AGENTS.md`, `CLAUDE.md`, `doc/commands.md`, and `doc/project-management.md` when they exist and are relevant.
+
+If `doc/task-workflow.md` exists, read it before acting.
+If `doc/skill-task.md` exists, read it before acting.
+
+Treat repo docs as project-specific extensions of this skill.
+
 ## Goal
 
 Pick the right supported `task` command, preserve tracker invariants, and avoid unsafe shortcuts.
 
-This repo also provides project-local workflow overrides for `feature`, `debug`, `refactor`, `code`, `check`, `taskify`, and `deploy`. Use this `task` skill for raw tracker operations; those companion skills layer repo-specific workflow behavior on top.
+Projects may layer local workflow skills such as `feature`, `debug`, `refactor`, `code`, `check`, `taskify`, or `deploy` on top of this base `task` skill.
 
 ## Default workflow
 
@@ -25,6 +32,7 @@ This repo also provides project-local workflow overrides for `feature`, `debug`,
 
 ## Command selection
 
+- Scaffold task-backed workflow docs: `task bootstrap`
 - Create issue: `task create`
 - Inspect issues: `task show`, `task list`, `task search`
 - Inspect hierarchy: `task children`, `task parents`, `task related`
@@ -44,8 +52,9 @@ This repo also provides project-local workflow overrides for `feature`, `debug`,
 - Do not model local hierarchy through `refs`; use `task create --parent <id>`.
 - `task set` accepts exact document paths only. Trailing-slash subtree selectors like `research/` and `/` are for `task get` and `task delete`, not `task set`.
 - `task meta set` writes raw strings. Be careful with structured or numeric fields, especially `priority`.
+- `task bootstrap` writes repo docs, not tracker issue data. Use `--force` only when you intentionally want to overwrite scaffolded workflow docs.
 - `task list` and `task search` exclude closed issues unless `--all` is passed.
-- Prefer the supported commands documented in `../../doc/commands.md`; do not invent undocumented commands.
+- Prefer the supported commands documented in this skill's references or in repo docs; do not invent undocumented commands.
 
 ## When to stop and ask
 
@@ -53,11 +62,10 @@ Ask instead of guessing when:
 - the intended relationship should be parent/child vs `refs`
 - content might belong in metadata or in an issue document
 - a metadata write could cause type drift or overwrite structured content
-- the user appears to want a workflow/schema change rather than normal issue operations
+- the user appears to want a workflow or schema change rather than normal issue operations
 
 ## Primary references
 
-- `../../AGENTS.md`
-- `../../doc/commands.md`
-- `../../doc/project-management.md`
-- `../../doc/architecture.md`
+- `references/usage-rules.md`
+- `references/examples.md`
+- repo docs such as `AGENTS.md`, `CLAUDE.md`, `doc/commands.md`, `doc/project-management.md`, and `doc/architecture.md` when present
