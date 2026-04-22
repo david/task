@@ -19,6 +19,7 @@ import {
   legacyImport,
   readAllStdin,
   updateArrayField,
+  workflowBootstrap,
 } from "./commands"
 
 type FlagOptions = {
@@ -237,6 +238,20 @@ export const commands: StringMap<Command> = {
     ],
     positionalId: true,
     run: (args) => issuePhaseSet(args, detectRepoRoot(process.cwd())),
+  },
+  bootstrap: {
+    description: "Scaffold doc-based task workflow files for the current repo",
+    usage: "task bootstrap [--root <path>] [--force]",
+    flags: {
+      "--root": valueFlag("Target repo root (defaults to the detected current repo root)"),
+      "--force": switchFlag("Overwrite existing scaffolded doc files"),
+    },
+    examples: [
+      "task bootstrap",
+      "task bootstrap --force",
+      "task bootstrap --root ../other-repo",
+    ],
+    run: (args) => workflowBootstrap(args, detectRepoRoot(process.cwd())),
   },
   "legacy import": {
     description: "Import a legacy tracker snapshot into the repo-local .task event store",
