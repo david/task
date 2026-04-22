@@ -28,16 +28,19 @@ Also read these when the candidate refactor touches the relevant surface:
 Also read repo context files such as `AGENTS.md`, `CLAUDE.md`, and relevant
 project docs before choosing issue workflow, artifact paths, or handoffs.
 
-If the repo has a project-local override or project docs for refactor workflow,
-follow them. Treat this skill as the generalized base workflow.
+If `doc/task-workflow.md` exists, read it before acting.
+If `doc/refactoring.md` exists, read it before acting.
+
+Treat repo docs as project-specific extensions of this skill.
 
 ## Workflow model
 
-Prefer a durable planning workflow when the repo documents one:
+This package's standard workflow is task-backed and issue-backed:
 - reuse an issue already in play when possible
 - otherwise create one once the refactor goal is framed clearly enough
-- write durable planning artifacts when the project expects them
-- if the project has no issue workflow, present the plan in conversation
+- write the refactor plan to `research/refactor-plan`
+- write the approved implementation handoff to `research/plan`
+- hand off with `Next: /skill:taskify <id> --from plan`
 
 Do not rely on rigid workflow-state metadata unless the project explicitly does.
 
@@ -77,11 +80,10 @@ Protected contracts commonly include:
 
 Inspect repo docs and current context to determine:
 - whether an issue should be reused or created
-- whether the project expects a durable refactor plan artifact
-- what the canonical handoff artifact is
-- whether the repo uses a decomposition skill before coding
-- what the exact next command is after approval when it is knowable
-  (`/skill:taskify <id> --from plan`, `/skill:code <id>`, or none)
+- whether `research/refactor-plan` or `research/plan` already exist
+- whether repo docs refine the standard `research/refactor-plan` and `research/plan` contract
+- what the exact next command is after approval, which should normally be
+  `/skill:taskify <id> --from plan`
 
 ### 3. Assess coverage and planning needs
 
@@ -121,13 +123,14 @@ If any required contract would change, stop calling it a refactor and route out.
 
 ### 5. Persist and hand off
 
-If the project defines durable planning artifacts, write them before claiming
-completion.
+Do not claim completion until `research/refactor-plan` and `research/plan` are
+both written successfully when this task-backed workflow is in use.
 
 Then hand off according to the repo workflow:
 - print the exact next command, not just the skill name
-- include issue ID, task key, and flags when known
-- usually route to decomposition or coding
+- include issue ID and flags when known
+- default to `Next: /skill:taskify <id> --from plan`
+- deviate only when repo docs explicitly require a different next step
 
 ## Rules
 

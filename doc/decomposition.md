@@ -1,22 +1,4 @@
----
-name: taskify
-description: Project-local task decomposition workflow for the task CLI repo. Extends the packaged taskify skill with repo-local document paths, append-only numbering, and handoffs.
----
-
-# Taskify — task repo local override
-
-This repo overrides the packaged `taskify` skill for the task repo.
-
-Read these before acting:
-1. `../../../skills/taskify/SKILL.md`
-2. `../../../skills/taskify/references/templates.md`
-3. `../task/SKILL.md`
-4. `../../task-workflow.md`
-5. `../../../AGENTS.md`
-6. `../../../doc/project-management.md`
-
-Apply the packaged base skill as the base workflow. The rules below replace generic
-issue-storage and read/write instructions.
+# Local rules for `/skill:taskify`
 
 ## Local document paths
 
@@ -31,7 +13,7 @@ Use these canonical issue document paths:
 ## Local read / write rules
 
 - Discover existing documents with `bun task.ts show --id <id> --include-keys`.
-- Read task and history trees with `bun task.ts get --id <id> --key tasks/` and `... --key taskify-history/`.
+- Read task and history trees with `bun task.ts get --id <id> --key tasks/` and `bun task.ts get --id <id> --key taskify-history/`.
 - Write each new task with `bun task.ts set --id <id> --key tasks/<NN-key> --file /tmp/<NN-key>.md`.
 - Read back each newly written task before continuing.
 - Write history records with `bun task.ts set` under `taskify-history/...`.

@@ -189,6 +189,7 @@ describe("task subprocess root help", () => {
     expect(stdout).toContain("Commands:")
     expect(stdout).toContain("related")
     expect(stdout).toContain("search")
+    expect(stdout).toContain("bootstrap")
     expect(stdout).toContain("set")
     expect(stdout).toContain("get")
     expect(stdout).toContain("delete")
@@ -225,6 +226,15 @@ describe("task subprocess command help", () => {
     const stdout = result.stdout.toString()
     expect(stdout).toContain("--source")
     expect(stdout).toContain("legacy tracker")
+  })
+
+  test("bootstrap --help exits 0 and shows workflow-doc flags", () => {
+    const result = runTask(repoRoot, "bootstrap", "--help")
+    expect(result.exitCode).toBe(0)
+    const stdout = result.stdout.toString()
+    expect(stdout).toContain("--root")
+    expect(stdout).toContain("--force")
+    expect(stdout).toContain("workflow")
   })
 
   test("set --help exits 0 and shows document flags", () => {

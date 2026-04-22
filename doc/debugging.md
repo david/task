@@ -1,22 +1,4 @@
----
-name: debug
-description: Project-local `task` workflow for bug diagnosis in the task CLI repo. Extends the packaged debug skill with repo-local issue documents, QA artifacts, and handoffs.
----
-
-# Debug — task repo local override
-
-This repo overrides the packaged `debug` skill for the task repo.
-
-Read these before acting:
-1. `../../../skills/debug/SKILL.md`
-2. `../task/SKILL.md`
-3. `../../task-workflow.md`
-4. `../../../AGENTS.md`
-5. `../../../doc/commands.md`
-6. `../../../doc/project-management.md`
-
-Apply the packaged base skill as the base workflow. The rules below replace generic
-issue-storage and handoff instructions.
+# Local rules for `/skill:debug`
 
 ## Local workflow contract
 
@@ -43,5 +25,3 @@ End with exactly one of:
 - `Next: /skill:taskify <id> --from plan`
 - `Next: /skill:feature <id>`
 - `Next: /skill:refactor <id>`
-
-Use `research/plan` as the only implementation handoff artifact in this repo.

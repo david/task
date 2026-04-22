@@ -5,6 +5,8 @@ Use these as known-good command shapes.
 ## Create and inspect
 
 ```bash
+task bootstrap
+task bootstrap --force
 task create --title "Fix login bug" --priority 0 --label cli --label bug
 task create --title "Parser follow-up" --parent ab12
 task show ab12

@@ -40,18 +40,19 @@ const forbiddenSupportedDocStrings = [
   "store get",
   "store keys",
   "store delete",
-  "src/bin/task",
+  "bin" + "/task",
+  "src/bin" + "/task",
   "bun src/task.ts",
 ]
 
 const supportedDocExpectations: SupportedDocExpectation[] = [
   {
     path: "doc/commands.md",
-    mustContain: ["bin/task", "bun task.ts", "task set <id> --key <path>", "task get <id>", "task delete <id>"],
+    mustContain: ["bun task.ts", "task set <id> --key <path>", "task get <id>", "task delete <id>"],
   },
   {
     path: "src/doc/commands.md",
-    mustContain: ["bin/task", "bun task.ts", "task set <id> --key <path>", "task get <id>", "task delete <id>"],
+    mustContain: ["bun task.ts", "task set <id> --key <path>", "task get <id>", "task delete <id>"],
   },
   {
     path: "doc/project-management.md",
@@ -63,11 +64,11 @@ const supportedDocExpectations: SupportedDocExpectation[] = [
   },
   {
     path: "doc/architecture.md",
-    mustContain: ["bin/task", "bun task.ts", "research/summary.md"],
+    mustContain: ["bun task.ts", "research/summary.md"],
   },
   {
     path: "src/doc/architecture.md",
-    mustContain: ["bin/task", "bun task.ts", "research/summary.md"],
+    mustContain: ["bun task.ts", "research/summary.md"],
   },
 ]
 
@@ -211,6 +212,7 @@ describe("task subprocess", () => {
     expect(stdout).toContain("Commands:")
     expect(stdout).toContain("related")
     expect(stdout).toContain("search")
+    expect(stdout).toContain("bootstrap")
     expect(stdout).toContain("set")
     expect(stdout).toContain("get")
     expect(stdout).toContain("delete")
@@ -226,6 +228,15 @@ describe("task subprocess", () => {
     const stdout = result.stdout.toString()
     expect(stdout).toContain("task")
     expect(stdout).toContain("Commands:")
+  })
+
+  test("bootstrap --help exits 0 and shows workflow-doc flags", () => {
+    const result = run(repoRoot, "bootstrap", "--help")
+    expect(result.exitCode).toBe(0)
+    const stdout = result.stdout.toString()
+    expect(stdout).toContain("--root")
+    expect(stdout).toContain("--force")
+    expect(stdout).toContain("workflow")
   })
 
   test("set --help exits 0 and shows document flags", () => {

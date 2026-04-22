@@ -3,11 +3,11 @@
     "id": "bpoh-in-repo-append-only-event-sourced-task-s",
     "title": "In-repo append-only event-sourced task storage",
     "description": "Scope constraint: do the tracker migration work under src/ only; leave legacy top-level files untouched unless a later task explicitly says otherwise.",
-    "status": "open",
+    "status": "closed",
     "phase": "diagnosed",
     "priority": 2,
     "created": "2026-04-17",
-    "updated": "2026-04-21T10:16:42.184Z",
+    "updated": "2026-04-22T17:30:13.901Z",
     "refs": [],
     "labels": [
       "prd"
