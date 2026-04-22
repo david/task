@@ -26,7 +26,11 @@ jobs:
         with:
           bun-version: 1.3.12
 
-      - name: Install dependencies
+      - name: Install root dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install Esther dependencies
+        working-directory: packages/esther
         run: bun install --frozen-lockfile
 
       - name: Run tests
