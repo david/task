@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/qa-03-phase-next-and-set-uses-settings",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/9c521629-2926-449d-b85d-ea2ff83e7d26.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/9789edf2-7ddd-48f0-8ba9-237b3dc5bc60.json"
+  ]
+}

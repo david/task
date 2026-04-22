@@ -1,0 +1,17 @@
+{
+  "id": "3861edc2-db2c-4268-b483-ffa7baf9e9bc",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:qa-results/qa-05-migration-and-legacy-import"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "qa-results/qa-05-migration-and-legacy-import",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "131",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

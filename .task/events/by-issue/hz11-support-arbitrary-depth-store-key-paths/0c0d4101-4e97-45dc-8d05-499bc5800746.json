@@ -1,0 +1,19 @@
+{
+  "id": "0c0d4101-4e97-45dc-8d05-499bc5800746",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:check-report/run-002"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "check-report/run-002",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "# Check Report\n\n## Metadata\n- Issue: hz11\n- Timestamp: 2026-04-21T14:27:28Z\n- Verdict: PASS\n- Phase on entry: code-complete\n- Trigger: /skill:check --issue hz11\n\n## Commands Run\n- Custom lint: `bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff`\n- Project lint: `bun run lint`\n- Tests: `bun test`\n- Typecheck: `bun run typecheck`\n\n## Gates\n- Custom lint: PASS\n- Project lint: PASS\n- Tests: PASS\n- Typecheck: PASS\n\n## Findings\n- None.\n\n## Suggested Repair Groups\n- None.\n\n## Full Rerun\n- `bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff`\n- `bun run lint`\n- `bun test`\n- `bun run typecheck`\n\n## Notes\n- Custom lint passed with 0 blocking findings on changed lines and 0 advisories.\n- Project lint passed with 0 warnings and 0 errors.\n- Tests passed: 407/407.\n- Typecheck passed with 0 errors.\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "94",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

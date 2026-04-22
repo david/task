@@ -1,0 +1,9 @@
+{
+  "tag": "document:research/diagnosis-retry-1",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/85efb529-45f5-4a6e-829e-88143137b4c7.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/d1318114-229d-4668-9d19-715b9fb09198.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/c6a59f70-7261-4d5a-af05-09a4023020ae.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/be03ee03-4cb5-4610-80f0-48a152d4610f.json"
+  ]
+}

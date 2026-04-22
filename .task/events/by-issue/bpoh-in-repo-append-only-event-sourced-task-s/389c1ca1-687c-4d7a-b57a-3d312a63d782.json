@@ -1,0 +1,17 @@
+{
+  "id": "389c1ca1-687c-4d7a-b57a-3d312a63d782",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:research/esther-alignment"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "research/esther-alignment",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "22",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

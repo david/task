@@ -1,0 +1,19 @@
+{
+  "id": "197f8ab0-aabe-4401-9baa-33e5f7d82e98",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:tasks/qa-06-closed-issues-stay-queryable-and-projections-rebuild"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "tasks/qa-06-closed-issues-stay-queryable-and-projections-rebuild",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "name: qa-06-closed-issues-stay-queryable-and-projections-rebuild\nrole: agent\ndepends_on: []\n\n# QA-06: Closed issues stay queryable and projections rebuild from canonical history\n\n## Test Steps\n\n1. In a fresh temp repo, create a parent and child, add store content to the child, then close it:\n   ```bash\n   export TASK_CLI=\"bun /home/david/task-w0/src/task.ts\"\n   REPO=$(mktemp -d)\n   cd \"$REPO\"\n   git init -q\n   PARENT_JSON=$($TASK_CLI create --title \"Rebuild Parent\")\n   echo \"$PARENT_JSON\"\n   CHILD_JSON=$($TASK_CLI create --title \"Rebuild Child\" --parent <PARENT_ID>)\n   echo \"$CHILD_JSON\"\n   echo 'canonical summary' | $TASK_CLI store set <CHILD_ID> --store research --key summary\n   $TASK_CLI close <CHILD_ID>\n   ```\n2. Before corrupting anything, verify the closed child is still visible:\n   ```bash\n   $TASK_CLI show <CHILD_ID>\n   $TASK_CLI list --all --fields id,title,status\n   $TASK_CLI search --all \"rebuild child\"\n   $TASK_CLI children <PARENT_ID>\n   $TASK_CLI children <PARENT_ID> --all --fields id,title,status\n   ```\n3. Corrupt/remove rebuildable artifacts while leaving canonical events alone:\n   ```bash\n   rm -rf .task/indexes/hierarchy .task/indexes/issues\n   rm -rf .task/issues/<CHILD_ID>/research\n   rm -f .task/issues/<PARENT_ID>/issue.json\n   cat > .task/issues/<CHILD_ID>/issue.json <<'JSON'\n   {\n     \"title\": \"Wrong Title\",\n     \"description\": \"wrong description\",\n     \"status\": \"open\",\n     \"phase\": \"research\",\n     \"priority\": 9,\n     \"created\": \"\",\n     \"updated\": \"\",\n     \"refs\": [],\n     \"labels\": []\n   }\n   JSON\n   ```\n4. Re-run normal reads and inspect rebuilt files:\n   ```bash\n   $TASK_CLI show <CHILD_ID>\n   $TASK_CLI list --all --fields id,title,status\n   $TASK_CLI children <PARENT_ID> --all --fields id,title,status\n   $TASK_CLI store get <CHILD_ID> --store research --key summary\n   find .task/indexes -type f | sort\n   cat .task/issues/<CHILD_ID>/issue.json\n   ```\n5. Confirm the issue still lives under `.task/issues/<CHILD_ID>` and not under `.task/issues/.archive/<CHILD_ID>`.\n\n## Expected\n\nClosing the child does not remove it from normal lookup: `show`, `list --all`, and `search --all` still find it, default `children` hides it, and `children --all` shows it as closed. After deleting or corrupting projections, the read commands rebuild correct state from `.task/events/`: the child title/status are restored, the store value comes back, hierarchy indexes are recreated, and the closed issue remains under `.task/issues/` rather than moving to `.archive`.\n\n## Setup Notes\n\nUse a separate temp repo for this test. This is the main regression check for canonical-history rebuild behavior.\n\n## Result\n\n<!-- Filled in by /skill:qa coordinator after user reports result -->\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "83",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "a01ff17a-a75b-4d6e-b405-76b98fd79d4f",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/qa-04-phase-transition-revision-behavior"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/qa-04-phase-transition-revision-behavior",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "name: qa-04-phase-transition-revision-behavior\nrole: agent\ndepends_on: []\n\n# QA-04: Phase transition finalization and later-phase resave behavior\n\n## Test Steps\n1. Create a fresh fixture issue in `research`.\n2. Save a document at `research/plan`.\n3. Advance the issue phase.\n4. Save the same path again in the new phase.\n5. Verify the later-phase save is visible and prior finalized history is preserved rather than mutated in place.\n\n## Expected\nChanging phase finalizes the prior draft revision, and a later-phase save to the same path creates a new visible revision without corrupting earlier history.\n\n## Setup Notes\nCreate a dedicated fixture issue for this test and record its ID plus any history evidence paths in `qa-context`.\n\n## Result\n<!-- Filled in after user reports result -->\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "204",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

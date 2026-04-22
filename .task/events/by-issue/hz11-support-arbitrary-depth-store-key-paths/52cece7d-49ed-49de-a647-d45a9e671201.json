@@ -1,0 +1,19 @@
+{
+  "id": "52cece7d-49ed-49de-a647-d45a9e671201",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/06-legacy-history-test-decomposition"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/06-legacy-history-test-decomposition",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 06-legacy-history-test-decomposition\nrole: coder\ndepends_on:\n  - 05-legacy-history-nullable-prop\nsource: check\nsource_key: check-report:run-001\nbatch: taskify-history:run-001\n---\n\n# 06 — Legacy history test decomposition\n\n## Goal\nRefactor `src/commands-document-legacy-history.test.ts` so the oversized `describe` callback and three oversized test bodies are decomposed into smaller helpers or setup routines that satisfy the function-size lint rule without changing test coverage.\n\n## Context\nThe failed check reported four `function-too-large` findings in the same file: the top-level `describe` callback and three individual test bodies. This is one file-local repair slice centered on extracting shared setup/assertion helpers and shrinking each callback below the lint threshold.\n\n## Files\n- `src/commands-document-legacy-history.test.ts`\n\n## Verification Tests\n- `bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --files=src/commands-document-legacy-history.test.ts --check=function-size --verbose`\n- `bun test src/commands-document-legacy-history.test.ts`\n\n## Out of Scope\n- changing the product behavior under test\n- unrelated cleanup in other test files\n- full-branch reruns\n\n## UI Scope Guardrails\n- None\n\n## Done When\n- the top-level `describe` callback in `src/commands-document-legacy-history.test.ts` is below the function-size threshold\n- each flagged test body in that file is below the function-size threshold\n- the focused test file still passes after the refactor\n- no leftover partial edits for this task\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "188",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

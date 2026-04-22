@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/qa-01-repo-local-create-and-search",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/0249e27c-ea49-414e-9c0e-2d18cab4eeb0.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/c0821c92-3222-4e1a-bf8b-825ec9f5b72a.json"
+  ]
+}

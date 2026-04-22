@@ -1,0 +1,19 @@
+{
+  "id": "9c1824a6-c46f-4928-b4f1-7c4947f29feb",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/03-projections-and-phase"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/03-projections-and-phase",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 03-projections-and-phase\nrole: coder\ndepends_on:\n  - 01-document-model-core\n  - 02-document-command-surface\n---\n\n# 03 — Projections and phase-aware documents\n\n## Goal\nUpdate issue projections to materialize hierarchical document paths as markdown files plus directories, surface current document keys in issue inspection, and preserve draft/finalization semantics by full path.\n\n## Context\nThe product contract requires a path to behave as both a document and a subtree root, plus later-phase saves must supersede finalized history without mutating it. Those behaviors live in projection materialization and phase-aware revision handling.\n\n## Files\n- `src/tracker/projections.ts`\n- `src/tracker/issues.ts`\n- document state/materialization helpers\n- `src/commands-meta-phase.test.ts`\n- any show/projection tests under `src/`\n\n## Verification Tests\n- focused Bun tests for `<path>.md` plus child-directory coexistence\n- phase-change finalization by full path\n- later-phase resaves creating a superseding revision\n- issue inspection showing current logical document keys instead of store indexes where appropriate\n\n## Out of Scope\n- migration/backfill from pre-path canonical history\n- legacy import updates\n\n## UI Scope Guardrails\nNone\n\n## Done When\n- projections materialize visible documents as `<path>.md` and nested directories\n- a logical path may coexist as both a document and subtree root\n- phase finalization and revision superseding work by full path\n- focused projection/phase tests pass\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "182",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "bba5d9c7-98fd-45d0-8ce5-3948de26036b",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:research/esther-alignment"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "research/esther-alignment",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "# Esther Alignment Notes\n\nThis issue originally assumed task would need a task-specific stream abstraction and a new Esther filesystem adapter spec.\n\nThat assumption is now obsolete.\n\nTask should target Esther as implemented on `main` after commit `5d3c54bc5be8cce6dc951eb48763bc03edc635ec`.\n\n## What task should use from Esther\n\n- `createFilesystemEventStore(...)`\n- `createFilesystemCheckpointStore(...)`\n- `queryByTags(...) -> { state, maxPosition }`\n- `append(events, { expectedPosition, boundaryTags })`\n- tag-based canonical history\n- one immutable JSON file per event\n\n## What task should not introduce\n\n- no separate task stream store\n- no SQLite in v1\n- no authoritative directory tree\n\n## Canonical task boundary tags\n\n- `issue:<id>` for issue-local history and optimistic concurrency\n- `kind:issue` for issue events\n- `parent:<id>` for hierarchy when applicable\n- `store:<store>` for store-related events\n\n## Materialized layout\n\nTask may still materialize `.task` hierarchy/state/index files for:\n- browsing\n- short-id lookup\n- search\n- children/parents navigation\n- current store content\n\nThose materializations are projections only. Esther event files remain authoritative.\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "21",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

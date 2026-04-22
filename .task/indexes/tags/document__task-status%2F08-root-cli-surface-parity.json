@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/08-root-cli-surface-parity",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/7b6ad4c0-9d88-4cc4-93cd-5b6f361d74b0.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/993d6896-4d84-464c-9cf0-6033fe60ba66.json"
+  ]
+}

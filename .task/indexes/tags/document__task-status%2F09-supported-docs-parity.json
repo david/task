@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/09-supported-docs-parity",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/43737f0c-0203-48f4-aefa-0d705e978c9f.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/3bc962f2-ce87-4b47-a058-fa1b1184c26a.json"
+  ]
+}

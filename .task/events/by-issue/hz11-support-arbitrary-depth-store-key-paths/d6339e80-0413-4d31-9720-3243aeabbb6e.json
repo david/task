@@ -1,0 +1,19 @@
+{
+  "id": "d6339e80-0413-4d31-9720-3243aeabbb6e",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:code-history/run-004"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "code-history/run-004",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nrun_key: run-004\nissue_id: hz11\ntimestamp_utc: 2026-04-21T13:14:00Z\nmode: task-mode\nactive_task: 05-legacy-history-nullable-prop\nstarting_phase: code-failed\nending_phase: coding\noutcome: success\nnext_command: /skill:code hz11 06-legacy-history-test-decomposition\nprevious_runs:\n  - run-001\n  - run-002\n  - run-003\n---\n\n# Code Run run-004\n\n## Plan Summary\nCompleted the file-local lint repair that removes the optional-property declaration from the legacy store-history test helper without changing the behavior under test.\n\n## Prior Context Used\n- run-001 — switched the src/ CLI surface to set/get/delete and left later projection/migration work open.\n- run-002 — materialized path-based document projections and issue key inspection.\n- run-003 — completed migration/import compatibility and added the legacy-history regression file later flagged by custom lint.\n\n## What Changed\n- src/commands-document-legacy-history.test.ts — replaced the helper input shape for legacy StoreRevisionSaved events with an explicit union so `supersedesRevision` presence is modeled without an optional property declaration.\n\n## Verification\n- [pass] bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --files=src/commands-document-legacy-history.test.ts --check=nullable-props --verbose — nullable-props recheck for the repaired file returned zero findings.\n- [pass] bun test src/commands-document-legacy-history.test.ts — focused legacy-history regression tests passed after the helper type change.\n- [not-run] observable proof — this repair only changes a local test helper type; no additional user-surface proof was required beyond the existing regression coverage.\n\n## Commits\n- 87d81c24209f5960aeeff185ff81a1061466f8d8 — complete task 05 by removing the nullable optional property declaration from the legacy-history test helper.\n\n## Remaining Work / Open Problems\n- task 06-legacy-history-test-decomposition remains open.\n- task 07-full-check-rerun remains open.\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "106",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

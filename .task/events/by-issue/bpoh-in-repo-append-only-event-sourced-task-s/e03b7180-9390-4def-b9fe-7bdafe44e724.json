@@ -1,0 +1,17 @@
+{
+  "id": "e03b7180-9390-4def-b9fe-7bdafe44e724",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:research/diagnosis-retry-2"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "research/diagnosis-retry-2",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "20",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

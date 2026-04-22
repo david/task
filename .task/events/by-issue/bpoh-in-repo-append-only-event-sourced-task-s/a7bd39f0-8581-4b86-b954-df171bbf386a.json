@@ -1,0 +1,19 @@
+{
+  "id": "a7bd39f0-8581-4b86-b954-df171bbf386a",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:tasks/qa-01-repo-local-create-and-search"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "tasks/qa-01-repo-local-create-and-search",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "name: qa-01-repo-local-create-and-search\nrole: agent\ndepends_on: []\n\n# QA-01: Repo-local create/list/show/search flow\n\n## Test Steps\n\n1. In a shell, run:\n   ```bash\n   export TASK_CLI=\"bun /home/david/task-w0/src/task.ts\"\n   REPO=$(mktemp -d)\n   cd \"$REPO\"\n   git init -q\n   ISSUE_JSON=$($TASK_CLI create --title \"Repo Local Root\" --description \"repo-local check\" --priority 0 --label cli --label migration)\n   echo \"$ISSUE_JSON\"\n   ```\n   Save the created issue id from the JSON output.\n2. Run `show`, `list`, and `search` for that issue:\n   ```bash\n   $TASK_CLI show <ISSUE_ID>\n   $TASK_CLI list\n   $TASK_CLI search \"repo local\"\n   ```\n3. Inspect the repo-local tracker files:\n   ```bash\n   find .task -maxdepth 3 -type f | sort\n   cat .task/issues/<ISSUE_ID>/issue.json\n   ```\n4. Confirm the canonical event history exists under `.task/events/by-issue/<ISSUE_ID>`.\n\n## Expected\n\nThe issue is created under the temp repo’s `.task/` directory, not in any shared/global location. `show`, `list`, and `search` all return the same issue. The metadata shows `status: open`, `phase: research`, `priority: 0`, and both labels. `.task/issues/<ISSUE_ID>/issue.json` matches the current state, and `.task/events/by-issue/<ISSUE_ID>` contains immutable event JSON files.\n\n## Setup Notes\n\nUse a brand-new temp repo for this test. No other setup is required.\n\n## Result\n\n<!-- Filled in by /skill:qa coordinator after user reports result -->\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "73",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

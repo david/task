@@ -1,0 +1,17 @@
+{
+  "id": "838f28a4-3e2f-4565-84cd-baac2423c1b9",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:research/esther-filesystem-adapter"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "research/esther-filesystem-adapter",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "24",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "acaedc38-a1d5-49c7-a20c-281e741b5cdd",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/qa-02-coexistence-and-delete-selectors"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/qa-02-coexistence-and-delete-selectors",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "name: qa-02-coexistence-and-delete-selectors\nrole: agent\ndepends_on: [qa-01-save-read-nested-documents]\n\n# QA-02: Coexistence and delete selector behavior\n\n## Test Steps\n1. Reuse the fixture issue from QA-01.\n2. Save a document at `research` while nested documents already exist under `research/...`.\n3. Verify `task get <issue-id> --key research/` shows both `research.value` and nested `entries`.\n4. Delete the exact `research` document with `task delete <issue-id> --key research` and verify nested entries remain.\n5. Delete the subtree with `task delete <issue-id> --key research/` and verify the subtree is gone.\n6. Save a few top-level documents and verify `task delete <issue-id> --key /` clears the full tree.\n\n## Expected\nA path can exist as both a document and subtree root, exact delete removes only that document value, subtree delete removes descendants, and root delete clears all attached documents.\n\n## Setup Notes\nReuse the fixture issue ID from `qa-context:qa-01-save-read-nested-documents`.\n\n## Result\n<!-- Filled in after user reports result -->\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "200",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

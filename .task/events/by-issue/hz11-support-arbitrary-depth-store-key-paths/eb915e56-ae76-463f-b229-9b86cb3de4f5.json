@@ -1,0 +1,19 @@
+{
+  "id": "eb915e56-ae76-463f-b229-9b86cb3de4f5",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:code-history/run-001"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "code-history/run-001",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "# Code Run run-001\n\n- Mode: task-mode\n- Task: 02-document-command-surface\n- Starting phase: coding\n- Ending phase: coding\n- Plan summary: Switched the in-progress `src/` CLI surface from `task store ...` commands to issue-scoped `task set`, `task get`, and `task delete` commands backed by hierarchical document keys, while preserving exact, subtree, and root selector behavior.\n- Prior context used:\n  - none\n- What changed:\n  - added `src/commands-document.ts` with `documentSet`, `documentGet`, and `documentDelete` command handlers over the new path-based document model\n  - updated `src/commands-registry.ts`, `src/commands.ts`, and `src/task.ts` so the `src/` CLI now exposes `set`, `get`, and `delete` and no longer advertises `store set|get|keys|delete`\n  - added command-surface coverage in `src/commands-document.test.ts` and `src/task.test.ts`, plus reduced oversized test bodies in `src/tracker-documents.test.ts` to satisfy diff lint\n- Verification:\n  - `bun test`\n  - `bun run lint`\n  - `bun run typecheck`\n  - `bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff`\n  - manual CLI proof: create issue → `set` nested documents → `get` exact/subtree → `delete` subtree → confirm root tree is empty\n- Commit: cfe90a70a0e38c2378878b78f6758fd076e68a52\n- Remaining work / open problems:\n  - task `03-projections-and-phase` remains open\n  - task `04-migration-and-import` remains open\n- Next recommended command: /skill:code hz11\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "100",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

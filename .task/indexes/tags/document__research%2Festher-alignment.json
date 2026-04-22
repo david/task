@@ -1,0 +1,7 @@
+{
+  "tag": "document:research/esther-alignment",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/bba5d9c7-98fd-45d0-8ce5-3948de26036b.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/389c1ca1-687c-4d7a-b57a-3d312a63d782.json"
+  ]
+}

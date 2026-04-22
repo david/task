@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/qa-05-later-store-edit-creates-new-revision",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/d243f1db-d0b5-4f5d-ae73-f38bfdb759b7.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/e0f67ae9-d04a-4eb0-a60f-0d3af9e99b93.json"
+  ]
+}

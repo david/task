@@ -1,0 +1,19 @@
+{
+  "id": "a3007590-174b-498c-b957-7d0477fee7af",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:code-history/run-007"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "code-history/run-007",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nrun_key: run-007\nissue_id: hz11\ntimestamp_utc: 2026-04-21T17:29:53Z\nmode: task-mode\nactive_task: 08-root-cli-surface-parity\noutcome: success\nnext_command: /skill:code hz11 09-supported-docs-parity\nprevious_runs:\n  - run-001\n  - run-002\n  - run-003\n  - run-004\n  - run-005\n  - run-006\nstarting_signals:\n  - research:plan\n  - tasks:08-root-cli-surface-parity\n  - code-history:latest=run-006\nending_signals:\n  - task-status:08-root-cli-surface-parity=done\n  - code-history:latest=run-007\n---\n\n# Code Run run-007\n\n## Plan Summary\nAligned the repo-root `bun task.ts` entrypoint with the approved path-based document command surface by reusing the staged CLI registry/help behavior, then added root-entrypoint regressions for help, document dispatch, and invalid-path failures.\n\n## Prior Context Used\n- run-001 — switched the staged `src/` CLI surface to `set`/`get`/`delete` and removed staged `store` help.\n- run-002 — materialized path-based document projections and issue key inspection.\n- run-003 — preserved legacy history/import compatibility under the path-based document model.\n- run-004 — repaired the nullable-props lint finding in legacy-history tests.\n- run-005 — decomposed oversized legacy-history tests to satisfy function-size lint.\n- run-006 — reran the full automated gates after the earlier repair batch.\n\n## What Changed\n- task.ts — replaced the legacy root command registry/help/flag handling with the shared `src/commands-registry`-backed CLI flow so `bun task.ts` now exposes the approved `set`/`get`/`delete` document surface and uses the same path validation/dispatch behavior as the staged entrypoint.\n- task.test.ts — added root CLI regressions for help output without `store` commands, `set --help`, successful document command dispatch through `bun task.ts`, and clear invalid-path errors for rejected exact selectors.\n\n## Verification\n- [pass] bun test task.test.ts — root CLI regression coverage passed, including the new help, dispatch, and invalid-path cases.\n- [pass] bun run lint — project lint passed with zero warnings/errors.\n- [pass] bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff — custom diff lint reported no findings.\n- [pass] bun run typecheck — full TypeScript typecheck passed.\n- [pass] bun task.ts --help — root help now advertises `set`, `get`, and `delete` and no longer shows `store set|get|keys|delete`.\n- [pass] observable invalid-path proof — `bun task.ts set <id> --key research/ --value hello` exits 1 with `Subtree selector 'research/' is not allowed here`.\n\n## Commits\n- 7ab546ed663e37c6e2eab3d994e4179e10851631 — align the repo-root `task.ts` entrypoint with the approved document command surface and add root CLI parity regressions.\n\n## Remaining Work / Open Problems\n- task 09-supported-docs-parity remains open.\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "112",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

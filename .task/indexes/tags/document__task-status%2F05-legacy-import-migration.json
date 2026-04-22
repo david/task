@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/05-legacy-import-migration",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/12a92fdb-6305-442d-9808-f716ea5bc08c.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/17e9b585-467f-407f-bc71-dd4e1f2c26f6.json"
+  ]
+}

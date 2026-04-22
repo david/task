@@ -1,0 +1,19 @@
+{
+  "id": "d7ae3bb1-5cb7-43e8-b05d-acf1e2791177",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:tasks/qa-07-legacy-import-migrates-current-state"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "tasks/qa-07-legacy-import-migrates-current-state",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "name: qa-07-legacy-import-migrates-current-state\nrole: agent\ndepends_on: []\n\n# QA-07: Legacy import migrates current state into the repo-local event store\n\n## Test Steps\n\n1. In a fresh temp repo, prepare a separate legacy tracker source directory:\n   ```bash\n   export TASK_CLI=\"bun /home/david/task-w0/src/task.ts\"\n   TARGET_REPO=$(mktemp -d)\n   LEGACY_ROOT=$(mktemp -d)\n   cd \"$TARGET_REPO\"\n   git init -q\n   mkdir -p \"$LEGACY_ROOT\"/aaaa-parent-epic/research\n   mkdir -p \"$LEGACY_ROOT\"/bbbb-child-task/research\n   mkdir -p \"$LEGACY_ROOT\"/bbbb-child-task/tasks\n   mkdir -p \"$LEGACY_ROOT\"/.archive/cccc-closed-task/notes\n   ```\n2. Write three legacy issues:\n   - `aaaa-parent-epic/issue.json`: open parent with `refs: [\"external-parent-ref\"]`, label `epic`, and `github_issue: 101`\n   - `bbbb-child-task/issue.json`: open child with `refs: [\"aaaa-parent-epic\", \"external-child-ref\"]`, label `backend`, phase `ready-to-code`, and extra metadata like `owner: \"backend\"`\n   - `.archive/cccc-closed-task/issue.json`: closed archived issue with label `done`\n   Also write store files:\n   - `aaaa-parent-epic/research/summary`\n   - `bbbb-child-task/research/summary`\n   - `bbbb-child-task/tasks/plan`\n   - `.archive/cccc-closed-task/notes/summary`\n3. Run the import:\n   ```bash\n   $TASK_CLI legacy import --source \"$LEGACY_ROOT\"\n   ```\n4. Verify the migrated state with normal commands:\n   ```bash\n   $TASK_CLI list --fields id,title,status\n   $TASK_CLI list --all --fields id,title,status\n   $TASK_CLI show bbbb-child-task --summary\n   $TASK_CLI children aaaa-parent-epic --fields id,title,status\n   $TASK_CLI parents bbbb-child-task --fields id,title,status\n   $TASK_CLI store get bbbb-child-task --store research --key summary\n   $TASK_CLI store get bbbb-child-task --store tasks --key plan\n   $TASK_CLI search --all \"external-child-ref\"\n   find .task/events/by-issue -maxdepth 1 -mindepth 1 -type d | sort\n   ```\n\n## Expected\n\nThe import succeeds and normal CLI reads show the same current state as the legacy source. The child appears under the parent because its single local ref became hierarchy, while the external ref stays searchable. The closed issue is visible via `list --all` and `show`. Imported store content is readable, and `.task/events/by-issue/` contains event directories for all imported issues.\n\n## Setup Notes\n\nUse a brand-new target repo with no existing `.task` data. Any valid legacy fixture matching the metadata above is fine.\n\n## Result\n\n<!-- Filled in by /skill:qa coordinator after user reports result -->\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "85",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

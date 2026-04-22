@@ -1,0 +1,17 @@
+{
+  "id": "a5c47f81-13e8-49d5-ac1a-6d09d474ace9",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:tasks/04-closed-state-and-rebuildable-projections"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "tasks/04-closed-state-and-rebuildable-projections",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "70",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

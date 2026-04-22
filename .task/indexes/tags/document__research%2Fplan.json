@@ -1,0 +1,9 @@
+{
+  "tag": "document:research/plan",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/324d1b58-c8d7-4682-81fe-08dbb0850497.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/f70c501c-62ff-426e-a119-9c1746e52103.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/b365054c-376f-4141-90cd-2347871c8898.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/9ed8d12d-cb17-45d8-91b3-8550b016ee4b.json"
+  ]
+}

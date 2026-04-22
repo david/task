@@ -1,0 +1,7 @@
+{
+  "tag": "document:research/diagnosis-retry-2",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/6fc0887d-0d85-4ca2-a9c1-e175759f28c6.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/e03b7180-9390-4def-b9fe-7bdafe44e724.json"
+  ]
+}

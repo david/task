@@ -1,0 +1,17 @@
+{
+  "id": "df1e3c4b-4a0d-4458-bcbc-9bc64594592a",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:task-status/qa-07-legacy-import-migrates-current-state"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "task-status/qa-07-legacy-import-migrates-current-state",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "60",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

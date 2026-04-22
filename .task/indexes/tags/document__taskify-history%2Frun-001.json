@@ -1,0 +1,7 @@
+{
+  "tag": "document:taskify-history/run-001",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/60269a96-f6d8-41c3-9775-f102d409288f.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/0cc2cad4-2af3-43b7-89b0-03a83310c900.json"
+  ]
+}

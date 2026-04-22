@@ -1,0 +1,19 @@
+{
+  "id": "97783d6a-6b68-4aef-af83-bbc2cafe2903",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:code-history/run-005"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "code-history/run-005",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nrun_key: run-005\nissue_id: hz11\ntimestamp_utc: 2026-04-21T13:17:25Z\nmode: task-mode\nactive_task: 06-legacy-history-test-decomposition\nstarting_phase: coding\nending_phase: coding\noutcome: success\nnext_command: /skill:code hz11 07-full-check-rerun\nprevious_runs:\n  - run-001\n  - run-002\n  - run-003\n  - run-004\n---\n\n# Code Run run-005\n\n## Plan Summary\nRefactored the oversized legacy-history regression file into smaller reusable helpers and tiny test registration callbacks so the file passes the function-size lint rule without changing its assertions.\n\n## Prior Context Used\n- run-001 — switched the src/ CLI surface to set/get/delete and left later projection/migration work open.\n- run-002 — materialized path-based document projections and issue key inspection.\n- run-003 — completed migration/import compatibility and added the legacy-history regression file later flagged by custom lint.\n- run-004 — removed the nullable optional-property declaration from the same legacy-history test helper.\n\n## What Changed\n- src/commands-document-legacy-history.test.ts — extracted shared fixture creation, document assertions, projection assertions, and saved-revision parsing helpers to shrink the flagged test bodies.\n- src/commands-document-legacy-history.test.ts — replaced large inline test bodies with small case runners plus registration wrappers so the top-level describe callback and each test callback fall below the function-size threshold.\n\n## Verification\n- [pass] bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --files=src/commands-document-legacy-history.test.ts --check=function-size --verbose — function-size recheck for the repaired file returned zero findings.\n- [pass] bun test src/commands-document-legacy-history.test.ts — focused legacy-history regression tests passed after the helper extraction.\n- [not-run] observable proof — this repair only restructures test code, so no additional user-surface proof was required beyond the existing regression coverage.\n\n## Commits\n- a914102496ef2d2736ae7236ffe462b9596bd0ca — complete task 06 by decomposing the oversized legacy-history regression file into smaller helpers and registration wrappers.\n\n## Remaining Work / Open Problems\n- task 07-full-check-rerun remains open.\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "108",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

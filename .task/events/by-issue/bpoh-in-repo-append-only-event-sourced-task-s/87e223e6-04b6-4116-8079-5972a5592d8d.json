@@ -1,0 +1,17 @@
+{
+  "id": "87e223e6-04b6-4116-8079-5972a5592d8d",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:research/retro-search-switch-parser-retry-2"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "research/retro-search-switch-parser-retry-2",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "34",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

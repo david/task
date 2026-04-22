@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/qa-01-save-read-nested-documents",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/ef7ffe58-f6aa-47b1-aaae-049cd30446ce.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/e92a618c-67ab-4ac7-89b4-9229765b15db.json"
+  ]
+}

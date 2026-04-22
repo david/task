@@ -1,0 +1,19 @@
+{
+  "id": "4952690f-c012-4853-9b36-b836855b1cd1",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/qa-01-save-read-nested-documents"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/qa-01-save-read-nested-documents",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "name: qa-01-save-read-nested-documents\nrole: agent\ndepends_on: []\n\n# QA-01: Save and read nested issue documents\n\n## Test Steps\n1. Create a fresh QA fixture issue.\n2. Save nested content with `task set <issue-id> --key research/notes/today --value ...`.\n3. Read the exact path with `task get <issue-id> --key research/notes/today`.\n4. Read the subtree with `task get <issue-id> --key research/`.\n5. Read the full tree with `task get <issue-id> --key /`.\n\n## Expected\nExact reads return only the selected path, subtree reads return a recursive `value`/`entries` tree rooted at `research`, and root reads return the full attached-document tree.\n\n## Setup Notes\nCreate a dedicated QA fixture issue for this run and record its ID in `qa-context` so later tests can reuse it.\n\n## Result\n<!-- Filled in after user reports result -->\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "198",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

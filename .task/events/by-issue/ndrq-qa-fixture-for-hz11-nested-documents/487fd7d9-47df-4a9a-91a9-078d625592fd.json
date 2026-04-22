@@ -1,0 +1,24 @@
+{
+  "id": "487fd7d9-47df-4a9a-91a9-078d625592fd",
+  "type": "IssueCreated",
+  "tags": [
+    "issue:ndrq-qa-fixture-for-hz11-nested-documents",
+    "kind:issue"
+  ],
+  "payload": {
+    "issueId": "ndrq-qa-fixture-for-hz11-nested-documents",
+    "title": "QA fixture for hz11 nested documents",
+    "description": "",
+    "status": "open",
+    "phase": "research",
+    "priority": 2,
+    "created": "2026-04-21",
+    "updated": "2026-04-21T14:35:38.071Z",
+    "refs": [],
+    "labels": [
+      "qa-fixture"
+    ]
+  },
+  "position": "208",
+  "timestamp": "2026-04-21T23:17:56.763Z"
+}

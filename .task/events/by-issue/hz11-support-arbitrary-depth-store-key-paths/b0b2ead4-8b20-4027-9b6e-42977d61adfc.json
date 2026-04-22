@@ -1,0 +1,19 @@
+{
+  "id": "b0b2ead4-8b20-4027-9b6e-42977d61adfc",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:code-history/latest"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "code-history/latest",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "run-009",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "98",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

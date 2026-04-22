@@ -1,0 +1,17 @@
+{
+  "id": "33655ef2-0485-42c1-9230-1cf0000b56be",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/10-full-plan-verification"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/10-full-plan-verification",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "197",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

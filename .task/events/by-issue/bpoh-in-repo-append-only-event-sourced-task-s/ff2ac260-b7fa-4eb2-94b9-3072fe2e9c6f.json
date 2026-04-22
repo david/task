@@ -1,0 +1,19 @@
+{
+  "id": "ff2ac260-b7fa-4eb2-94b9-3072fe2e9c6f",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:research/retro-search-switch-parser"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "research/retro-search-switch-parser",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "## Bug: switch flags consume following positional args in the CLI parser\n\n**Where the process broke down:** Test gap\n\n**What was missed:** The plan verified `task search` behavior and closed-issue visibility, but it never exercised real CLI argv parsing for commands that combine a presence-only switch with positional input, such as `search --all \"rebuild child\"` or `show --summary <id>`.\n\n**Why it was missed:** The implementation tasks focused on command behavior after parsing, and the automated search tests called `issueSearch()` directly instead of going through `parseFlags()`. Parser tests covered `--all` only by itself and positional queries only in the canonical `query ... --flag` order, so the shared switch-arity bug stayed hidden until QA used a real shell command.\n\n**Suggestion for future plans:** For every command with positional args plus switch flags, add one parser-level or end-to-end CLI test that puts the switch before the positional argument so argv-handling bugs are caught before manual QA.",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "29",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

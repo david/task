@@ -1,0 +1,7 @@
+{
+  "tag": "document:research/test-plan",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/cc87a7ee-b89d-4fbf-910d-c11762ed14ff.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/f06afe9d-a12c-4c3e-b028-6c9e2fa548d0.json"
+  ]
+}

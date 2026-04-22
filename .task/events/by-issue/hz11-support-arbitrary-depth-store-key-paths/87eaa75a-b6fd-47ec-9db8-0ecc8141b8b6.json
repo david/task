@@ -1,0 +1,19 @@
+{
+  "id": "87eaa75a-b6fd-47ec-9db8-0ecc8141b8b6",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:task-status/qa-02-coexistence-and-delete-selectors"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "task-status/qa-02-coexistence-and-delete-selectors",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "done",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "164",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

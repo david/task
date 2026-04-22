@@ -1,0 +1,44 @@
+[
+  {
+    "id": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "title": "In-repo append-only event-sourced task storage",
+    "description": "Scope constraint: do the tracker migration work under src/ only; leave legacy top-level files untouched unless a later task explicitly says otherwise.",
+    "status": "open",
+    "phase": "diagnosed",
+    "priority": 2,
+    "created": "2026-04-17",
+    "updated": "2026-04-21T10:16:42.184Z",
+    "refs": [],
+    "labels": [
+      "prd"
+    ]
+  },
+  {
+    "id": "hz11-support-arbitrary-depth-store-key-paths",
+    "title": "Support arbitrary-depth store key paths",
+    "description": "",
+    "status": "open",
+    "phase": "qa",
+    "priority": 2,
+    "created": "2026-04-21",
+    "updated": "2026-04-21T21:36:02.857Z",
+    "refs": [],
+    "labels": [
+      "prd"
+    ]
+  },
+  {
+    "id": "ndrq-qa-fixture-for-hz11-nested-documents",
+    "title": "QA fixture for hz11 nested documents",
+    "description": "",
+    "status": "open",
+    "phase": "research",
+    "priority": 2,
+    "created": "2026-04-21",
+    "updated": "2026-04-21T14:35:38.071Z",
+    "refs": [],
+    "labels": [
+      "qa-fixture"
+    ]
+  }
+]

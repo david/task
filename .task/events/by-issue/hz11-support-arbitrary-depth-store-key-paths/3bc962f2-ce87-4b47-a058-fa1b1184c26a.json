@@ -1,0 +1,17 @@
+{
+  "id": "3bc962f2-ce87-4b47-a058-fa1b1184c26a",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:task-status/09-supported-docs-parity"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "task-status/09-supported-docs-parity",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "159",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

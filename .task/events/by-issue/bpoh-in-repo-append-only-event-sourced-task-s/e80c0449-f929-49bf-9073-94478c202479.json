@@ -1,0 +1,19 @@
+{
+  "id": "e80c0449-f929-49bf-9073-94478c202479",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:qa-results/qa-06-closed-issues-stay-queryable-and-projections-rebuild"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "qa-results/qa-06-closed-issues-stay-queryable-and-projections-rebuild",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "{\n  \"taskKey\": \"qa-06-closed-issues-stay-queryable-and-projections-rebuild\",\n  \"recordedAt\": \"2026-04-19T17:22:23.936432+00:00\",\n  \"role\": \"agent\",\n  \"browserSession\": \"shell\",\n  \"url\": null,\n  \"shortSummary\": \"search --all before positional query rejects the query\",\n  \"expectedBehavior\": \"The exact QA step `$TASK_CLI search --all \\\"rebuild child\\\"` should succeed and return the closed child, as described in the stored QA task.\",\n  \"actualBehavior\": \"The command exited with code 1 and stderr `{\\\"error\\\":\\\"search query is required (pass positional text or --text)\\\"}`. Using `search \\\"rebuild child\\\" --all` succeeded, which suggests query parsing is order-sensitive.\",\n  \"reproSteps\": [\n    \"Create parent and child in a fresh temp repo.\",\n    \"Close the child issue.\",\n    \"Run `$TASK_CLI search --all \\\"rebuild child\\\"`.\",\n    \"Observe exit code 1 and the missing-query JSON error.\"\n  ],\n  \"failingStep\": 2,\n  \"setupContext\": {\n    \"repo\": \"/tmp/task-qa-06-lfiy9gvc\",\n    \"parentIssueId\": \"h1cm-rebuild-parent\",\n    \"childIssueId\": \"zz3k-rebuild-child\"\n  },\n  \"notes\": [\n    \"Other pre-failure checks passed: `show` found the closed child and `list --all` showed it as closed.\",\n    \"Workaround observed: `bun /home/david/task-w0/src/task.ts search \\\"rebuild child\\\" --all` succeeds in the same repo.\"\n  ]\n}",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "13",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

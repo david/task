@@ -1,0 +1,19 @@
+{
+  "id": "bf8162c8-a712-4fce-bc1c-39037d15d596",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:qa-results/qa-05-migration-and-legacy-import"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "qa-results/qa-05-migration-and-legacy-import",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "task_key: qa-05-migration-and-legacy-import\nrecorded_at: 2026-04-21T21:36:02Z\nrole: agent\nbrowser_session: n/a\nurl: n/a\nsummary: Legacy import passed using a fresh test-compatible legacy tracker fixture; imported store content is readable through path-based document keys and materialized as .md files in .task/issues.\nstatus: pass\nfixture_root: /tmp/tmp.X9rGKXEbUU\nlegacy_source_root: /tmp/tmp.X9rGKXEbUU/legacy-import-source\ntarget_root: /tmp/tmp.X9rGKXEbUU/legacy-import-target\nchecks:\n  import_output: |\n    {\"imported\":true,\"source\":\"/tmp/tmp.X9rGKXEbUU/legacy-import-source\",\"issueCount\":3,\"storeCount\":4}\n  child_research_get: |\n    {\"entries\":{\"research\":{\"entries\":{\"summary\":{\"value\":\"child summary\"}}}}}\n  child_tasks_get: |\n    {\"entries\":{\"tasks\":{\"entries\":{\"plan\":{\"value\":\"child plan\"}}}}}\n  parent_children: |\n    [{\"id\":\"bbbb-child-task\",\"title\":\"Child Task\",\"status\":\"open\"}]\n  child_parents: |\n    [{\"id\":\"aaaa-parent-epic\",\"title\":\"Parent Epic\",\"status\":\"open\"}]\n  list_all: |\n    [{\"id\":\"bbbb-child-task\",\"title\":\"Child Task\",\"status\":\"open\"},{\"id\":\"aaaa-parent-epic\",\"title\":\"Parent Epic\",\"status\":\"open\"},{\"id\":\"cccc-closed-task\",\"title\":\"Closed Task\",\"status\":\"closed\"}]\n  materialized_files: |\n    /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/aaaa-parent-epic/issue.json\n    /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/aaaa-parent-epic/research/summary.md\n    /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/bbbb-child-task/issue.json\n    /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/bbbb-child-task/research/summary.md\n    /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/bbbb-child-task/tasks/plan.md\n    /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/cccc-closed-task/issue.json\n    /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/cccc-closed-task/notes/summary.md\n  materialized_content:\n    child_summary: child summary\n    child_plan: child plan\n    closed_summary: closed summary\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "130",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

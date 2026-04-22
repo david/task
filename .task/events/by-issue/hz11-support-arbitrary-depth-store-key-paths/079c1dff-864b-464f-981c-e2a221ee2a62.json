@@ -1,0 +1,19 @@
+{
+  "id": "079c1dff-864b-464f-981c-e2a221ee2a62",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/02-document-command-surface"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/02-document-command-surface",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 02-document-command-surface\nrole: coder\ndepends_on:\n  - 01-document-model-core\n---\n\n# 02 — Document command surface\n\n## Goal\nExpose the new issue document model through `task set`, `task get`, and `task delete`, and remove the `task store ...` command family from the in-progress `src/` CLI surface.\n\n## Context\nOnce the core model supports path-based documents, the user-facing CLI must switch to the approved command family and selector syntax. This task owns parsing, registration, help text, and command-level behavior proofs.\n\n## Files\n- `src/commands.ts`\n- `src/commands-registry.ts`\n- `src/task.ts`\n- `src/task.test.ts`\n- command-level tests for set/get/delete behavior\n\n## Verification Tests\n- focused Bun tests for command registration, help output, exact-path set/get/delete, subtree delete, and root reads\n- at least one end-to-end CLI regression: save nested content → read exact → read subtree → delete subtree → confirm removal\n\n## Out of Scope\n- projection materialization layout changes\n- migration/import behavior\n- later-phase revision superseding beyond what the core task already enables\n\n## UI Scope Guardrails\n- only change command names, flags, and examples required for the approved document-key surface\n- do not introduce extra aliases beyond the approved commands\n\n## Done When\n- `src/` command registration exposes `set`, `get`, and `delete` with the approved `--key` selector rules\n- `task store ...` is no longer part of the `src/` CLI help/registry\n- command-level tests and CLI help assertions pass\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "180",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

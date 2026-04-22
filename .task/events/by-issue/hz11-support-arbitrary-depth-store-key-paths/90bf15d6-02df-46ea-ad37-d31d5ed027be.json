@@ -1,0 +1,19 @@
+{
+  "id": "90bf15d6-02df-46ea-ad37-d31d5ed027be",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/08-root-cli-surface-parity"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/08-root-cli-surface-parity",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 08-root-cli-surface-parity\nrole: coder\ndepends_on: []\nsource: plan\nsource_key: research:plan\nbatch: taskify-history:run-002\n---\n\n# 08 — Root CLI surface parity\n\n## Goal\nBring the supported repo-root CLI entrypoint onto the approved `task set`, `task get`, and `task delete --key <path>` surface so `bun task.ts` no longer advertises or depends on the legacy `task store ...` contract.\n\n## Context\nThe approved plan and QA intent treat the repo-root entrypoint as part of the supported user-facing surface, but the current root `task.ts` and `commands.ts` still expose `task store set|get|keys|delete`. This task should remove that surface drift, preferably by delegating the root entrypoint to the already-updated `src/` command registry instead of keeping two independent document-command implementations.\n\n## Files\n- `task.ts`\n- `commands.ts`\n- `task.test.ts`\n- `src/task.ts` if the root entrypoint delegates through shared CLI behavior\n- `src/commands-registry.ts` if the root entrypoint reuses the staged command registry directly\n\n## Verification Tests\n- `bun test task.test.ts`\n- `bun task.ts --help`\n- a focused root-entrypoint regression that proves invalid `--key` paths still fail clearly through `bun task.ts`\n\n## Out of Scope\n- updating the supported docs under `doc/` and `src/doc/`\n- full-repo verification reruns\n- changing the underlying document-path validation rules beyond wiring the root surface to the supported implementation\n\n## UI Scope Guardrails\n- keep unrelated legacy commands stable while replacing only the issue-document command/help surface\n- do not preserve `task store ...` as a supported compatibility alias in repo-root help or registration\n\n## Done When\n- `bun task.ts --help` advertises `set`, `get`, and `delete` for issue documents\n- repo-root help and dispatch no longer expose `store set|get|keys|delete` as the supported document workflow\n- the root entrypoint uses the same approved document-path behavior as the staged `src/` surface instead of maintaining a contradictory contract\n- focused root help and invalid-path regressions pass\n- no leftover partial edits for this task\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "192",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

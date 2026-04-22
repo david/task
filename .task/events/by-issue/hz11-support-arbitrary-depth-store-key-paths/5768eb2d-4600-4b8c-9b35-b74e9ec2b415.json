@@ -1,0 +1,17 @@
+{
+  "id": "5768eb2d-4600-4b8c-9b35-b74e9ec2b415",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/05-legacy-history-nullable-prop"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/05-legacy-history-nullable-prop",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "187",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

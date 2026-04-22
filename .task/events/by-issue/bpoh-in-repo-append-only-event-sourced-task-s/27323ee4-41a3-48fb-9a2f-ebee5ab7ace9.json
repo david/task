@@ -1,0 +1,17 @@
+{
+  "id": "27323ee4-41a3-48fb-9a2f-ebee5ab7ace9",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:qa-context/qa-03-phase-next-and-set-uses-settings"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "qa-context/qa-03-phase-next-and-set-uses-settings",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "6",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

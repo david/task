@@ -1,0 +1,19 @@
+{
+  "id": "ca6fd0e9-8806-4b3a-9af9-c5b0bc8bdfc9",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:qa-context/qa-04-phase-transition-revision-behavior"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "qa-context/qa-04-phase-transition-revision-behavior",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "fixture_issue_id: a0ha-qa-04-phase-revision-fixture\nrole: agent\ncli_entrypoint: bun src/task.ts\nfixture_root: /tmp/tmp.xLpdWOFuwR\nsettings_path: /tmp/tmp.xLpdWOFuwR/.task/settings.json\nvisible_doc_json: {\"entries\":{\"research\":{\"entries\":{\"plan\":{\"value\":\"phase two plan\"}}}}}\nfinalized_event: /tmp/tmp.xLpdWOFuwR/.task/events/by-issue/a0ha-qa-04-phase-revision-fixture/493d9ef2-f001-4d14-b3a5-7c6a493fbfb8.json\nsaved_revision_1_event: /tmp/tmp.xLpdWOFuwR/.task/events/by-issue/a0ha-qa-04-phase-revision-fixture/0731df86-be1f-4cfc-948c-69baa168905a.json\nsaved_revision_2_event: /tmp/tmp.xLpdWOFuwR/.task/events/by-issue/a0ha-qa-04-phase-revision-fixture/4a174137-f68e-4d97-a69d-e266d489a6f8.json\nmaterialized_doc_path: /tmp/tmp.xLpdWOFuwR/.task/issues/a0ha-qa-04-phase-revision-fixture/research/plan.md\nmaterialized_doc_content: phase two plan\nrevision_notes: revision 1 saved in research, phase change finalized revision 1, later save created revision 2 in ready-to-code with supersedesRevision 1.",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "124",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

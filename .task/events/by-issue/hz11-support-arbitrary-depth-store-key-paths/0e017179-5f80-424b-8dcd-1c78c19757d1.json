@@ -1,0 +1,19 @@
+{
+  "id": "0e017179-5f80-424b-8dcd-1c78c19757d1",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/10-full-plan-verification"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/10-full-plan-verification",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 10-full-plan-verification\nrole: coder\ndepends_on:\n  - 08-root-cli-surface-parity\n  - 09-supported-docs-parity\nsource: plan\nsource_key: research:plan\nbatch: taskify-history:run-002\n---\n\n# 10 — Full plan verification\n\n## Goal\nRun the full confirmation pass for the repaired root CLI/help/docs surface so the issue can return to QA with the approved user-facing contract fully rechecked.\n\n## Context\nThis repair closes a QA-discovered gap between the implemented `src/` document commands and the still-supported root entrypoint/docs. After the focused CLI and doc updates land, the branch needs the normal repo-wide automated proof plus the fast help/doc rechecks called out in the approved plan.\n\n## Files\n- `task.ts`\n- `commands.ts`\n- `task.test.ts`\n- `doc/commands.md`\n- `doc/project-management.md`\n- `doc/architecture.md`\n- `src/doc/commands.md`\n- `src/doc/project-management.md`\n- `src/doc/architecture.md`\n- any files touched by tasks 08 and 09\n\n## Verification Tests\n- `bun task.ts --help`\n- `bun src/task.ts --help` if that entrypoint remains supported\n- `rg -n \"task store|bun task\\\\.ts|bin/task\" doc src/doc`\n- `bun test`\n- `bun run typecheck`\n\n## Out of Scope\n- additional feature work beyond the approved help/docs parity repair\n- speculative cleanup unrelated to the user-facing document surface\n\n## UI Scope Guardrails\n- None\n\n## Done When\n- root help and any retained staged help surface both show the approved document command family\n- supported docs are free of legacy `task store ...` instructions and stale wrapper guidance\n- `bun test` passes for the full repo\n- `bun run typecheck` passes for the full repo\n- no leftover partial edits for this task\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "196",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

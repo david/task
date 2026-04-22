@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/qa-04-phase-change-finalizes-open-store-drafts",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/c6727f07-8bce-479a-a999-8764bdba5f5a.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/e567e093-fee3-4052-b474-fba76ea2fbdf.json"
+  ]
+}

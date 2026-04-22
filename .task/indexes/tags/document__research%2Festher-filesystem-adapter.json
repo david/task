@@ -1,0 +1,7 @@
+{
+  "tag": "document:research/esther-filesystem-adapter",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/ba932c56-dc1c-4778-aaf5-418abac81c99.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/838f28a4-3e2f-4565-84cd-baac2423c1b9.json"
+  ]
+}

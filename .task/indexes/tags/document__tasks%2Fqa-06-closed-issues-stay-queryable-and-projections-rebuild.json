@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/qa-06-closed-issues-stay-queryable-and-projections-rebuild",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/197f8ab0-aabe-4401-9baa-33e5f7d82e98.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/4b174776-a46d-4f17-9267-759e5d0bfddb.json"
+  ]
+}

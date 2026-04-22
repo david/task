@@ -1,0 +1,17 @@
+{
+  "id": "b7bc0b30-6a88-45bd-91de-ab9459a5d1b2",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:taskify-history/run-002"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "taskify-history/run-002",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "177",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

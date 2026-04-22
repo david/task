@@ -1,0 +1,7 @@
+{
+  "tag": "document:check-report/run-001",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/aa61ac30-b55f-426e-b6e4-7e7bcb2878e9.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/62beab61-5abf-4664-a583-ebd6bc7579cb.json"
+  ]
+}

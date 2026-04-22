@@ -1,0 +1,19 @@
+{
+  "id": "ce831642-2fb4-4de4-aff9-8f1c5187ed91",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:research/retro-invalid-help-surface"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "research/retro-invalid-help-surface",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "# QA retrospective — invalid paths and help surface\n\n1. **Was this case in the planning artifacts?**\n   Yes. The approved PRD/plan says the supported surface is `task set|get|delete`, lists legacy `task store ...` compatibility as a non-goal, and explicitly calls out help/examples as human QA scope.\n\n2. **Was there an execution task for it?**\n   Partially, but incompletely. Task `02-document-command-surface` covered only the in-progress `src/` CLI surface and did not own the repo-root entrypoint or the root `doc/` docs that users still read.\n\n3. **Did implementation diverge?**\n   Yes. The implementation matched the narrowed `src/` task but diverged from the broader approved user-facing contract by leaving `task.ts`, `commands.ts`, and multiple docs on the legacy `store` model.\n\n4. **Did verification miss it?**\n   Yes. Automated tests asserted the `src/` help surface only. Root help and documentation parity were not covered, so branch-level checks passed while QA still failed.\n\n5. **Has this bug family appeared before?**\n   No earlier tracked issue was found, but it belongs to the broader staged-rewrite drift family: duplicated root and `src/` surfaces diverge because only one gets updated and tested.\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "140",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

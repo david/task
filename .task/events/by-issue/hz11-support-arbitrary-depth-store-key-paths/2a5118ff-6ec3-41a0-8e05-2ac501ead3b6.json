@@ -1,0 +1,19 @@
+{
+  "id": "2a5118ff-6ec3-41a0-8e05-2ac501ead3b6",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:qa-context/qa-01-save-read-nested-documents"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "qa-context/qa-01-save-read-nested-documents",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "fixture_issue_id: umwr-qa-fixture-for-hz11-nested-documents-new\nrole: agent\ncli_entrypoint: bun src/task.ts\nexact_read_json: {\"entries\":{\"research\":{\"entries\":{\"notes\":{\"entries\":{\"today\":{\"value\":\"hello from qa-01\"}}}}}}}\nsubtree_read_json: {\"entries\":{\"research\":{\"entries\":{\"notes\":{\"entries\":{\"today\":{\"value\":\"hello from qa-01\"}}}}}}}\nroot_read_json: {\"entries\":{\"research\":{\"entries\":{\"notes\":{\"entries\":{\"today\":{\"value\":\"hello from qa-01\"}}}}}}}\nnote: legacy bun task.ts uses a different/old CLI surface and tracker state.",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "118",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

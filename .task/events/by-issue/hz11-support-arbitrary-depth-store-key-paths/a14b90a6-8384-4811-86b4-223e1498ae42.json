@@ -1,0 +1,24 @@
+{
+  "id": "a14b90a6-8384-4811-86b4-223e1498ae42",
+  "type": "IssueCreated",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "kind:issue"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "title": "Support arbitrary-depth store key paths",
+    "description": "",
+    "status": "open",
+    "phase": "qa",
+    "priority": 2,
+    "created": "2026-04-21",
+    "updated": "2026-04-21T21:36:02.857Z",
+    "refs": [],
+    "labels": [
+      "prd"
+    ]
+  },
+  "position": "89",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}
