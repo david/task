@@ -8,7 +8,7 @@
     "lint:eslint": "eslint --max-warnings 0 src",
     "lint:deps": "depcruise --config .dependency-cruiser.cjs src",
     "test": "bun test ./src ./task.test.ts ./commands.test.ts",
-    "build:legacy": "bun build ./task.ts --compile --outfile ./dist/task-legacy"
+    "build": "bun build ./task.ts --compile --outfile ./dist/task"
   },
   "devDependencies": {
     "@types/bun": "latest",
