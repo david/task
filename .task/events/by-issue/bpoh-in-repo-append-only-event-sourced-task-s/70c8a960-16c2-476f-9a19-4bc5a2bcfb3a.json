@@ -1,0 +1,13 @@
+{
+  "id": "70c8a960-16c2-476f-9a19-4bc5a2bcfb3a",
+  "type": "IssueClosed",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "closedAt": "2026-04-22T17:30:13.901Z"
+  },
+  "position": "209",
+  "timestamp": "2026-04-22T17:30:13.987Z"
+}
