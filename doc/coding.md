@@ -8,6 +8,8 @@
 - Mark task completion with `task-status/<task-key>` documents, using values like `done` or `failed:<reason>`.
 - Append run records under `code-history/run-00N` and refresh `code-history/latest`.
 - Keep one runnable task-sized slice per session.
+- Use `/skill:commit` for tracked commit passes.
+- Commit related `.task/` changes with the code/docs they describe.
 - Keep the git tree clean before and after the run.
 
 ## Local verification commands

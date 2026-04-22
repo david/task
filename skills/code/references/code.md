@@ -5,7 +5,7 @@ Implement one focused slice of approved work in the foreground.
 Adapt this skill to the repo before acting:
 - read `AGENTS.md`, `CLAUDE.md`, package scripts, and workflow docs
 - read `doc/task-workflow.md` when it exists
-- read `doc/skill-code.md` when it exists
+- read `doc/coding.md` when it exists
 - infer whether the repo uses issue-backed artifacts, task graphs, run-history
   records, or plain conversation mode
 - follow repo docs when they define a more specific coding workflow
@@ -111,8 +111,14 @@ A useful run record captures:
 - remaining work or blockers
 - the exact next command
 
+Before returning, use `/skill:commit` for the commit pass when the harness makes
+that skill available. In task-backed repos, that commit pass must include the
+related `.task/` changes in the same logical commit as the code/docs they
+describe.
+
 On success:
 - mark the active task done when the repo tracks task status
+- do not consider the slice complete until the related `.task/` updates are committed
 - queue the next runnable `/skill:code ...` command with `next_session` when
   available and more coding work remains
 - otherwise hand off to the repo's confirmation step, normally

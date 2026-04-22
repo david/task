@@ -9,16 +9,17 @@ Use the repo-local `task` CLI through `bun task.ts` from the repo root.
 - Durable workflow state belongs in `task` issue documents and metadata.
 - Workflow skills should coordinate through canonical issue-document paths, not
   ad hoc files or hidden bookkeeping.
-- Repo-specific workflow customization belongs in:
-  - `doc/task-workflow.md`
-  - `doc/skill-task.md`
-  - `doc/skill-feature.md`
-  - `doc/skill-debug.md`
-  - `doc/skill-refactor.md`
-  - `doc/skill-code.md`
-  - `doc/skill-check.md`
-  - `doc/skill-taskify.md`
-  - `doc/skill-deploy.md`
+- Repo-specific workflow customization belongs in `doc/task-workflow.md` and
+  in project-native docs when they exist.
+- Useful optional docs for these packaged skills include:
+  - `doc/planning.md`
+  - `doc/debugging.md`
+  - `doc/refactoring.md`
+  - `doc/coding.md`
+  - `doc/committing.md`
+  - `doc/testing.md`
+  - `doc/decomposition.md`
+  - `doc/deployment.md`
 
 ## Hard rules
 
@@ -27,6 +28,9 @@ Use the repo-local `task` CLI through `bun task.ts` from the repo root.
 - Do **not** use deprecated or undocumented `task store ...` commands in this repo.
 - Use `--flag value`, never `--flag=value`.
 - Keep larger workflow artifacts in issue documents, not metadata.
+- Treat `.task/` as first-class committed project data.
+- When code/docs correspond to issue/task/history changes, commit the related `.task` changes in the same logical commit.
+- Exclude only clearly unrelated tracker churn from a task-backed commit.
 - Use exact handoff commands. Do not hand off with only a bare skill name when the next command is knowable.
 
 ## Canonical issue document paths
@@ -129,6 +133,7 @@ identifies the latest run key and summary status.
 | `refactor` | yes, when needed | current issue, `research/*` | `research/refactor-plan`, `research/plan` | both docs written | `Next: /skill:taskify <id> --from plan` |
 | `taskify` | no | `research/plan`, `tasks/*`, `task-status/*`, `taskify-history/*`, optional `check-report/*`, optional `code-history/*` | `tasks/NN-*`, `taskify-history/run-*`, `taskify-history/latest` | new task batch + taskify history written | `Next: /skill:code <id> <first-new-task-key>` |
 | `code` | no | `research/plan`, `tasks/*`, `task-status/*`, `taskify-history/*`, `code-history/*`, optional `check-report/*` | `task-status/*`, `code-history/run-*`, `code-history/latest` | one runnable task-sized slice completed and recorded | `Next: /skill:code <id> <next-task-key>` or `Next: /skill:check --issue <id>` |
+| `commit` | no | git diff, staged state, related `.task/*` changes, optional workflow docs | git commits that include related `.task/*` state | verified logical slices are committed with matching tracker history | return to caller |
 | `check` | no | `research/plan`, `tasks/*`, `task-status/*`, `code-history/*`, `check-report/*` | `check-report/run-*`, `check-report/latest` | new check report written | `Next: /skill:qa <id>` or `Next: /skill:taskify <id> --from check` or `Next: /skill:debug <id>` |
 | `deploy` | no | `check-report/*`, `tasks/*`, `task-status/*`, `qa-results/*`, `qa-context/*` | none | deploy summary reported | none |
 
@@ -147,7 +152,9 @@ tasks/*
   ↓
 code
   ↓
-code-history/* + task-status/*
+commit
+  ↓
+code-history/* + task-status/* + related .task/*
   ↓
 check
   ↓

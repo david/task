@@ -28,7 +28,7 @@ Also read repo context files such as `AGENTS.md`, `CLAUDE.md`, and relevant
 project docs before choosing issue workflow, artifact paths, or handoffs.
 
 If `doc/task-workflow.md` exists, read it before acting.
-If `doc/skill-feature.md` exists, read it before acting.
+If `doc/planning.md` exists, read it before acting.
 
 Treat repo docs as project-specific extensions of this skill.
 

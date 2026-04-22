@@ -15,14 +15,15 @@ Bun/TypeScript CLI for managing local agent issues in the filesystem. The root p
 
 `task` is the workflow substrate for this project, not just a standalone CLI.
 The packaged workflow skills in this repo are intentionally task-backed:
-`feature`, `debug`, `refactor`, `taskify`, `code`, `check`, and `deploy`
-coordinate through `task` issue documents and metadata.
+`feature`, `debug`, `refactor`, `taskify`, `code`, `commit`, `check`, and
+`deploy` coordinate through `task` issue documents and metadata.
 
 When extending or using this workflow:
 - prefer durable `task` artifacts over ad hoc workflow files
 - treat issue documents such as `research/*`, `tasks/*`, `task-status/*`, `code-history/*`, `check-report/*`, and `taskify-history/*` as the canonical workflow surface
+- treat related `.task/` changes as first-class committed project data, not incidental local state
 - treat `doc/task-workflow.md` as the shared workflow reference the packaged skills consult
-- use `doc/skill-*.md` only for skill-specific refinements or repo-local deviations, not as a replacement for the shared workflow contract
+- let packaged skills also consult project-native docs such as `doc/coding.md`, `doc/committing.md`, `doc/testing.md`, or `doc/deployment.md` when those files exist
 - do not bypass `task`
 
 ## Correctness policy

@@ -13,15 +13,15 @@ Read `references/examples.md` when you need concrete command shapes.
 Also read repo context files such as `AGENTS.md`, `CLAUDE.md`, `doc/commands.md`, and `doc/project-management.md` when they exist and are relevant.
 
 If `doc/task-workflow.md` exists, read it before acting.
-If `doc/skill-task.md` exists, read it before acting.
 
-Treat repo docs as project-specific extensions of this skill.
+Treat repo docs such as `doc/commands.md`, `doc/project-management.md`, and
+`doc/task-workflow.md` as project-specific extensions of this skill.
 
 ## Goal
 
 Pick the right supported `task` command, preserve tracker invariants, and avoid unsafe shortcuts.
 
-Projects may layer local workflow skills such as `feature`, `debug`, `refactor`, `code`, `check`, `taskify`, or `deploy` on top of this base `task` skill.
+Projects may layer local workflow skills such as `feature`, `debug`, `refactor`, `code`, `commit`, `check`, `taskify`, or `deploy` on top of this base `task` skill.
 
 ## Default workflow
 

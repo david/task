@@ -28,7 +28,7 @@ describe("bootstrap", () => {
 
     const result = await workflowBootstrap({}, root)
     expect(result.root).toBe(root)
-    expect(result.created.length).toBe(9)
+    expect(result.created.length).toBe(1)
     expect(result.skipped).toEqual([])
     expect(result.detectedCommands).toEqual({
       test: "bun run test",
@@ -39,12 +39,13 @@ describe("bootstrap", () => {
     })
 
     const workflowDoc = join(root, "doc", "task-workflow.md")
-    const codeDoc = join(root, "doc", "skill-code.md")
+    const codeDoc = join(root, "doc", "coding.md")
     expect(existsSync(workflowDoc)).toBe(true)
-    expect(existsSync(codeDoc)).toBe(true)
+    expect(existsSync(codeDoc)).toBe(false)
     expect(readFileSync(workflowDoc, "utf8")).toContain("Next: /skill:check --issue <id>")
     expect(readFileSync(workflowDoc, "utf8")).toContain("bun run typecheck")
-    expect(readFileSync(codeDoc, "utf8")).toContain("code-history/run-00N")
+    expect(readFileSync(workflowDoc, "utf8")).toContain("doc/coding.md")
+    expect(readFileSync(workflowDoc, "utf8")).toContain("doc/committing.md")
   })
 
   test("skips existing docs by default and overwrites with --force", async () => {
@@ -70,6 +71,6 @@ describe("bootstrap", () => {
 
     const result = await workflowBootstrap({ "--root": "nested/repo" }, root)
     expect(result.root).toBe(target)
-    expect(existsSync(join(target, "doc", "skill-taskify.md"))).toBe(true)
+    expect(existsSync(join(target, "doc", "task-workflow.md"))).toBe(true)
   })
 })

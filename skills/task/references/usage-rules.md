@@ -16,7 +16,7 @@ task show <id> --include-keys
 
 | Intent | Preferred command | Notes |
 |---|---|---|
-| Scaffold task-backed workflow docs | `task bootstrap` | Writes `doc/task-workflow.md` and `doc/skill-*.md`. Use `--force` only when you intend to overwrite existing scaffolded docs. |
+| Scaffold task-backed workflow docs | `task bootstrap` | Writes `doc/task-workflow.md` and points to optional project-native docs such as `doc/coding.md` or `doc/committing.md`. Use `--force` only when you intend to overwrite the scaffolded workflow doc. |
 | Create a new issue | `task create` | Set `--priority`, `--label`, `--github-issue`, and `--parent` at creation time when known. |
 | Read one issue | `task show` | Use `--summary` for metadata only, `--include-keys` to list current document keys. |
 | Find issues | `task list`, `task search` | `list` is for structured filters; `search` is for free text. Closed issues are hidden unless `--all` is passed. |

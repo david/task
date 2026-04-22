@@ -13,7 +13,7 @@ description: >
 Run automated quality checks against the codebase.
 
 If `doc/task-workflow.md` exists, read it before acting.
-If `doc/skill-check.md` exists, read it before acting.
+If `doc/testing.md` exists, read it before acting.
 
 Treat repo docs as project-specific extensions of this skill.
 

@@ -14,7 +14,7 @@ push and open or reuse a PR, wait for CI, merge on green, then watch the
 deployment target and report the outcome.
 
 If `doc/task-workflow.md` exists, read it before acting.
-If `doc/skill-deploy.md` exists, read it before acting.
+If `doc/deployment.md` exists, read it before acting.
 
 Treat repo docs as project-specific extensions of this skill.
 

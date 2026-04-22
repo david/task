@@ -433,16 +433,17 @@ Use the \`task\` CLI from \`PATH\` inside this repo.
 - Durable workflow state belongs in \`task\` issue documents and metadata.
 - Workflow skills should coordinate through canonical issue-document paths, not
   ad hoc files or hidden bookkeeping.
-- Repo-specific workflow customization belongs in:
-  - \`doc/task-workflow.md\`
-  - \`doc/skill-task.md\`
-  - \`doc/skill-feature.md\`
-  - \`doc/skill-debug.md\`
-  - \`doc/skill-refactor.md\`
-  - \`doc/skill-code.md\`
-  - \`doc/skill-check.md\`
-  - \`doc/skill-taskify.md\`
-  - \`doc/skill-deploy.md\`
+- Repo-specific workflow customization belongs in \`doc/task-workflow.md\`
+  and in project-native docs when they exist.
+- Useful optional docs for these packaged skills include:
+  - \`doc/planning.md\`
+  - \`doc/debugging.md\`
+  - \`doc/refactoring.md\`
+  - \`doc/coding.md\`
+  - \`doc/committing.md\`
+  - \`doc/testing.md\`
+  - \`doc/decomposition.md\`
+  - \`doc/deployment.md\`
 
 ## Hard rules
 
@@ -450,6 +451,9 @@ Use the \`task\` CLI from \`PATH\` inside this repo.
 - Use documented document commands: \`set\`, \`get\`, \`delete\`, and \`show --include-keys\`.
 - Use \`--flag value\`, never \`--flag=value\`.
 - Keep larger workflow artifacts in issue documents, not metadata.
+- Treat \`.task/\` as first-class committed project data.
+- When code/docs correspond to issue/task/history changes, commit the related \`.task\` changes in the same logical commit.
+- Exclude only clearly unrelated tracker churn from a task-backed commit.
 - Use exact handoff commands. Do not hand off with only a bare skill name when the next command is knowable.
 
 ## Canonical issue document paths
@@ -545,6 +549,7 @@ task set --id <id> --key code-history/latest --file /tmp/latest.md
 | \`refactor\` | yes, when needed | current issue, \`research/*\` | \`research/refactor-plan\`, \`research/plan\` | both docs written | \`Next: /skill:taskify <id> --from plan\` |
 | \`taskify\` | no | \`research/plan\`, \`tasks/*\`, \`task-status/*\`, \`taskify-history/*\`, optional \`check-report/*\`, optional \`code-history/*\` | \`tasks/NN-*\`, \`taskify-history/run-*\`, \`taskify-history/latest\` | new task batch + taskify history written | \`Next: /skill:code <id> <first-new-task-key>\` |
 | \`code\` | no | \`research/plan\`, \`tasks/*\`, \`task-status/*\`, \`taskify-history/*\`, \`code-history/*\`, optional \`check-report/*\` | \`task-status/*\`, \`code-history/run-*\`, \`code-history/latest\` | one runnable task-sized slice completed and recorded | \`Next: /skill:code <id> <next-task-key>\` or \`Next: /skill:check --issue <id>\` |
+| \`commit\` | no | git diff, staged state, related \`.task/*\` changes, optional workflow docs | git commits that include related \`.task/*\` state | verified logical slices are committed with matching tracker history | return to caller |
 | \`check\` | no | \`research/plan\`, \`tasks/*\`, \`task-status/*\`, \`code-history/*\`, \`check-report/*\` | \`check-report/run-*\`, \`check-report/latest\` | new check report written | \`Next: /skill:qa <id>\` or \`Next: /skill:taskify <id> --from check\` or \`Next: /skill:debug <id>\` |
 | \`deploy\` | no | \`check-report/*\`, \`tasks/*\`, \`task-status/*\`, \`qa-results/*\`, \`qa-context/*\` | none | deploy summary reported | none |
 
@@ -561,7 +566,9 @@ tasks/*
   ↓
 code
   ↓
-code-history/* + task-status/*
+commit
+  ↓
+code-history/* + task-status/* + related .task/*
   ↓
 check
   ↓
@@ -582,197 +589,6 @@ deploy
 
 If the repo uses a custom diff lint or workflow gate, edit this file and add the
 exact commands here.
-`
-}
-
-function docSkillTask(): string {
-  return `# Local rules for \`/skill:task\`
-
-## Local rules
-
-- Use \`task\` from \`PATH\`.
-- Treat \`doc/task-workflow.md\` as the shared workflow reference.
-- Use \`doc/skill-task.md\` only for task-specific refinements.
-- Prefer repo docs when they define stricter or more specific task usage rules.
-`
-}
-
-function docSkillFeature(): string {
-  return `# Local rules for \`/skill:feature\`
-
-## Local workflow contract
-
-- Prefer issue-backed mode.
-- Use \`task\` from \`PATH\`.
-- Reuse the current issue when one is already in play; otherwise create one with label \`prd\`.
-- Persist the PRD at \`research/prd\`.
-- Persist the approved implementation handoff at \`research/plan\`.
-- Inspect existing research with \`task show --id <id> --include-keys\` and \`task get --id <id> --key research/\`.
-- Write artifacts with:
-  - \`task set --id <id> --key research/prd --file /tmp/prd.md\`
-  - \`task set --id <id> --key research/plan --file /tmp/plan.md\`
-- Do not claim completion until both writes succeed.
-- End with exactly: \`Next: /skill:taskify <id> --from plan\`
-`
-}
-
-function docSkillDebug(): string {
-  return `# Local rules for \`/skill:debug\`
-
-## Local workflow contract
-
-- Prefer issue-backed mode once the bug is framed.
-- Use \`task\` from \`PATH\`.
-- Create a new issue with label \`bug\` when there is no active issue.
-- Read existing durable context from \`research/\`, \`tasks/\`, \`task-status/\`, \`qa-results/\`, \`qa-context/\`, \`check-report/\`, and \`code-history/\`.
-- Store the first diagnosis at \`research/diagnosis\`.
-- Store later retries at \`research/diagnosis-retry-N\`.
-- Store the approved implementation handoff at \`research/plan\` when the disposition is implementation-ready.
-- Store QA retrospectives at \`research/retro-<slug>\`.
-- Use \`task set --id <id> --key <path> --file /tmp/<file>.md\` for durable writes.
-
-## Local handoffs
-
-End with exactly one of:
-- \`Next: /skill:taskify <id> --from plan\`
-- \`Next: /skill:feature <id>\`
-- \`Next: /skill:refactor <id>\`
-`
-}
-
-function docSkillRefactor(): string {
-  return `# Local rules for \`/skill:refactor\`
-
-## Local workflow contract
-
-- Use workflow mode.
-- Use \`task\` from \`PATH\`.
-- Reuse the active issue when present; otherwise create one with label \`refactor\`.
-- Persist the planning artifact at \`research/refactor-plan\`.
-- Persist the approved coding handoff at \`research/plan\`.
-- Inspect current research with \`task show --id <id> --include-keys\` and \`task get --id <id> --key research/\`.
-- Write artifacts with:
-  - \`task set --id <id> --key research/refactor-plan --file /tmp/refactor-plan.md\`
-  - \`task set --id <id> --key research/plan --file /tmp/plan.md\`
-- End with exactly: \`Next: /skill:taskify <id> --from plan\`
-`
-}
-
-function docSkillCode(): string {
-  return `# Local rules for \`/skill:code\`
-
-## Local tracked mode contract
-
-- Tracked runs are issue-backed and document-backed.
-- Read durable context from \`research/plan\`, \`tasks/\`, \`task-status/\`, \`code-history/\`, \`taskify-history/\`, and \`check-report/\` via \`task get\`.
-- Use \`task show --id <id> --include-keys\` to discover the current document graph.
-- Mark task completion with \`task-status/<task-key>\` documents, using values like \`done\` or \`failed:<reason>\`.
-- Append run records under \`code-history/run-00N\` and refresh \`code-history/latest\`.
-- Keep one runnable task-sized slice per session.
-- Keep the git tree clean before and after the run.
-
-## Local verification commands
-
-Use the exact commands listed in \`doc/task-workflow.md\` under \`## Repo verification commands\`.
-
-## Local handoff rules
-
-- More runnable implementation work => hand off to \`/skill:code <id> <next-task-key>\` when clear.
-- Implementation complete => hand off to \`/skill:check --issue <id>\`.
-- Persist the exact next command in the \`code-history\` record.
-`
-}
-
-function docSkillCheck(): string {
-  return `# Local rules for \`/skill:check\`
-
-## Local gates
-
-Use the exact commands listed in \`doc/task-workflow.md\` under \`## Repo verification commands\`, then run:
-
-\`\`\`text
-/skill:global-review --branch
-\`\`\`
-
-## Local issue-backed context
-
-When an issue is in play, read durable context from:
-- \`tasks/\`
-- \`task-status/\`
-- \`code-history/\`
-- \`check-report/\`
-
-Use \`task get\` and \`task show --id <id> --include-keys\`.
-
-## Local reports
-
-- Append full reports under \`check-report/run-00N\`.
-- Refresh the pointer at \`check-report/latest\`.
-- Even passing runs must write both documents.
-
-## Local handoffs
-
-- passing issue-backed run => \`Next: /skill:qa <id>\`
-- failing issue-backed run with clear repair slices => \`Next: /skill:taskify <id> --from check\`
-- failing issue-backed run needing diagnosis => \`Next: /skill:debug <id>\`
-`
-}
-
-function docSkillTaskify(): string {
-  return `# Local rules for \`/skill:taskify\`
-
-## Local document paths
-
-Use these canonical issue document paths:
-- approved handoff source: \`research/plan\`
-- latest check pointer/report: \`check-report/latest\`, \`check-report/run-00N\`
-- task bodies: \`tasks/NN-<slug>\`
-- live task state: \`task-status/NN-<slug>\`
-- taskification history: \`taskify-history/run-00N\`, \`taskify-history/latest\`
-- prior coding context: \`code-history/\`
-
-## Local read / write rules
-
-- Discover existing documents with \`task show --id <id> --include-keys\`.
-- Read task and history trees with \`task get --id <id> --key tasks/\` and \`task get --id <id> --key taskify-history/\`.
-- Write each new task with \`task set --id <id> --key tasks/<NN-key> --file /tmp/<NN-key>.md\`.
-- Read back each newly written task before continuing.
-- Write history records with \`task set\` under \`taskify-history/...\`.
-- Do not rewrite earlier task bodies; append new numbered tasks instead.
-
-## Local handoffs
-
-- successful issue-backed decomposition => \`Next: /skill:code <id> <first-new-task-key>\` when clear, else \`Next: /skill:code <id>\`
-- blocked by debug-first policy or repair-loop cap => \`Next: /skill:debug <id>\`
-`
-}
-
-function docSkillDeploy(): string {
-  return `# Local rules for \`/skill:deploy\`
-
-## Local readiness evidence
-
-When an issue is available, inspect durable workflow evidence through document
-paths:
-- \`check-report/latest\`
-- \`check-report/\`
-- \`tasks/\`
-- \`task-status/\`
-- \`qa-results/\`
-- \`qa-context/\`
-
-Use \`task get --id <id> --key <path-or-subtree>\` and \`task show --id <id> --include-keys\`.
-
-## Local verification expectations
-
-- A latest passing \`check-report\` is required for a clean automated-readiness pass.
-- Missing or failed QA evidence is not a silent pass.
-- If the repo has \`doc/deployment.md\`, treat it as the authoritative project-specific shipping guide.
-
-## Local write policy
-
-- Keep deploy read-only with respect to issue documents.
-- Do not mutate workflow artifacts from this skill.
 `
 }
 
@@ -817,17 +633,7 @@ export async function workflowBootstrap(
 
   const created: string[] = []
   const skipped: string[] = []
-  const files: Array<[string, string]> = [
-    ["doc/task-workflow.md", docTaskWorkflow(detectedCommands)],
-    ["doc/skill-task.md", docSkillTask()],
-    ["doc/skill-feature.md", docSkillFeature()],
-    ["doc/skill-debug.md", docSkillDebug()],
-    ["doc/skill-refactor.md", docSkillRefactor()],
-    ["doc/skill-code.md", docSkillCode()],
-    ["doc/skill-check.md", docSkillCheck()],
-    ["doc/skill-taskify.md", docSkillTaskify()],
-    ["doc/skill-deploy.md", docSkillDeploy()],
-  ]
+  const files: Array<[string, string]> = [["doc/task-workflow.md", docTaskWorkflow(detectedCommands)]]
 
   for (const [relativePath, content] of files) {
     writeBootstrapFile(targetRoot, relativePath, content, force, created, skipped)
@@ -841,7 +647,7 @@ export async function workflowBootstrap(
     todos: [
       "Review doc/task-workflow.md and update verification commands if the detected scripts are incomplete.",
       "If the repo uses a custom diff lint or workflow gate, add the exact commands under 'Repo verification commands'.",
-      "Adjust any doc/skill-*.md handoffs or artifact paths if the repo uses a different workflow.",
+      "Add project-native docs such as doc/coding.md, doc/committing.md, doc/testing.md, or doc/deployment.md only when this repo actually needs them.",
     ],
   }
 }

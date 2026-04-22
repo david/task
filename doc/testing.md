@@ -42,3 +42,19 @@ If you change:
 ## Current environment note
 
 The root project defines `typecheck` as `tsc --noEmit`. If that command fails because of repo or environment setup, treat it as a real project problem and fix or surface it rather than silently skipping typechecking.
+
+## Issue-backed `/skill:check` workflow
+
+When `/skill:check` runs for an issue in this repo:
+
+- use the exact commands listed in `doc/task-workflow.md` under `## Repo verification commands`
+- run `/skill:global-review --branch`
+- read durable context from `tasks/`, `task-status/`, `code-history/`, and `check-report/` with `bun task.ts get` and `bun task.ts show --id <id> --include-keys`
+- append full reports under `check-report/run-00N`
+- refresh the pointer at `check-report/latest`
+- even passing runs must write both documents
+
+Issue-backed handoffs are:
+- passing run => `Next: /skill:qa <id>`
+- failing run with clear repair slices => `Next: /skill:taskify <id> --from check`
+- failing run needing diagnosis => `Next: /skill:debug <id>`

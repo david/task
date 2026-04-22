@@ -8,7 +8,7 @@ description: Turn an issue's approved `research/plan` or latest failed `check-re
 Read `references/templates.md` before writing task batches or history.
 
 If `doc/task-workflow.md` exists, read it before acting.
-If `doc/skill-taskify.md` exists, read it before acting.
+If `doc/decomposition.md` exists, read it before acting.
 
 Treat repo docs as project-specific extensions of this skill.
 
