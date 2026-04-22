@@ -144,6 +144,51 @@ async function assertLegacyImportRelationsAndDocuments(targetRoot: string): Prom
   ])
 }
 
+function registerLegacyImportMarkdownSuffixNormalizationTest(): void {
+  test("normalizes legacy markdown filenames into exact document paths", async () => {
+    const legacyRoot = join(getRoot(), "legacy-import-markdown-suffix-source")
+    const targetRoot = join(getRoot(), "legacy-import-markdown-suffix-target")
+
+    writeLegacyIssue(
+      legacyRoot,
+      "aaaa-markdown-docs",
+      {
+        title: "Markdown Docs",
+        description: "",
+        status: "open",
+        phase: "research",
+        priority: 1,
+        created: "2024-03-01",
+        updated: "2024-03-01T00:00:00.000Z",
+        refs: [],
+        labels: [],
+      },
+      {
+        research: {
+          "esther-alignment.md": "alignment notes",
+          summary: "plain summary",
+        },
+      }
+    )
+
+    await expect(legacyImport({ "--source": legacyRoot }, targetRoot)).resolves.toEqual({
+      imported: true,
+      source: legacyRoot,
+      issueCount: 1,
+      storeCount: 2,
+    })
+
+    await expect(documentGet({ "--id": "aaaa-markdown-docs", "--key": "research/esther-alignment" }, targetRoot)).resolves.toEqual({
+      entries: {
+        research: { entries: { "esther-alignment": { value: "alignment notes" } } },
+      },
+    })
+
+    expect(existsSync(join(targetRoot, ".task", "issues", "aaaa-markdown-docs", "research", "esther-alignment.md"))).toBe(true)
+    expect(existsSync(join(targetRoot, ".task", "issues", "aaaa-markdown-docs", "research", "esther-alignment.md.md"))).toBe(false)
+  })
+}
+
 function assertLegacyImportEvents(targetRoot: string): void {
   expect(existsSync(join(targetRoot, ".task", "events", "by-issue", "aaaa-parent-epic"))).toBe(true)
   expect(existsSync(join(targetRoot, ".task", "events", "by-issue", "bbbb-child-task"))).toBe(true)
@@ -221,6 +266,7 @@ function registerLegacyImportAmbiguousParentTest(): void {
 
 describe("legacy import", () => {
   registerLegacyImportSuccessTest()
+  registerLegacyImportMarkdownSuffixNormalizationTest()
   registerLegacyImportAmbiguousParentTest()
 })
 

@@ -17,7 +17,7 @@ import {
 } from "./events"
 import type { JsonValue } from "../types"
 import { rebuildCurrentIssueIndex, rebuildHierarchyIndex, readLegacyIssueRecord, readIssueStoreKeys } from "./projections"
-import { joinLegacyStorePath } from "./document-paths"
+import { joinLegacyStorePath, parseExactDocumentPath } from "./document-paths"
 import { getTrackerHandles, listCanonicalIssueIds, listProjectedIssueIds } from "./root"
 
 type LegacyIssueSnapshot = {
@@ -96,6 +96,11 @@ export async function importLegacyTracker(root: string, sourceRoot: string): Pro
   }
 }
 
+function normalizeLegacyImportDocumentPath(store: string, key: string): string {
+  const normalizedKey = key.endsWith(".md") ? key.slice(0, -".md".length) : key
+  return parseExactDocumentPath(joinLegacyStorePath(store, normalizedKey))
+}
+
 function buildLegacyPlanEvents(plan: LegacyIssuePlan): DomainEvent[] {
   const updatedAt = normalizeUpdatedAt(plan.created.updated, plan.created.created)
   const createdDate = normalizeCreatedDate(plan.created.created, updatedAt)
@@ -116,7 +121,7 @@ function buildLegacyPlanEvents(plan: LegacyIssuePlan): DomainEvent[] {
   }
 
   for (const storeEntry of plan.storeEntries) {
-    const path = joinLegacyStorePath(storeEntry.store, storeEntry.key)
+    const path = normalizeLegacyImportDocumentPath(storeEntry.store, storeEntry.key)
     events.push(
       issueDocumentRevisionSavedEvent({
         issueId: plan.issueId,

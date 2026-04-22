@@ -90,6 +90,7 @@ task close ab12
 - `task legacy import` refuses when the target repo already has canonical tracker data (`target_already_initialized`).
 - During `task legacy import`, exactly one local legacy ref becomes the parent link; more than one aborts with `ambiguous_legacy_parent`; external refs remain refs.
 - Imported legacy document files are materialized as finalized revision 1 in the issue’s current phase.
+- During `task legacy import`, legacy document filenames ending in `.md` are normalized to document keys without that suffix before materialization, so a legacy file like `research/summary.md` becomes the logical key `research/summary`.
 - `task set` only accepts exact document paths such as `research/summary`. Trailing-slash subtree selectors such as `research/` and the root selector `/` are valid for `get` and `delete`, but are rejected for `set`.
 - Later `task set` calls for the same document path create new revisions after a phase change instead of mutating finalized history.
 - Document path segments are restricted to safe characters (`A-Z`, `a-z`, `0-9`, `_`, `-`). Use `/` between segments; empty segments and `..` are invalid.

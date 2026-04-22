@@ -97,6 +97,7 @@ Migration is intentionally separate from day-to-day issue commands.
   - `1` local issue ref → import as a child of that issue and drop that ref from the migrated `refs` array
   - `>1` local issue refs → abort with `ambiguous_legacy_parent`
 - Imported legacy document files become canonical saved/finalized revision 1 entries in the issue’s current phase.
+- Legacy imported document filenames ending in `.md` are normalized to logical document paths without that suffix before task materializes them back to `<path>.md` files.
 - After import, normal CLI reads use only canonical `.task/events/` plus rebuildable projections.
 
 ## When changing behavior
