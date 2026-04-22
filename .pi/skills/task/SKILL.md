@@ -1,11 +1,11 @@
 ---
 name: task
-description: Use the repo-local `task` CLI correctly for creating, inspecting, updating, phasing, relating, closing, and attaching documents to issues. Use when an LLM needs to operate on `.task/` data without hand-editing tracker files, choose between metadata vs documents, or avoid common command and workflow mistakes.
+description: Use the `task` CLI from `PATH` correctly for creating, inspecting, updating, phasing, relating, closing, and attaching documents to issues. Use when an LLM needs to operate on `.task/` data without hand-editing tracker files, choose between metadata vs documents, or avoid common command and workflow mistakes.
 ---
 
 # Task
 
-Use the repo-local `task` CLI instead of manually editing `.task/`.
+Use the `task` CLI from `PATH` instead of manually editing `.task/`.
 
 Read `references/usage-rules.md` before acting.
 Read `references/examples.md` when you need concrete command shapes.
@@ -35,7 +35,7 @@ Pick the right supported `task` command, preserve tracker invariants, and avoid 
 
 ## Hard rules
 
-- Prefer `bin/task` for normal usage, or `bun task.ts` from the repo root.
+- Use `task` from `PATH`.
 - Use `--flag value`, never `--flag=value`.
 - Do not hand-edit `.task/` unless the user explicitly asks.
 - Do not use `task meta set` for reserved workflow fields such as `phase`, `status`, or `parentId`.

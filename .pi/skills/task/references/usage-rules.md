@@ -7,9 +7,9 @@ Use this decision table when choosing a `task` command.
 Before mutating, inspect the current state when the target issue or field is not already clear.
 
 ```bash
-bin/task list
-bin/task show <id> --summary
-bin/task show <id> --include-keys
+task list
+task show <id> --summary
+task show <id> --include-keys
 ```
 
 ## Decision table
