@@ -1,0 +1,13 @@
+{
+  "id": "b6df1bfe-9bf3-476e-84c7-f71240982b5f",
+  "type": "IssueClosed",
+  "tags": [
+    "issue:ndrq-qa-fixture-for-hz11-nested-documents"
+  ],
+  "payload": {
+    "issueId": "ndrq-qa-fixture-for-hz11-nested-documents",
+    "closedAt": "2026-04-22T17:57:26.832Z"
+  },
+  "position": "211",
+  "timestamp": "2026-04-22T17:57:26.924Z"
+}
