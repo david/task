@@ -15,9 +15,9 @@ Commands resolve tracker data from the current repo. If you run from a subdirect
 - `task search <query>` — text search across id, title, description, refs, and labels
 - `task children <id>` / `task parents <id>` / `task related <id>` — hierarchy relationship views
 
-### Bootstrap workflow docs
+### Bootstrap workflow docs and skills
 
-- `task bootstrap [--root <path>] [--force]` — scaffold `doc/task-workflow.md` for the task-backed workflow and point to optional project-native docs such as `doc/coding.md` or `doc/committing.md`
+- `task bootstrap [--root <path>] [--force]` — scaffold `doc/task-workflow.md` for the task-backed workflow and install the packaged workflow skills under `.pi/skills/`, while still pointing to optional project-native docs such as `doc/coding.md` or `doc/committing.md`
 
 ### Create and update issues
 
@@ -85,7 +85,7 @@ task close ab12
 
 ## Command gotchas
 
-- `task bootstrap` writes `doc/task-workflow.md`, not tracker issue data. Use `--force` only when you intentionally want to overwrite that scaffolded workflow doc.
+- `task bootstrap` writes `doc/task-workflow.md` plus packaged workflow skills under `.pi/skills/`; it does not write tracker issue data. Use `--force` only when you intentionally want to overwrite those scaffolded files.
 - `task list` and `task search` ignore closed issues unless you pass `--all`.
 - `task close` appends history and keeps the issue under `.task/issues/`; it does not move or delete canonical data.
 - `task phase set` validates transitions against `.task/settings.json` and finalizes any open draft document revisions for that issue.

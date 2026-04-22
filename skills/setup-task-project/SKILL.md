@@ -1,6 +1,6 @@
 ---
 name: setup-task-project
-description: Scaffold a repo-local `doc/task-workflow.md` so a project can use the packaged task, feature, debug, refactor, code, commit, check, taskify, and deploy skills from this package without local `.pi/skills` overrides.
+description: Scaffold a repo-local `doc/task-workflow.md` and install packaged workflow skills into `.pi/skills/` so a project can use the packaged task, feature, debug, refactor, code, commit, check, taskify, and deploy workflow locally.
 ---
 
 # Setup Task Project
@@ -15,6 +15,7 @@ Use this after the package is already available in the target project.
 By default, this skill scaffolds:
 
 - `doc/task-workflow.md`
+- `.pi/skills/`
 
 The packaged skills consult `doc/task-workflow.md` as the shared workflow
 reference and may also read project-native docs when those files exist, for
@@ -33,7 +34,7 @@ example:
 
 1. Treat the current working directory as the target repo unless the user gives
    an explicit target path.
-2. Run `task bootstrap` to scaffold `doc/task-workflow.md`.
+2. Run `task bootstrap` to scaffold `doc/task-workflow.md` and install the packaged workflow skills into `.pi/skills/`.
 3. Do **not** overwrite existing files unless the user explicitly asks to
    refresh or replace them.
 4. Read the generated files back and summarize what still needs manual review.
@@ -63,12 +64,14 @@ task bootstrap --force
 Read back at least:
 
 - `doc/task-workflow.md`
+- `.pi/skills/` for the copied workflow skills and shared references
 - any existing project-native workflow docs such as `doc/coding.md`, `doc/committing.md`, `doc/testing.md`, or `doc/deployment.md`
 
 Confirm:
 
 - the detected repo commands are correct
 - the generated artifact paths and handoffs match the repo's intended workflow
+- the copied `.pi/skills/` content is the set of workflow skills the repo wants to keep project-local
 - any repo docs referenced by the new docs actually exist or are clearly optional
 
 ## Reporting

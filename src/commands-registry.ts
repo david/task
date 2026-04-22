@@ -240,7 +240,7 @@ export const commands: StringMap<Command> = {
     run: (args) => issuePhaseSet(args, detectRepoRoot(process.cwd())),
   },
   bootstrap: {
-    description: "Scaffold doc-based task workflow files for the current repo",
+    description: "Scaffold workflow docs and repo-local pi skills for the current repo",
     usage: "task bootstrap [--root <path>] [--force]",
     flags: {
       "--root": valueFlag("Target repo root (defaults to the detected current repo root)"),
