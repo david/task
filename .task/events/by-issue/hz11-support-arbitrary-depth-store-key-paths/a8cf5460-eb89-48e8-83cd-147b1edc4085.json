@@ -1,0 +1,19 @@
+{
+  "id": "a8cf5460-eb89-48e8-83cd-147b1edc4085",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:qa-context/qa-03-invalid-paths-and-help-surface"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "qa-context/qa-03-invalid-paths-and-help-surface",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "fixture_issue_id: jr9y-hz11-qa-03-rerun-fixture\nentrypoint_under_test: bun task.ts\ndocs_checked:\n  - doc/commands.md\n  - doc/project-management.md\n  - doc/architecture.md\n  - src/doc/commands.md\n  - src/doc/project-management.md\n  - src/doc/architecture.md\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "122",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

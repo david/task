@@ -1,0 +1,7 @@
+{
+  "tag": "document:qa-context/qa-05-migration-and-legacy-import",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/66ec8414-8ffc-4c31-bc33-e3901cf248f4.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/f3916bb0-1622-4cbb-8e02-b83f2deb229d.json"
+  ]
+}

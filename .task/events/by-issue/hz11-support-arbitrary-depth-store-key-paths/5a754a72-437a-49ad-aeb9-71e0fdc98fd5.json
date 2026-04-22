@@ -1,0 +1,19 @@
+{
+  "id": "5a754a72-437a-49ad-aeb9-71e0fdc98fd5",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:task-status/06-legacy-history-test-decomposition"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "task-status/06-legacy-history-test-decomposition",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "done",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "152",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

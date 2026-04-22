@@ -1,0 +1,19 @@
+{
+  "id": "a6dc7c7b-d092-4e7a-a65f-297749de1e0d",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:task-status/qa-06-closed-issues-stay-queryable-and-projections-rebuild"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "task-status/qa-06-closed-issues-stay-queryable-and-projections-rebuild",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "failed:search-all positional order rejected",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "57",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

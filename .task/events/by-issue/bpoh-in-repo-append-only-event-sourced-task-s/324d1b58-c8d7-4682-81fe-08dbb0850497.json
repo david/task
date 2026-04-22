@@ -1,0 +1,19 @@
+{
+  "id": "324d1b58-c8d7-4682-81fe-08dbb0850497",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:research/plan"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "research/plan",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "---\nkind: debug\napproved_from: research:diagnosis-retry-2\nstatus: approved\n---\n\n# Approved Plan\n\n## Scope\nPreserve and verify the shared CLI parser fix so presence-only switches no longer consume following positional input. This bugfix covers the shared parser contract, not a search-only workaround.\n\n## Root Cause\nThe shared argv parser used to treat every `--flag` as if it might take a value, so `search --all \"rebuild child\"` lost its positional query before `issueSearch()` ran.\n\n## Proposed Fix\n- Keep explicit `switch` vs `value` flag metadata in command definitions.\n- Parse argv using that metadata so only value-taking flags consume the next token.\n- Preserve positional input after switch flags for both query-style commands and positional-id commands.\n- Keep parser-level regression tests for `search --all \"rebuild child\"` and `show --summary <id>`.\n\n## Source Artifacts\n- primary: `research:diagnosis-retry-2`\n- supporting: `research:diagnosis`\n- supporting: `qa-results:qa-06-closed-issues-stay-queryable-and-projections-rebuild`\n\n## Verification Contract\n\n### Setup / Preconditions\nUse a temp git repo with a closed issue whose title matches the search query, or reuse `/tmp/task-qa-06-lfiy9gvc` from the QA artifact.\n\n### User-Observable Proof\n- `task search --all \"rebuild child\"` returns the closed issue.\n- `task show --summary <id>` succeeds with the switch before the positional id.\n- `children --all <parent-id>` preserves the parent id when a leading switch is present.\n\n### Automated Proof\n- Parser regression test for `search --all \"rebuild child\"`.\n- Parser regression test for `show --summary <id>`.\n- Relevant helper tests continue to pass, but parser-level coverage is mandatory because helper-only tests do not exercise argv parsing.\n\n### Fast Recheck\n```bash\nbun test src/task.test.ts\ncd /tmp/task-qa-06-lfiy9gvc && bun /home/david/task-w0/src/task.ts search --all \"rebuild child\"\n```\n\n## Out of Scope\n- search-index or projection rebuild changes\n- command-specific workarounds that leave the shared parser contract wrong\n- broader CLI UX redesign\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "25",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

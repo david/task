@@ -1,0 +1,19 @@
+{
+  "id": "7ba13214-259f-4034-97a1-08b70381a343",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/01-document-model-core"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/01-document-model-core",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 01-document-model-core\nrole: coder\ndepends_on: []\n---\n\n# 01 — Document model core\n\n## Goal\nReplace the tracker's internal `(store, key)` identity with canonical issue document paths and add core save/read/delete capabilities for exact paths, subtree selectors, and the root selector.\n\n## Context\nThe approved plan moves the product from `store + key` to a single hierarchical document path. The foundation must exist in schemas, events, folding, and tracker issue helpers before the CLI surface or projections can switch cleanly.\n\n## Files\n- `src/tracker/schemas.ts`\n- `src/tracker/event-core.ts`\n- `src/tracker/event-parsers.ts`\n- `src/tracker/event-fold.ts`\n- `src/tracker/issues.ts`\n- `src/tracker/stores.ts` or replacement document-state helpers\n- focused tests under `src/` for core document behavior\n\n## Verification Tests\n- focused Bun tests covering path validation, exact-path saves, exact/subtree/root reads, and exact/subtree/root delete semantics at the tracker-command layer\n- confirm missing selectors return an empty tree rather than throwing\n\n## Out of Scope\n- CLI help/registration changes\n- projection materialization changes to `.md` files\n- legacy-history migration/import behavior\n\n## UI Scope Guardrails\nNone\n\n## Done When\n- canonical document events and payloads use full paths instead of `(store, key)`\n- tracker helpers can save, read, and delete exact paths, subtrees, and the full tree\n- path validation enforces the approved segment rules and selector forms\n- focused tests for the new core behavior pass\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "178",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

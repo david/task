@@ -1,0 +1,19 @@
+{
+  "id": "60269a96-f6d8-41c3-9775-f102d409288f",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:taskify-history/run-001"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "taskify-history/run-001",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "# Taskify Run\n\n## Metadata\n- Issue: hz11\n- Timestamp: 2026-04-21T13:03:54Z\n- Source: check\n- Source key: check-report:run-001\n- Trigger: /skill:taskify hz11 --from check\n\n## Existing Task State\n- Existing task count: 4\n- Highest existing task number: 04\n- Existing completed tasks:\n  - 01-document-model-core\n  - 02-document-command-surface\n  - 03-projections-and-phase\n  - 04-migration-and-import\n\n## Taskification Policy\n- Mode: append-only\n- Start numbering at: 05\n- Why append instead of rewrite: preserve prior approved/task execution history\n\n## Tasks Created\n- 05-legacy-history-nullable-prop — Legacy history nullable prop cleanup\n- 06-legacy-history-test-decomposition — Legacy history test decomposition\n- 07-full-check-rerun — Full check rerun\n\n## Task Boundaries\n### 05-legacy-history-nullable-prop\n- Goal: Remove the single optional-property lint finding in the legacy-history test helper type.\n- Depends on: none\n- Verification focus: nullable-props diff-lint recheck plus the focused test file.\n- Why separate: It is a tiny file-local type-shape repair and should stay isolated from the larger structural refactor.\n\n### 06-legacy-history-test-decomposition\n- Goal: Shrink the oversized `describe` callback and flagged test bodies in `src/commands-document-legacy-history.test.ts` without changing behavior.\n- Depends on: 05-legacy-history-nullable-prop\n- Verification focus: function-size diff-lint recheck plus the focused test file.\n- Why separate: The size findings likely require helper extraction and callback decomposition, which is a broader structural edit than the nullable-property fix.\n\n### 07-full-check-rerun\n- Goal: Re-run the full branch confirmation gates after the lint repairs.\n- Depends on: 05-legacy-history-nullable-prop, 06-legacy-history-test-decomposition\n- Verification focus: full custom lint, project lint, tests, and typecheck.\n- Why separate: Cross-cutting confirmation should happen only after the focused repair tasks are complete.\n\n## Coverage Check\n- In-scope work covered: yes\n- Cross-cutting verification captured: yes\n- Remaining ambiguity: none\n\n## Next Step\n- Suggested next command: /skill:code hz11 05-legacy-history-nullable-prop\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "174",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

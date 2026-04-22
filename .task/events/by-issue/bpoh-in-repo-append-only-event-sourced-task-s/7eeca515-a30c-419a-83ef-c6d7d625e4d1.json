@@ -1,0 +1,19 @@
+{
+  "id": "7eeca515-a30c-419a-83ef-c6d7d625e4d1",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:tasks/qa-08-legacy-import-rejects-ambiguous-parent-inference"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "tasks/qa-08-legacy-import-rejects-ambiguous-parent-inference",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "name: qa-08-legacy-import-rejects-ambiguous-parent-inference\nrole: agent\ndepends_on: []\n\n# QA-08: Legacy import rejects ambiguous parent inference\n\n## Test Steps\n\n1. In a fresh temp repo, prepare an empty import target and a separate legacy source:\n   ```bash\n   export TASK_CLI=\"bun /home/david/task-w0/src/task.ts\"\n   TARGET_REPO=$(mktemp -d)\n   LEGACY_ROOT=$(mktemp -d)\n   cd \"$TARGET_REPO\"\n   git init -q\n   mkdir -p \"$LEGACY_ROOT\"/aaaa-first-parent\n   mkdir -p \"$LEGACY_ROOT\"/bbbb-second-parent\n   mkdir -p \"$LEGACY_ROOT\"/cccc-child\n   ```\n2. Create three legacy `issue.json` files:\n   - `aaaa-first-parent`: open issue, no refs\n   - `bbbb-second-parent`: open issue, no refs\n   - `cccc-child`: open issue whose `refs` contains both `aaaa-first-parent` and `bbbb-second-parent`\n3. Run the import and confirm it fails:\n   ```bash\n   $TASK_CLI legacy import --source \"$LEGACY_ROOT\"\n   ```\n4. Verify no partial state was imported:\n   ```bash\n   $TASK_CLI list --all\n   find .task -maxdepth 3 -type f | sort\n   ```\n\n## Expected\n\nThe import exits non-zero with a JSON error containing `ambiguous_legacy_parent`. The target repo does not end up with partially imported issues: `list --all` stays empty, and there is no successful `.task/events/by-issue/<issue>` import result.\n\n## Setup Notes\n\nUse a brand-new target repo for this test. Keep the fixture minimal so the failure is easy to inspect.\n\n## Result\n\n<!-- Filled in by /skill:qa coordinator after user reports result -->\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "87",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

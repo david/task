@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/03-projections-and-phase",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/861d1d29-6eb0-44af-abcf-df992c9b5233.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/ddb800c8-3e6f-477b-8ec9-89921ebd0b78.json"
+  ]
+}

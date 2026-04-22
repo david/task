@@ -1,0 +1,19 @@
+{
+  "id": "b3cc2fbb-7035-45c4-b4e5-662bbb06a220",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/05-legacy-history-nullable-prop"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/05-legacy-history-nullable-prop",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 05-legacy-history-nullable-prop\nrole: coder\ndepends_on: []\nsource: check\nsource_key: check-report:run-001\nbatch: taskify-history:run-001\n---\n\n# 05 — Legacy history nullable prop cleanup\n\n## Goal\nRemove the `optional-prop` lint finding in `src/commands-document-legacy-history.test.ts` by rewriting the local event helper type so it does not use an optional property declaration.\n\n## Context\n`/skill:check` failed on `check-report:run-001` because the legacy-history test helper declares `supersedesRevision?: number`. That single declaration blocks the branch even though tests, project lint, and typecheck already pass.\n\n## Files\n- `src/commands-document-legacy-history.test.ts`\n\n## Verification Tests\n- `bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --files=src/commands-document-legacy-history.test.ts --check=nullable-props --verbose`\n- `bun test src/commands-document-legacy-history.test.ts`\n\n## Out of Scope\n- refactoring oversized test bodies beyond what is required to remove the optional-property lint finding\n- full-branch reruns\n\n## UI Scope Guardrails\n- None\n\n## Done When\n- the local event helper type in `src/commands-document-legacy-history.test.ts` no longer uses an optional property form flagged by custom lint\n- the nullable-props recheck for that file returns zero findings\n- no unrelated behavior changes are introduced in the legacy-history tests\n- no leftover partial edits for this task\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "186",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

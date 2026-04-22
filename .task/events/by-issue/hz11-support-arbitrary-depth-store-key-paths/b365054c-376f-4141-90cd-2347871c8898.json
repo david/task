@@ -1,0 +1,19 @@
+{
+  "id": "b365054c-376f-4141-90cd-2347871c8898",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:research/plan"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "research/plan",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nkind: debug\napproved_from: research:diagnosis\nstatus: approved\n---\n\n# Approved Plan\n\n## Scope\nRepair the user-facing command/documentation surface for issue documents so the repo-root CLI entrypoint and supported docs consistently advertise the approved path-based `task set|get|delete --key <path>` model.\n\n## Root Cause\nThe path-based document work only updated the staged `src/` CLI. The repo-root `task.ts` / `commands.ts` surface and multiple docs still expose the legacy `task store ...` contract, so help and docs disagree about the supported workflow.\n\n## Proposed Fix\n- Unify the repo-root CLI surface with the staged `src/` document-command surface, preferably by delegating the root entrypoint to the `src/` registry rather than maintaining two independent command surfaces.\n- Remove legacy `store` help/registration from the supported repo-root surface.\n- Update supported docs in `doc/` and `src/doc/` to describe issue documents via `set/get/delete --key <path>`, including entrypoint guidance and examples.\n- Add regression coverage for repo-root help output and doc/help parity so legacy `store` strings do not silently return.\n\n## Source Artifacts\n- primary: `research:diagnosis`\n- supporting: `research:prd`\n\n## Verification Contract\n### Setup / Preconditions\n- Run from the repo root.\n- Use one disposable issue for document-command smoke checks.\n\n### User-Observable Proof\n- `bun task.ts --help` shows `set/get/delete` and not `store set|get|keys|delete`.\n- Supported docs no longer instruct users to use `task store ...` for attached documents.\n- Invalid-path rejection examples still fail clearly.\n\n### Automated Proof\n- Repo-root help regression coverage\n- Documentation parity/regression coverage for supported command docs\n- `bun test`\n- `bun run typecheck`\n\n### Fast Recheck\n- `bun task.ts --help`\n- `bun src/task.ts --help` (if retained)\n- `rg -n \"task store|bun task.ts|bin/task\" doc src/doc`\n\n## Out of Scope\n- Changing the underlying path-validation behavior that already passes QA.\n- Redesigning the document event/projection model.\n- Preserving the legacy `task store ...` surface as a supported compatibility alias.\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "136",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

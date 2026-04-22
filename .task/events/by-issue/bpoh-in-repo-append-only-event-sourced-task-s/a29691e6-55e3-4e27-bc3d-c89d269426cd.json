@@ -1,0 +1,19 @@
+{
+  "id": "a29691e6-55e3-4e27-bc3d-c89d269426cd",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:task-status/qa-05-later-store-edit-creates-new-revision"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "task-status/qa-05-later-store-edit-creates-new-revision",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "done",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "55",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

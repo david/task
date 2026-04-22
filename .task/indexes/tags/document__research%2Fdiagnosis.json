@@ -1,0 +1,9 @@
+{
+  "tag": "document:research/diagnosis",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/41ba45ef-40b4-469d-bc15-8bc11661a4d4.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/ebc564e5-386d-4f83-8ed0-6c47dc89b24f.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/6a1dc685-7e7c-430e-a3f4-36a32f910e0d.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/35519ff1-cc2c-4efc-94f9-7e253bf46d80.json"
+  ]
+}

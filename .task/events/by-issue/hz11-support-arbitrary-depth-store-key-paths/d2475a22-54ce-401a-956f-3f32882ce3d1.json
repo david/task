@@ -1,0 +1,19 @@
+{
+  "id": "d2475a22-54ce-401a-956f-3f32882ce3d1",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/qa-03-invalid-paths-and-help-surface"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/qa-03-invalid-paths-and-help-surface",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "name: qa-03-invalid-paths-and-help-surface\nrole: agent\ndepends_on: []\n\n# QA-03: Invalid paths and user-facing command surface\n\n## Test Steps\n1. Run invalid-path cases such as `/research`, `research//today`, and `research/../today` against `task set`.\n2. Verify they fail clearly.\n3. Inspect the user-facing help or command docs for `task set`, `task get`, and `task delete`.\n4. Confirm the user-facing surface no longer tells users to use `task store ...` for attached documents.\n\n## Expected\nInvalid key paths are rejected with clear errors, and the user-facing help/examples consistently describe the new `set/get/delete --key` model instead of `store/key` attachment commands.\n\n## Setup Notes\nReuse the fixture issue from QA-01 if available; otherwise create a fresh disposable issue.\n\n## Result\n<!-- Filled in after user reports result -->\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "202",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

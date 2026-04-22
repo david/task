@@ -1,0 +1,17 @@
+{
+  "id": "d5e02f57-e83d-4d7b-8628-82b01e4fd662",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:task-status/qa-08-legacy-import-rejects-ambiguous-parent-inference"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "task-status/qa-08-legacy-import-rejects-ambiguous-parent-inference",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "62",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

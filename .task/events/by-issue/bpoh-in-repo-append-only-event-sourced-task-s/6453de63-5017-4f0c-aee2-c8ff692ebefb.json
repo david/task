@@ -1,0 +1,17 @@
+{
+  "id": "6453de63-5017-4f0c-aee2-c8ff692ebefb",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:qa-context/qa-01-repo-local-create-and-search"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "qa-context/qa-01-repo-local-create-and-search",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "2",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

@@ -1,0 +1,17 @@
+{
+  "id": "383b95c4-5c83-497d-a9d9-7bf76f36c239",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:task-status/01-esther-repo-local-core"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "task-status/01-esther-repo-local-core",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "38",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

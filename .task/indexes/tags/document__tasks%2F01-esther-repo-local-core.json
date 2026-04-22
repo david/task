@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/01-esther-repo-local-core",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/58906c1f-dff8-4530-820b-de5e62a84aaf.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/efca0c09-3acb-4ab4-a2af-e54687cb4317.json"
+  ]
+}

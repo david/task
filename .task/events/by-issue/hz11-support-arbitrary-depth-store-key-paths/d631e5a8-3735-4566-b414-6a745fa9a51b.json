@@ -1,0 +1,19 @@
+{
+  "id": "d631e5a8-3735-4566-b414-6a745fa9a51b",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:taskify-history/run-002"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "taskify-history/run-002",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "# Taskify Run\n\n## Metadata\n- Issue: hz11\n- Timestamp: 2026-04-21T16:38:00Z\n- Source: plan\n- Source key: research:plan\n- Trigger: /skill:taskify hz11 --from plan\n\n## Existing Task State\n- Existing task count: 7\n- Highest existing task number: 07\n- Existing completed tasks:\n  - 01-document-model-core\n  - 02-document-command-surface\n  - 03-projections-and-phase\n  - 04-migration-and-import\n  - 05-legacy-history-nullable-prop\n  - 06-legacy-history-test-decomposition\n  - 07-full-check-rerun\n\n## Taskification Policy\n- Mode: append-only\n- Start numbering at: 08\n- Why append instead of rewrite: preserve prior approved/task execution history while adding the newly approved help/docs parity scope that the earlier task graph did not cover\n\n## Tasks Created\n- 08-root-cli-surface-parity — Root CLI surface parity\n- 09-supported-docs-parity — Supported docs parity\n- 10-full-plan-verification — Full plan verification\n\n## Task Boundaries\n### 08-root-cli-surface-parity\n- Goal: Repair the supported repo-root command/help surface so it matches the approved path-based document commands.\n- Depends on: none\n- Verification focus: root help output plus a focused root invalid-path regression.\n- Why separate: the repo-root CLI/help drift is the concrete product bug and should be fixed before doc and full-project follow-up.\n\n### 09-supported-docs-parity\n- Goal: Update all supported docs and add a guard against legacy `task store ...` examples.\n- Depends on: 08-root-cli-surface-parity\n- Verification focus: targeted doc parity assertions and grep checks across `doc/` and `src/doc/`.\n- Why separate: the documentation surfaces span multiple duplicated entrypoint references and should be reviewed as one doc-only slice after the supported CLI surface is settled.\n\n### 10-full-plan-verification\n- Goal: Re-run the approved fast rechecks plus full automated repo gates after the CLI and doc repairs land.\n- Depends on: 08-root-cli-surface-parity, 09-supported-docs-parity\n- Verification focus: help/doc smoke checks, `bun test`, and `bun run typecheck`.\n- Why separate: cross-cutting confirmation belongs at the end after the focused repair slices are complete.\n\n## Coverage Check\n- In-scope work covered: yes\n- Cross-cutting verification captured: yes\n- Remaining ambiguity: none\n\n## Next Step\n- First new task: 08-root-cli-surface-parity\n- Final handoff line: Next: /skill:code hz11 08-root-cli-surface-parity\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "176",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

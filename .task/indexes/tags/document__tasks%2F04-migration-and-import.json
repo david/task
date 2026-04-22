@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/04-migration-and-import",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/ae8f47c7-5baf-4c8e-80ed-986aa0f6bac7.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/e2feb9a1-7b5c-4518-bde8-ebde2726a63d.json"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "6e51044c-7b06-42c4-9606-47f43a3f7813",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/qa-05-migration-and-legacy-import"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/qa-05-migration-and-legacy-import",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "name: qa-05-migration-and-legacy-import\nrole: agent\ndepends_on: []\n\n# QA-05: Migration and legacy import behavior\n\n## Test Steps\n1. Use the existing automated fixture or test-compatible sample data for legacy `(store, key)` content.\n2. Run the supported migration or import flow.\n3. Verify migrated content is accessible via path keys like `<store>/<key>`.\n4. Confirm materialized files follow the new `.md` layout where applicable.\n\n## Expected\nLegacy attached content migrates or imports into the new path-based document model without losing visibility or breaking reads.\n\n## Setup Notes\nUse an existing migration-safe fixture from the repo's QA/test infrastructure. Record the migrated fixture location or issue ID in `qa-context`.\n\n## Result\n<!-- Filled in after user reports result -->\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "206",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

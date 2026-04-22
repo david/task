@@ -1,0 +1,19 @@
+{
+  "id": "aacffddd-f637-4155-9b79-5c0191092c78",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/07-full-check-rerun"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/07-full-check-rerun",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 07-full-check-rerun\nrole: coder\ndepends_on:\n  - 05-legacy-history-nullable-prop\n  - 06-legacy-history-test-decomposition\nsource: check\nsource_key: check-report:run-001\nbatch: taskify-history:run-001\n---\n\n# 07 — Full check rerun\n\n## Goal\nRe-run the branch-level confirmation gates after the legacy-history lint repairs so the issue can move back from `code-failed` toward QA readiness.\n\n## Context\n`check-report:run-001` failed only because custom diff lint found five blocking findings in `src/commands-document-legacy-history.test.ts`. After the focused repairs land, this final task confirms the full branch is clean again.\n\n## Files\n- `src/commands-document-legacy-history.test.ts`\n- any files touched by tasks 05 and 06\n\n## Verification Tests\n- `bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff`\n- `bun run lint`\n- `bun test`\n- `bun run typecheck`\n\n## Out of Scope\n- new feature work beyond the failed-check repairs\n- speculative cleanup unrelated to the reported findings\n\n## UI Scope Guardrails\n- None\n\n## Done When\n- custom diff lint reports zero findings\n- project lint passes\n- full test suite passes\n- typecheck passes\n- no leftover partial edits for this task\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "190",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

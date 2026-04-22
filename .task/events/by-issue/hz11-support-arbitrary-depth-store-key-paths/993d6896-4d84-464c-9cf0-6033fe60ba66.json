@@ -1,0 +1,17 @@
+{
+  "id": "993d6896-4d84-464c-9cf0-6033fe60ba66",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:task-status/08-root-cli-surface-parity"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "task-status/08-root-cli-surface-parity",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "157",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

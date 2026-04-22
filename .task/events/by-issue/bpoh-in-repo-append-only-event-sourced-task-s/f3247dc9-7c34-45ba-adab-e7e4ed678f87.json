@@ -1,0 +1,19 @@
+{
+  "id": "f3247dc9-7c34-45ba-adab-e7e4ed678f87",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:qa-context/qa-05-later-store-edit-creates-new-revision"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "qa-context/qa-05-later-store-edit-creates-new-revision",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "{\n  \"task\": \"qa-05-later-store-edit-creates-new-revision\",\n  \"role\": \"agent\",\n  \"session\": \"shell\",\n  \"repo\": \"/tmp/task-qa-05-2a2i72eo\",\n  \"issueId\": \"vr70-store-revisions\",\n  \"notes\": \"Verified second saved revision supersedes revision 1 while preserving revision history.\"\n}",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "9",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

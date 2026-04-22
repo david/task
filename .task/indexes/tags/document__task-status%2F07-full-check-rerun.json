@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/07-full-check-rerun",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/eff7770d-0769-4444-a525-461dbbe9d762.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/4520db6c-0e2d-48ca-8370-af23d5804b45.json"
+  ]
+}

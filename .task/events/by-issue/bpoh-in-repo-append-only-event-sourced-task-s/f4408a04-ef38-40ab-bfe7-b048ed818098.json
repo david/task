@@ -1,0 +1,19 @@
+{
+  "id": "f4408a04-ef38-40ab-bfe7-b048ed818098",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:tasks/qa-03-phase-next-and-set-uses-settings"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "tasks/qa-03-phase-next-and-set-uses-settings",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "name: qa-03-phase-next-and-set-uses-settings\nrole: agent\ndepends_on: []\n\n# QA-03: Phase commands honor `.task/settings.json`\n\n## Test Steps\n\n1. In a fresh temp repo, create phase settings and a new issue:\n   ```bash\n   export TASK_CLI=\"bun /home/david/task-w0/src/task.ts\"\n   REPO=$(mktemp -d)\n   cd \"$REPO\"\n   git init -q\n   mkdir -p .task\n   cat > .task/settings.json <<'JSON'\n   {\n     \"defaultPhase\": \"backlog\",\n     \"phases\": [\"backlog\", \"in-progress\", \"done\"],\n     \"transitions\": {\n       \"backlog\": [\"in-progress\"],\n       \"in-progress\": [\"done\"],\n       \"done\": []\n     }\n   }\n   JSON\n   ISSUE_JSON=$($TASK_CLI create --title \"Phase Configured\")\n   echo \"$ISSUE_JSON\"\n   ```\n   Save the issue id.\n2. Run:\n   ```bash\n   $TASK_CLI phase next <ISSUE_ID>\n   $TASK_CLI phase set <ISSUE_ID> --value in-progress\n   $TASK_CLI show <ISSUE_ID> --summary\n   ```\n3. Try an invalid transition back to backlog:\n   ```bash\n   $TASK_CLI phase set <ISSUE_ID> --value backlog\n   ```\n   Confirm it exits non-zero and prints a JSON error.\n\n## Expected\n\nThe created issue starts in `backlog`. `phase next` returns `in-progress`. `phase set` successfully moves the issue to `in-progress`, and `show --summary` reports the updated phase. The invalid transition back to `backlog` fails with a clear JSON error instead of silently changing state.\n\n## Setup Notes\n\nUse a separate temp repo because this test needs custom `.task/settings.json`.\n\n## Result\n\n<!-- Filled in by /skill:qa coordinator after user reports result -->\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "77",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

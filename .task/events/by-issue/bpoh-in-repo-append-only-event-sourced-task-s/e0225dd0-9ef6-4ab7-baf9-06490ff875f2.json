@@ -1,0 +1,19 @@
+{
+  "id": "e0225dd0-9ef6-4ab7-baf9-06490ff875f2",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:qa-context/qa-06-closed-issues-stay-queryable-and-projections-rebuild"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "qa-context/qa-06-closed-issues-stay-queryable-and-projections-rebuild",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "{\n  \"task\": \"qa-06-closed-issues-stay-queryable-and-projections-rebuild\",\n  \"role\": \"agent\",\n  \"session\": \"shell\",\n  \"repo\": \"/tmp/task-qa-06-lfiy9gvc\",\n  \"parentIssueId\": \"h1cm-rebuild-parent\",\n  \"childIssueId\": \"zz3k-rebuild-child\",\n  \"notes\": \"QA run stopped at step 2 after search command failed; corrected command order `search \\\"rebuild child\\\" --all` did return the closed child.\"\n}",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "11",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

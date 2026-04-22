@@ -1,0 +1,17 @@
+{
+  "id": "ddb800c8-3e6f-477b-8ec9-89921ebd0b78",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:task-status/03-projections-and-phase"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "task-status/03-projections-and-phase",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "147",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

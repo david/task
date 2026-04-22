@@ -1,0 +1,19 @@
+{
+  "id": "284de99d-1346-45bb-86c1-f06461b196fd",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:code-history/run-006"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "code-history/run-006",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nrun_key: run-006\nissue_id: hz11\ntimestamp_utc: 2026-04-21T13:19:02Z\nmode: task-mode\nactive_task: 07-full-check-rerun\nstarting_phase: coding\nending_phase: code-complete\noutcome: success\nnext_command: /skill:check --issue hz11\nprevious_runs:\n  - run-001\n  - run-002\n  - run-003\n  - run-004\n  - run-005\n---\n\n# Code Run run-006\n\n## Plan Summary\nReverified the full branch-level gates after the focused legacy-history lint repairs so the repair task batch is complete and the issue can return to code-complete.\n\n## Prior Context Used\n- run-001 — switched the src/ CLI surface to set/get/delete and left later projection/migration work open.\n- run-002 — materialized path-based document projections and issue key inspection.\n- run-003 — completed migration/import compatibility and added the legacy-history regression file later flagged by custom lint.\n- run-004 — removed the nullable optional-property declaration from the legacy-history test helper.\n- run-005 — decomposed the oversized legacy-history regression file to satisfy the function-size lint rule.\n\n## What Changed\n- verification-only — no source files changed in this run; this run reran the full confirmation gates after tasks 05 and 06.\n\n## Verification\n- [pass] bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff — custom diff lint reported zero findings on the branch.\n- [pass] bun run lint — project lint passed with zero warnings/errors.\n- [pass] bun test — full test suite passed.\n- [pass] bun run typecheck — full TypeScript typecheck passed.\n- [not-run] observable proof — this rerun task only reconfirmed automated branch gates after already-verified repairs.\n\n## Commits\n- none\n\n## Remaining Work / Open Problems\n- none\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "110",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "26d80839-2bdf-4a8b-a1a8-1d8cdc10cf3f",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:qa-context/qa-01-repo-local-create-and-search"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "qa-context/qa-01-repo-local-create-and-search",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "{\n  \"task\": \"qa-01-repo-local-create-and-search\",\n  \"role\": \"agent\",\n  \"session\": \"shell\",\n  \"repo\": \"/tmp/task-qa-01-7124_ng9\",\n  \"createdIssueId\": \"350p-repo-local-root\",\n  \"url\": null,\n  \"notes\": \"Shell-only QA in isolated temp repo.\"\n}",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "1",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

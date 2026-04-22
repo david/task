@@ -1,0 +1,17 @@
+{
+  "id": "a3642d6f-7cd2-41b8-bbf5-ea28f3c1cc1d",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:qa-context/qa-03-invalid-paths-and-help-surface"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "qa-context/qa-03-invalid-paths-and-help-surface",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "123",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

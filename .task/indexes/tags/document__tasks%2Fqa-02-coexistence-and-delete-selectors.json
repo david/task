@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/qa-02-coexistence-and-delete-selectors",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/acaedc38-a1d5-49c7-a20c-281e741b5cdd.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/37048e72-cf39-4d8d-b2ff-ea3d5d04e3b2.json"
+  ]
+}

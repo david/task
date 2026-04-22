@@ -1,0 +1,7 @@
+{
+  "tag": "document:research/retro-search-switch-parser-retry-2",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/8a668189-275b-4cd2-8ec9-0f1786cebcd5.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/87e223e6-04b6-4116-8079-5972a5592d8d.json"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "b6e43526-8c54-4f32-9425-187cd4b2430f",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:code-history/run-003"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "code-history/run-003",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nrun_key: run-003\nissue_id: hz11\ntimestamp_utc: 2026-04-21T13:02:00Z\nmode: task-mode\nactive_task: 04-migration-and-import\nstarting_phase: coding\nending_phase: code-complete\noutcome: success\nnext_command: /skill:check --issue hz11\nprevious_runs:\n  - run-001\n  - run-002\n---\n\n# Code Run run-003\n\n## Plan Summary\nCompleted the migration/import slice by teaching the tracker to read legacy canonical (store, key) events through the path-based document model, and by proving legacy imports are readable through task get without a store CLI alias.\n\n## Prior Context Used\n- run-001 — switched the src/ CLI surface to set/get/delete and left projection/migration work open.\n- run-002 — materialized path-based document projections and issue key inspection, leaving migration/import compatibility as the final open task.\n\n## What Changed\n- src/tracker/schemas.ts, src/tracker/event-core.ts, src/tracker/event-parsers.ts — added legacy store-event payload schemas/parsers so old canonical history can still be decoded.\n- src/tracker/event-fold.ts, src/tracker/issues.ts — mapped legacy StoreRevision* and Store*Deleted events onto path-based document state and kept typed append flows explicit.\n- src/commands-document-legacy-history.test.ts — added focused regression coverage for legacy canonical save/finalize/delete history plus later path-based resaves.\n- src/commands-import-hierarchy.test.ts — updated legacy import verification to read imported data through task get document paths instead of store helpers.\n\n## Verification\n- [pass] bun test — full project test suite passed after adding legacy-history compatibility coverage.\n- [pass] bun run lint — eslint and dependency-cruiser passed with zero warnings.\n- [pass] bun run typecheck — full TypeScript typecheck passed.\n- [pass] bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff — custom diff lint reported no findings.\n- [pass] observable proof — verified task get <id> --key research/summary reads legacy canonical StoreRevision* history and legacy-imported content from real CLI fixture repos.\n\n## Commits\n- 842c28035cdc6378d76c8f67500f3dbe10b66dbd — complete legacy canonical document-history compatibility and import verification for task 04.\n\n## Remaining Work / Open Problems\n- none\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "104",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

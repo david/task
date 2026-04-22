@@ -1,0 +1,9 @@
+{
+  "tag": "document:research/prd",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/c96b15cd-e3e2-4d53-a06c-b6b1fa0abc30.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/a77d8daa-28a0-4618-95ed-9bb501618088.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/ba88d694-83e3-4b07-b22b-c14b5201477d.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/b9ba8792-3939-4593-8469-0160091cad56.json"
+  ]
+}

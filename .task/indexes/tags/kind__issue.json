@@ -1,0 +1,8 @@
+{
+  "tag": "kind:issue",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/c8560710-3ccd-43cf-a31f-84c141a211ff.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/a14b90a6-8384-4811-86b4-223e1498ae42.json",
+    "events/by-issue/ndrq-qa-fixture-for-hz11-nested-documents/487fd7d9-47df-4a9a-91a9-078d625592fd.json"
+  ]
+}

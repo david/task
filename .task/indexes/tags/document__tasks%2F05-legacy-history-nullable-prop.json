@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/05-legacy-history-nullable-prop",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/b3cc2fbb-7035-45c4-b4e5-662bbb06a220.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/5768eb2d-4600-4b8c-9b35-b74e9ec2b415.json"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "id": "342b5b5a-d803-41aa-8b10-1be97f9a046b",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/qa-04-phase-transition-revision-behavior"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/qa-04-phase-transition-revision-behavior",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "205",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

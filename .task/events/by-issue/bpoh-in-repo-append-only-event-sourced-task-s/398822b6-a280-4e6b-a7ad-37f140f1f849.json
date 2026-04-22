@@ -1,0 +1,17 @@
+{
+  "id": "398822b6-a280-4e6b-a7ad-37f140f1f849",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:task-status/03-phase-and-store-revision-lifecycle"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "task-status/03-phase-and-store-revision-lifecycle",
+    "revision": 1,
+    "phase": "diagnosed",
+    "finalizedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "42",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

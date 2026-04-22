@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/qa-08-legacy-import-rejects-ambiguous-parent-inference",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/7eeca515-a30c-419a-83ef-c6d7d625e4d1.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/9b507516-d0e3-4101-87a3-3b3f8d62d7b8.json"
+  ]
+}

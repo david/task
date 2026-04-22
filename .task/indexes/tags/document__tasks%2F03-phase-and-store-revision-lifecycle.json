@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/03-phase-and-store-revision-lifecycle",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/1d2f0fab-3d2a-46d2-a4da-9493c77de37c.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/23c66fa2-f037-4155-8781-959622876f98.json"
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/qa-03-invalid-paths-and-help-surface",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/49420633-0d65-49ef-9715-e5a5bcf49be9.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/d87e2060-2d53-40bc-82d0-d1bb39750bdf.json"
+  ]
+}

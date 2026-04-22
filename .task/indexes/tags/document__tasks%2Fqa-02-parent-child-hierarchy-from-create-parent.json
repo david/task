@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/qa-02-parent-child-hierarchy-from-create-parent",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/4e546f7b-bd3b-4af2-9437-681f5dabc0b7.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/2d81e45b-3980-4082-91c1-22f127f65d16.json"
+  ]
+}

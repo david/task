@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/10-full-plan-verification",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/0e017179-5f80-424b-8dcd-1c78c19757d1.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/33655ef2-0485-42c1-9230-1cf0000b56be.json"
+  ]
+}

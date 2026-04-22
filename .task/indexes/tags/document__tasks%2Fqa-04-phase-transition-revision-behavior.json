@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/qa-04-phase-transition-revision-behavior",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/a01ff17a-a75b-4d6e-b405-76b98fd79d4f.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/342b5b5a-d803-41aa-8b10-1be97f9a046b.json"
+  ]
+}

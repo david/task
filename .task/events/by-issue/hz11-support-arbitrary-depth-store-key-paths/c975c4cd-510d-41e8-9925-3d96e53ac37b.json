@@ -1,0 +1,19 @@
+{
+  "id": "c975c4cd-510d-41e8-9925-3d96e53ac37b",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:taskify-history/latest"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "taskify-history/latest",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "# Latest Taskify Run\n\n- Latest key: run-002\n- Source: plan\n- Tasks created:\n  - 08-root-cli-surface-parity\n  - 09-supported-docs-parity\n  - 10-full-plan-verification\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "172",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

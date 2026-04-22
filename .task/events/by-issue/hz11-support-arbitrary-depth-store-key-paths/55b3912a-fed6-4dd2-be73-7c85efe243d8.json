@@ -1,0 +1,19 @@
+{
+  "id": "55b3912a-fed6-4dd2-be73-7c85efe243d8",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:check-report/run-003"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "check-report/run-003",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "# Check Report\n\n## Metadata\n- Issue: hz11\n- Timestamp: 2026-04-21T20:26:30Z\n- Verdict: PASS\n- Signals on entry: phase=qa; tasks=01-10 plus qa-01..qa-05; task-status missing qa-04 and qa-05; code-history=latest,run-001..run-009; existing check-report=run-001,run-002\n- Trigger: /skill:check --issue hz11\n\n## Commands Run\n- Custom lint: `env LINT_INCLUDE_DIRS='src:.' LINT_SHARED_DIRS='' LINT_TEST_DIRS='src:.' LINT_TEST_ONLY_DIRS='' LINT_BACKEND_DIRS='' LINT_FRONTEND_DIRS='' LINT_SCHEMA_DIRS='' LINT_PURE_LIB_DIRS='' LINT_IO_LIB_FILES='' LINT_EXCLUDE_PATTERNS='node_modules:packages/esther:^doc/:^src/doc/:^\\\\.task/' bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff --workflow-gate --advisory-tests`\n- Project lint: `bun run lint`\n- Tests: `bun test`\n- Typecheck: `bun run typecheck`\n\n## Gates\n- Custom lint: PASS\n- Project lint: PASS\n- Tests: PASS\n- Typecheck: PASS\n\n## Findings\n- None.\n\n## Suggested Repair Groups\n- None.\n\n## Full Rerun\n- `env LINT_INCLUDE_DIRS='src:.' LINT_SHARED_DIRS='' LINT_TEST_DIRS='src:.' LINT_TEST_ONLY_DIRS='' LINT_BACKEND_DIRS='' LINT_FRONTEND_DIRS='' LINT_SCHEMA_DIRS='' LINT_PURE_LIB_DIRS='' LINT_IO_LIB_FILES='' LINT_EXCLUDE_PATTERNS='node_modules:packages/esther:^doc/:^src/doc/:^\\\\.task/' bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff --workflow-gate --advisory-tests`\n- `bun run lint`\n- `bun test`\n- `bun run typecheck`\n\n## Semantic Review\n- Command: /skill:global-review --branch\n- Outcome: completed\n- Summary:\n  - Highest-risk area: the branch replaces the old tracker model with a repo-local Esther-backed event store and adds the new `IssueDocument*` event family plus projection rebuild/import paths, so replay and migration correctness are the main manual-review surface.\n  - Likely missing counterpart: `doc/architecture.md` still says `task close` archives the projection, while the implementation and CLI/help text keep closed issues in place; no obvious code counterpart gap was found.\n\n## Notes\n- Custom lint initially failed because the skill file referenced `~/.claude/...`; this environment only had `/home/david/.pi/agent/skills/lint/scripts/lint.ts`, so the equivalent command was run there with inline `LINT_*` repo config because no `LINT_*` variables were set.\n- Project lint passed with 0 warnings and 0 errors.\n- Tests passed: 410/410.\n- Typecheck passed with 0 errors.\n- Semantic review summary: mixed branch, but the meaningful risk is concentrated in repo-local storage, event replay/projection, legacy import, and the new document selector/write model; test and doc churn is otherwise mostly counterpart coverage.\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "96",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

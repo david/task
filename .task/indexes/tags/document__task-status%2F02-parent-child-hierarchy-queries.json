@@ -1,0 +1,7 @@
+{
+  "tag": "document:task-status/02-parent-child-hierarchy-queries",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/54dd4692-23e9-4573-9445-1f18fba81abe.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/6d7250ca-9196-48b7-b418-6756f289f9da.json"
+  ]
+}

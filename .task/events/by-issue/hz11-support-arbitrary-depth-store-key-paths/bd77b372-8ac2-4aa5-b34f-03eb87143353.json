@@ -1,0 +1,19 @@
+{
+  "id": "bd77b372-8ac2-4aa5-b34f-03eb87143353",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/09-supported-docs-parity"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/09-supported-docs-parity",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 09-supported-docs-parity\nrole: coder\ndepends_on:\n  - 08-root-cli-surface-parity\nsource: plan\nsource_key: research:plan\nbatch: taskify-history:run-002\n---\n\n# 09 — Supported docs parity\n\n## Goal\nUpdate every supported root and `src/` doc surface to describe issue documents with `task set|get|delete --key <path>`, align entrypoint guidance, and add a regression guard that catches legacy `task store ...` examples in those docs.\n\n## Context\nThe current docs still teach the old store/key workflow and disagree about whether users should run `bin/task`, `src/bin/task`, `bun task.ts`, or `bun src/task.ts`. The approved plan requires the supported docs to match the root CLI surface and to keep invalid-path guidance/examples accurate.\n\n## Files\n- `doc/commands.md`\n- `doc/project-management.md`\n- `doc/architecture.md`\n- `src/doc/commands.md`\n- `src/doc/project-management.md`\n- `src/doc/architecture.md`\n- `task.test.ts` or a small new Bun test file that asserts supported-doc parity\n\n## Verification Tests\n- `bun test task.test.ts`\n- `rg -n \"task store|store set|store get|store keys|store delete\" doc src/doc`\n- `rg -n \"bun task\\\\.ts|bun src/task\\\\.ts|bin/task|src/bin/task\" doc src/doc`\n\n## Out of Scope\n- changing command implementation beyond what task 08 already established\n- editing unsupported docs outside the root `doc/` and `src/doc/` surfaces\n- full-repo verification reruns\n\n## UI Scope Guardrails\n- cover every supported doc surface named in the plan instead of updating only the first copy encountered\n- keep examples and terminology aligned with the approved `--key <path>` selectors, including subtree/root guidance where those docs mention reads or deletes\n\n## Done When\n- the supported docs no longer instruct users to use `task store ...` for issue documents\n- root and staged docs agree on the supported wrapper/entrypoint guidance\n- the docs describe issue documents with `--key <path>` rather than `--store` plus `--key`\n- an automated guard exists for the supported docs so legacy examples do not silently return\n- no leftover partial edits for this task\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "194",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

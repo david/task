@@ -1,0 +1,19 @@
+{
+  "id": "85458c9a-ea5f-478a-9ed9-cea7c4ab585d",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:qa-context/qa-04-phase-change-finalizes-open-store-drafts"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "qa-context/qa-04-phase-change-finalizes-open-store-drafts",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "{\n  \"task\": \"qa-04-phase-change-finalizes-open-store-drafts\",\n  \"role\": \"agent\",\n  \"session\": \"shell\",\n  \"repo\": \"/tmp/task-qa-04-ugfn36z0\",\n  \"issueId\": \"m5gu-finalize-drafts\",\n  \"notes\": \"Phase change finalized two previously open draft store keys.\"\n}",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "7",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

@@ -1,0 +1,19 @@
+{
+  "id": "49d30f01-71df-437b-b9e6-ab5a9ecd3c9e",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:code-history/run-009"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "code-history/run-009",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nrun_key: run-009\nissue_id: hz11\ntimestamp_utc: 2026-04-21T18:59:54Z\nmode: task-mode\nactive_task: 10-full-plan-verification\noutcome: success\nnext_command: /skill:check --issue hz11\nprevious_runs:\n  - run-001\n  - run-002\n  - run-003\n  - run-004\n  - run-005\n  - run-006\n  - run-007\n  - run-008\nstarting_signals:\n  - research:plan\n  - tasks:10-full-plan-verification\n  - code-history:latest=run-008\nending_signals:\n  - task-status:10-full-plan-verification=done\n  - code-history:latest=run-009\n---\n\n# Code Run run-009\n\n## Plan Summary\nCompleted the full confirmation pass for the repaired root CLI/help/docs surface by rerunning the repo-wide automated gates, rechecking the supported help/doc surfaces, and fixing the remaining branch diff-lint findings in the root CLI regression test so the issue can return to branch-level check.\n\n## Prior Context Used\n- run-001 — switched the staged `src/` CLI surface to `set`/`get`/`delete` and removed staged `store` help.\n- run-002 — materialized path-based document projections and issue key inspection.\n- run-003 — preserved legacy history/import compatibility under the path-based document model.\n- run-004 — repaired the nullable-props lint finding in legacy-history tests.\n- run-005 — decomposed oversized legacy-history tests to satisfy function-size lint.\n- run-006 — reran the full automated gates after the earlier repair batch.\n- run-007 — aligned the repo-root `bun task.ts` entrypoint with the approved document command surface and added root CLI regressions.\n- run-008 — aligned the supported root and staged docs with the approved issue-document surface and added a doc parity regression.\n\n## What Changed\n- task.test.ts — replaced the remaining unsafe `JSON.parse(... ) as { id: string }` casts in the root CLI subprocess tests with an explicit stdout object/id parser so the branch-level diff lint passes cleanly.\n- verification-only — reran the full repo automated gates plus the approved help/doc/invalid-path observable checks for the repaired document surface.\n\n## Verification\n- [pass] bun test task.test.ts — focused root CLI regression tests passed after replacing the unsafe stdout casts.\n- [pass] bun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff — custom diff lint now reports no findings on the branch.\n- [pass] bun test — full project test suite passed.\n- [pass] bun run lint — project lint passed with zero warnings/errors.\n- [pass] bun run typecheck — full TypeScript typecheck passed.\n- [pass] bun task.ts --help — supported root help advertises `set`, `get`, and `delete` with no legacy `store` commands.\n- [pass] bun src/task.ts --help — retained staged entrypoint mirrors the approved document command family.\n- [pass] rg -n \"task store|store set|store get|store keys|store delete\" doc src/doc && rg -n \"bin/task|bun task\\.ts|src/bin/task|bun src/task\\.ts\" doc src/doc — supported docs remain free of legacy `task store` instructions and stale staged-wrapper guidance.\n- [pass] disposable smoke check — in a temporary repo, `bun /home/david/task-w0/task.ts set <id> --key research/ --value hello` exited 1 with `Subtree selector 'research/' is not allowed here`.\n\n## Commits\n- f9a9f73859ddc338850622ef76d311e32defaf0b — remove the remaining unsafe root CLI test stdout casts so branch diff lint passes during full-plan verification.\n\n## Remaining Work / Open Problems\n- none\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "116",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

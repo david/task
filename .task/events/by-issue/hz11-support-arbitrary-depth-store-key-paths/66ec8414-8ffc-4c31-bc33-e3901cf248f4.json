@@ -1,0 +1,19 @@
+{
+  "id": "66ec8414-8ffc-4c31-bc33-e3901cf248f4",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:qa-context/qa-05-migration-and-legacy-import"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "qa-context/qa-05-migration-and-legacy-import",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "fixture_root: /tmp/tmp.X9rGKXEbUU\nlegacy_source_root: /tmp/tmp.X9rGKXEbUU/legacy-import-source\ntarget_root: /tmp/tmp.X9rGKXEbUU/legacy-import-target\nentrypoint_under_test: bun task.ts\nimported_issue_ids:\n  - aaaa-parent-epic\n  - bbbb-child-task\n  - cccc-closed-task\nmaterialized_paths:\n  - /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/aaaa-parent-epic/research/summary.md\n  - /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/bbbb-child-task/research/summary.md\n  - /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/bbbb-child-task/tasks/plan.md\n  - /tmp/tmp.X9rGKXEbUU/legacy-import-target/.task/issues/cccc-closed-task/notes/summary.md\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "126",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

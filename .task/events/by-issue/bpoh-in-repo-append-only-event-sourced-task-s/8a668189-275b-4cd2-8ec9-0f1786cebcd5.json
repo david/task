@@ -1,0 +1,19 @@
+{
+  "id": "8a668189-275b-4cd2-8ec9-0f1786cebcd5",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:research/retro-search-switch-parser-retry-2"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "research/retro-search-switch-parser-retry-2",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "## Bug\nSwitch flags consumed following positional args in the shared CLI parser, causing `task search --all \"rebuild child\"` to lose its query.\n\n## Where the process broke down\nTest gap\n\n## What was missed\nThe task/QA planning covered closed-issue visibility and rebuild behavior, but it did not require parser-level coverage for commands that combine a presence-only switch with positional input. QA hit the missing case with `search --all \"rebuild child\"`; the same parser defect also affected `show --summary <id>`.\n\n## Related past issues\nNo separate related `task` issue found. This issue's earlier `research:diagnosis` and `research:diagnosis-retry-1` already identified the parser-arity gap.\n\n## What we learned then\nSwitch flags need explicit arity metadata, and parser-level tests must cover switch-before-positional argument order rather than testing command helpers only after arguments are already normalized.\n\n## Why that learning didn't stick\nThe branch now reflects that learning, but the issue workflow state lagged behind the fix. QA failure remained recorded after the parser fix and regression tests landed, so this retry mainly reconciles the stored QA artifact with current branch state.\n\n## Why existing tests missed it\nExisting search tests called `issueSearch()` directly, which bypassed `parseFlags()`. Earlier parser tests covered switches in isolation and positional args in canonical order, but not the mixed shell shape `--switch <positional>`. A parser-level regression test for both `search --all ...` and `show --summary ...` is the durable safeguard.\n\n## Suggestion for future plans\nFor every command that accepts positional input plus switch flags, require at least one parser-level or subprocess CLI test that puts a switch before the positional input so shared argv bugs are caught before manual QA.\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "33",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

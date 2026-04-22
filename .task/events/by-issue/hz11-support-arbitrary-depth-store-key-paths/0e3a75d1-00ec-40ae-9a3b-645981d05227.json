@@ -1,0 +1,19 @@
+{
+  "id": "0e3a75d1-00ec-40ae-9a3b-645981d05227",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:qa-context/qa-02-coexistence-and-delete-selectors"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "qa-context/qa-02-coexistence-and-delete-selectors",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "fixture_issue_id: umwr-qa-fixture-for-hz11-nested-documents-new\nrole: agent\ncli_entrypoint: bun src/task.ts\nsubtree_with_value_json: {\"entries\":{\"research\":{\"value\":\"overview from qa-02\",\"entries\":{\"notes\":{\"entries\":{\"today\":{\"value\":\"hello from qa-01\"}}}}}}}\nafter_exact_delete_json: {\"entries\":{\"research\":{\"entries\":{\"notes\":{\"entries\":{\"today\":{\"value\":\"hello from qa-01\"}}}}}}}\nafter_subtree_delete_json: {\"entries\":{}}\nafter_root_delete_json: {\"entries\":{}}",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "120",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

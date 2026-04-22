@@ -1,0 +1,17 @@
+{
+  "id": "056f7167-afde-4f72-8072-5bee5d6daebd",
+  "type": "IssueDocumentRevisionFinalized",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/qa-01-save-read-nested-documents"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/qa-01-save-read-nested-documents",
+    "revision": 1,
+    "phase": "qa",
+    "finalizedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "199",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

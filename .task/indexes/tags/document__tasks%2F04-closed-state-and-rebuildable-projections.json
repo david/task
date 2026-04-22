@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/04-closed-state-and-rebuildable-projections",
+  "eventPaths": [
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/3c447dec-f59c-4aee-bd23-c2d42cc7742f.json",
+    "events/by-issue/bpoh-in-repo-append-only-event-sourced-task-s/a5c47f81-13e8-49d5-ac1a-6d09d474ace9.json"
+  ]
+}

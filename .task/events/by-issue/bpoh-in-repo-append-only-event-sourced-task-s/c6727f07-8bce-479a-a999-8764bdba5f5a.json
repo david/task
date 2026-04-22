@@ -1,0 +1,19 @@
+{
+  "id": "c6727f07-8bce-479a-a999-8764bdba5f5a",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:tasks/qa-04-phase-change-finalizes-open-store-drafts"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "tasks/qa-04-phase-change-finalizes-open-store-drafts",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "name: qa-04-phase-change-finalizes-open-store-drafts\nrole: agent\ndepends_on: []\n\n# QA-04: Phase change finalizes open store drafts\n\n## Test Steps\n\n1. In a fresh temp repo, create settings with one allowed transition:\n   ```bash\n   export TASK_CLI=\"bun /home/david/task-w0/src/task.ts\"\n   REPO=$(mktemp -d)\n   cd \"$REPO\"\n   git init -q\n   mkdir -p .task\n   cat > .task/settings.json <<'JSON'\n   {\n     \"defaultPhase\": \"research\",\n     \"phases\": [\"research\", \"ready-to-code\"],\n     \"transitions\": {\n       \"research\": [\"ready-to-code\"],\n       \"ready-to-code\": []\n     }\n   }\n   JSON\n   ISSUE_JSON=$($TASK_CLI create --title \"Finalize Drafts\")\n   echo \"$ISSUE_JSON\"\n   ```\n   Save the issue id.\n2. Save two store entries in the starting phase:\n   ```bash\n   echo 'draft summary' | $TASK_CLI store set <ISSUE_ID> --store research --key summary\n   echo 'draft plan' | $TASK_CLI store set <ISSUE_ID> --store tasks --key plan\n   ```\n3. Advance the phase:\n   ```bash\n   $TASK_CLI phase set <ISSUE_ID> --value ready-to-code\n   ```\n4. Confirm the visible store content still reads correctly:\n   ```bash\n   $TASK_CLI store get <ISSUE_ID> --store research --key summary\n   $TASK_CLI store get <ISSUE_ID> --store tasks --key plan\n   ```\n5. Inspect the canonical event files for finalization events:\n   ```bash\n   grep -R '\"type\": \"StoreRevisionFinalized\"' .task/events/by-issue/<ISSUE_ID>\n   ```\n\n## Expected\n\nThe phase change succeeds, both store values remain visible, and the canonical event history now contains one `StoreRevisionFinalized` event for each previously open draft key.\n\n## Setup Notes\n\nUse a separate temp repo for this test. The tester only needs shell access.\n\n## Result\n\n<!-- Filled in by /skill:qa coordinator after user reports result -->\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "79",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

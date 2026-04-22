@@ -1,0 +1,19 @@
+{
+  "id": "ae8f47c7-5baf-4c8e-80ed-986aa0f6bac7",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:hz11-support-arbitrary-depth-store-key-paths",
+    "document:tasks/04-migration-and-import"
+  ],
+  "payload": {
+    "issueId": "hz11-support-arbitrary-depth-store-key-paths",
+    "path": "tasks/04-migration-and-import",
+    "revision": 1,
+    "phase": "qa",
+    "draft": true,
+    "content": "---\nname: 04-migration-and-import\nrole: coder\ndepends_on:\n  - 01-document-model-core\n  - 03-projections-and-phase\n---\n\n# 04 — Migration, import, and finish verification\n\n## Goal\nPreserve existing attached-document history by mapping old `(store, key)` data to canonical paths, update legacy import to emit path-based document events, and finish branch-ready verification for the issue.\n\n## Context\nThe approved plan explicitly includes migration from existing canonical `(store, key)` history and import mapping from legacy mutable store files. This task closes the rollout gap and proves the new model works end to end.\n\n## Files\n- `src/tracker/migrate.ts`\n- any legacy-history compatibility logic in tracker readers/folders/projectors\n- import and migration tests under `src/`\n- docs/tests touched by the new command surface as needed\n\n## Verification Tests\n- focused Bun tests for old canonical store events mapping to `<store>/<key>` logical paths\n- focused Bun tests for legacy import producing path-based document events and visible document reads\n- final full-project verification: `bun test`, `bun run typecheck`, project lint, and diff lint\n\n## Out of Scope\n- new product behavior beyond the approved plan\n\n## UI Scope Guardrails\nNone\n\n## Done When\n- old canonical store history is readable through the new path-based document surface without a CLI alias\n- legacy import maps old store files to `<store>/<key>` logical paths\n- full-project automated verification is green for the completed issue state\n",
+    "savedAt": "2026-04-21T21:36:02.857Z"
+  },
+  "position": "184",
+  "timestamp": "2026-04-21T23:17:56.588Z"
+}

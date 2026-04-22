@@ -1,0 +1,19 @@
+{
+  "id": "d243f1db-d0b5-4f5d-ae73-f38bfdb759b7",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:tasks/qa-05-later-store-edit-creates-new-revision"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "tasks/qa-05-later-store-edit-creates-new-revision",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "name: qa-05-later-store-edit-creates-new-revision\nrole: agent\ndepends_on: []\n\n# QA-05: Editing a store key in a later phase creates a new revision\n\n## Test Steps\n\n1. In a fresh temp repo, configure `research -> ready-to-code` phases and create an issue:\n   ```bash\n   export TASK_CLI=\"bun /home/david/task-w0/src/task.ts\"\n   REPO=$(mktemp -d)\n   cd \"$REPO\"\n   git init -q\n   mkdir -p .task\n   cat > .task/settings.json <<'JSON'\n   {\n     \"defaultPhase\": \"research\",\n     \"phases\": [\"research\", \"ready-to-code\"],\n     \"transitions\": {\n       \"research\": [\"ready-to-code\"],\n       \"ready-to-code\": []\n     }\n   }\n   JSON\n   ISSUE_JSON=$($TASK_CLI create --title \"Store Revisions\")\n   echo \"$ISSUE_JSON\"\n   ```\n   Save the issue id.\n2. Save an initial store value, change phase, then save the same key again:\n   ```bash\n   echo 'phase one' | $TASK_CLI store set <ISSUE_ID> --store research --key summary\n   $TASK_CLI phase set <ISSUE_ID> --value ready-to-code\n   echo 'phase two' | $TASK_CLI store set <ISSUE_ID> --store research --key summary\n   ```\n3. Confirm the visible value and inspect the event history:\n   ```bash\n   $TASK_CLI store get <ISSUE_ID> --store research --key summary\n   grep -R '\"type\": \"StoreRevisionSaved\"' .task/events/by-issue/<ISSUE_ID>\n   grep -R '\"supersedesRevision\": 1' .task/events/by-issue/<ISSUE_ID>\n   ```\n\n## Expected\n\n`store get` returns `phase two`. The event history still shows the original revision from `research`, plus a second saved revision in `ready-to-code` that supersedes revision 1. The older finalized revision is preserved instead of being overwritten in place.\n\n## Setup Notes\n\nUse a separate temp repo for this test so the event history only contains one key’s revision chain.\n\n## Result\n\n<!-- Filled in by /skill:qa coordinator after user reports result -->\n",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "81",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}

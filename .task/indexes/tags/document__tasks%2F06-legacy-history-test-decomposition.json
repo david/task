@@ -1,0 +1,7 @@
+{
+  "tag": "document:tasks/06-legacy-history-test-decomposition",
+  "eventPaths": [
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/52cece7d-49ed-49de-a647-d45a9e671201.json",
+    "events/by-issue/hz11-support-arbitrary-depth-store-key-paths/0cb9cd62-31d3-4963-bdaf-3bae302bd538.json"
+  ]
+}

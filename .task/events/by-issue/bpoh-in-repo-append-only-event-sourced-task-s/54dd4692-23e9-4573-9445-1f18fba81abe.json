@@ -1,0 +1,19 @@
+{
+  "id": "54dd4692-23e9-4573-9445-1f18fba81abe",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:bpoh-in-repo-append-only-event-sourced-task-s",
+    "document:task-status/02-parent-child-hierarchy-queries"
+  ],
+  "payload": {
+    "issueId": "bpoh-in-repo-append-only-event-sourced-task-s",
+    "path": "task-status/02-parent-child-hierarchy-queries",
+    "revision": 1,
+    "phase": "diagnosed",
+    "draft": true,
+    "content": "done",
+    "savedAt": "2026-04-21T10:16:42.184Z"
+  },
+  "position": "39",
+  "timestamp": "2026-04-21T23:17:56.455Z"
+}
