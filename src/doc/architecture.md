@@ -13,7 +13,7 @@ The supported user-facing entrypoint is `bun task.ts`. The staged `src/` entrypo
 - `task.ts` — supported repo-root entrypoint that parses argv and dispatches through the shared registry
 - `src/task.ts` — mirrored development entrypoint over the same shared command/help surface
 - `src/commands-registry.ts` — authoritative command registration, help text, and examples for the current CLI surface
-- `src/commands.ts` — issue operations, phase commands, migration helpers, document-command implementations, and workflow-doc bootstrap scaffolding
+- `src/commands.ts` — issue operations, phase commands, migration helpers, document-command implementations, and bootstrap scaffolding for workflow docs plus repo-local pi skills
 - `src/types.ts` — command metadata types used by the dispatcher
 - `src/tracker/root.ts` — repo-local tracker resolution plus Esther event/checkpoint store handles
 - `src/tracker/issues.ts` — tracker-backed create/show/list/search helpers plus document read/write/delete flows
@@ -31,7 +31,7 @@ The supported user-facing entrypoint is `bun task.ts`. The staged `src/` entrypo
 4. Positional issue IDs are normalized into `--id` for commands that support them.
 5. The command implementation in `src/commands.ts` resolves the repo-local tracker from the working directory and returns plain JSON-compatible data.
 6. Tracker helpers read and append canonical Esther event files under `.task/events/`, then rebuild or read projections under `.task/issues/`, `.task/indexes/`, and `.task/checkpoints/`.
-7. Non-tracker commands such as `bootstrap` write repo docs under `doc/` directly and return JSON-compatible summaries.
+7. Non-tracker commands such as `bootstrap` write repo docs under `doc/` plus repo-local skills under `.pi/skills/`, then return JSON-compatible summaries.
 8. The entrypoint serializes the result to JSON, or JSONL for array results when `--jsonl` is set.
 9. Errors are emitted as JSON on stderr and the process exits with status 1.
 

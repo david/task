@@ -28,7 +28,9 @@ describe("bootstrap", () => {
 
     const result = await workflowBootstrap({}, root)
     expect(result.root).toBe(root)
-    expect(result.created.length).toBe(1)
+    expect(result.created).toContain(join(root, "doc", "task-workflow.md"))
+    expect(result.created).toContain(join(root, ".pi", "skills", "feature", "SKILL.md"))
+    expect(result.created).toContain(join(root, ".pi", "skills", "references", "scoped-discovery.md"))
     expect(result.skipped).toEqual([])
     expect(result.detectedCommands).toEqual({
       test: "bun run test",
@@ -40,12 +42,17 @@ describe("bootstrap", () => {
 
     const workflowDoc = join(root, "doc", "task-workflow.md")
     const codeDoc = join(root, "doc", "coding.md")
+    const featureSkill = join(root, ".pi", "skills", "feature", "SKILL.md")
+    const sharedReference = join(root, ".pi", "skills", "references", "scoped-discovery.md")
     expect(existsSync(workflowDoc)).toBe(true)
     expect(existsSync(codeDoc)).toBe(false)
+    expect(existsSync(featureSkill)).toBe(true)
+    expect(existsSync(sharedReference)).toBe(true)
     expect(readFileSync(workflowDoc, "utf8")).toContain("Next: /skill:check --issue <id>")
     expect(readFileSync(workflowDoc, "utf8")).toContain("bun run typecheck")
     expect(readFileSync(workflowDoc, "utf8")).toContain("doc/coding.md")
     expect(readFileSync(workflowDoc, "utf8")).toContain("doc/committing.md")
+    expect(readFileSync(featureSkill, "utf8")).toContain("name: feature")
   })
 
   test("skips existing docs by default and overwrites with --force", async () => {
@@ -53,15 +60,22 @@ describe("bootstrap", () => {
     const docRoot = join(root, "doc")
     mkdirSync(docRoot, { recursive: true })
     const workflowDoc = join(docRoot, "task-workflow.md")
+    const featureSkill = join(root, ".pi", "skills", "feature", "SKILL.md")
+    mkdirSync(join(root, ".pi", "skills", "feature"), { recursive: true })
     writeFileSync(workflowDoc, "existing\n")
+    writeFileSync(featureSkill, "existing skill\n")
 
     const first = await workflowBootstrap({}, root)
     expect(first.skipped).toContain(workflowDoc)
+    expect(first.skipped).toContain(featureSkill)
     expect(readFileSync(workflowDoc, "utf8")).toBe("existing\n")
+    expect(readFileSync(featureSkill, "utf8")).toBe("existing skill\n")
 
     const forced = await workflowBootstrap({ "--force": "true" }, root)
     expect(forced.created).toContain(workflowDoc)
+    expect(forced.created).toContain(featureSkill)
     expect(readFileSync(workflowDoc, "utf8")).toContain("Task Workflow Conventions for This Repo")
+    expect(readFileSync(featureSkill, "utf8")).toContain("name: feature")
   })
 
   test("supports --root for another target repo", async () => {
@@ -72,5 +86,6 @@ describe("bootstrap", () => {
     const result = await workflowBootstrap({ "--root": "nested/repo" }, root)
     expect(result.root).toBe(target)
     expect(existsSync(join(target, "doc", "task-workflow.md"))).toBe(true)
+    expect(existsSync(join(target, ".pi", "skills", "task", "SKILL.md"))).toBe(true)
   })
 })

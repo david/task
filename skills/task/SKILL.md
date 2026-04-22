@@ -52,7 +52,7 @@ Projects may layer local workflow skills such as `feature`, `debug`, `refactor`,
 - Do not model local hierarchy through `refs`; use `task create --parent <id>`.
 - `task set` accepts exact document paths only. Trailing-slash subtree selectors like `research/` and `/` are for `task get` and `task delete`, not `task set`.
 - `task meta set` writes raw strings. Be careful with structured or numeric fields, especially `priority`.
-- `task bootstrap` writes repo docs, not tracker issue data. Use `--force` only when you intentionally want to overwrite scaffolded workflow docs.
+- `task bootstrap` writes repo docs plus packaged workflow skills under `.pi/skills/`; it does not write tracker issue data. Use `--force` only when you intentionally want to overwrite those scaffolded files.
 - `task list` and `task search` exclude closed issues unless `--all` is passed.
 - Prefer the supported commands documented in this skill's references or in repo docs; do not invent undocumented commands.
 

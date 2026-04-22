@@ -16,7 +16,7 @@ task show <id> --include-keys
 
 | Intent | Preferred command | Notes |
 |---|---|---|
-| Scaffold task-backed workflow docs | `task bootstrap` | Writes `doc/task-workflow.md` and points to optional project-native docs such as `doc/coding.md` or `doc/committing.md`. Use `--force` only when you intend to overwrite the scaffolded workflow doc. |
+| Scaffold task-backed workflow docs | `task bootstrap` | Writes `doc/task-workflow.md` and installs the packaged workflow skills under `.pi/skills/`, while still pointing to optional project-native docs such as `doc/coding.md` or `doc/committing.md`. Use `--force` only when you intend to overwrite those scaffolded files. |
 | Create a new issue | `task create` | Set `--priority`, `--label`, `--github-issue`, and `--parent` at creation time when known. |
 | Read one issue | `task show` | Use `--summary` for metadata only, `--include-keys` to list current document keys. |
 | Find issues | `task list`, `task search` | `list` is for structured filters; `search` is for free text. Closed issues are hidden unless `--all` is passed. |
@@ -76,7 +76,7 @@ Important:
 
 ## High-signal gotchas
 
-- `task bootstrap` writes repo docs, not tracker issue data.
+- `task bootstrap` writes repo docs plus packaged workflow skills under `.pi/skills/`; it does not write tracker issue data.
 - `task meta set` writes raw strings; later changing `priority` this way can convert it from number to string.
 - `task list` and `task search` ignore closed issues unless `--all` is passed.
 - `task phase set` validates transitions and may finalize open draft document revisions depending on repo rules.

@@ -1,5 +1,6 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs"
-import { basename, join, resolve } from "node:path"
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
+import { basename, dirname, join, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import type { CommandArgs, JsonValue, StringMap } from "./types"
 import type { IssueMetadata, IssueRecord } from "./tracker/events"
 import {
@@ -606,9 +607,54 @@ function writeBootstrapFile(
     return
   }
 
-  mkdirSync(join(path, ".."), { recursive: true })
+  mkdirSync(dirname(path), { recursive: true })
   writeFileSync(path, `${content.trimEnd()}\n`, "utf8")
   created.push(path)
+}
+
+function copyBootstrapFile(
+  sourcePath: string,
+  targetRoot: string,
+  relativePath: string,
+  force: boolean,
+  created: string[],
+  skipped: string[]
+): void {
+  const path = join(targetRoot, relativePath)
+  if (existsSync(path) && !force) {
+    skipped.push(path)
+    return
+  }
+
+  mkdirSync(dirname(path), { recursive: true })
+  copyFileSync(sourcePath, path)
+  created.push(path)
+}
+
+function copyBootstrapTree(
+  sourceRoot: string,
+  targetRoot: string,
+  relativeTargetRoot: string,
+  force: boolean,
+  created: string[],
+  skipped: string[]
+): void {
+  const entries = readdirSync(sourceRoot, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))
+  for (const entry of entries) {
+    const sourcePath = join(sourceRoot, entry.name)
+    const relativePath = join(relativeTargetRoot, entry.name)
+    if (entry.isDirectory()) {
+      copyBootstrapTree(sourcePath, targetRoot, relativePath, force, created, skipped)
+      continue
+    }
+    if (entry.isFile()) {
+      copyBootstrapFile(sourcePath, targetRoot, relativePath, force, created, skipped)
+    }
+  }
+}
+
+function bootstrapSkillsSourceRoot(): string {
+  return fileURLToPath(new URL("../skills", import.meta.url))
 }
 
 function bootstrapTargetRoot(args: CommandArgs, root: string): string {
@@ -639,6 +685,8 @@ export async function workflowBootstrap(
     writeBootstrapFile(targetRoot, relativePath, content, force, created, skipped)
   }
 
+  copyBootstrapTree(bootstrapSkillsSourceRoot(), targetRoot, ".pi/skills", force, created, skipped)
+
   return {
     root: targetRoot,
     created,
@@ -646,6 +694,7 @@ export async function workflowBootstrap(
     detectedCommands,
     todos: [
       "Review doc/task-workflow.md and update verification commands if the detected scripts are incomplete.",
+      "Review .pi/skills/ and remove or customize any packaged workflow skills this repo does not want to keep project-local.",
       "If the repo uses a custom diff lint or workflow gate, add the exact commands under 'Repo verification commands'.",
       "Add project-native docs such as doc/coding.md, doc/committing.md, doc/testing.md, or doc/deployment.md only when this repo actually needs them.",
     ],
