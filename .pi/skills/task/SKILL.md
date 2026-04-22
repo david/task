@@ -14,6 +14,8 @@ Read `references/examples.md` when you need concrete command shapes.
 
 Pick the right supported `task` command, preserve tracker invariants, and avoid unsafe shortcuts.
 
+This repo also provides project-local workflow overrides for `feature`, `debug`, `refactor`, `code`, `check`, `taskify`, and `deploy`. Use this `task` skill for raw tracker operations; those companion skills layer repo-specific workflow behavior on top.
+
 ## Default workflow
 
 1. Resolve context first with inspection commands.
