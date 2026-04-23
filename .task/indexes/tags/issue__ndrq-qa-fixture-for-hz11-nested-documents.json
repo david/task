@@ -1,6 +1,7 @@
 {
   "tag": "issue:ndrq-qa-fixture-for-hz11-nested-documents",
   "eventPaths": [
-    "events/by-issue/ndrq-qa-fixture-for-hz11-nested-documents/487fd7d9-47df-4a9a-91a9-078d625592fd.json"
+    "events/by-issue/ndrq-qa-fixture-for-hz11-nested-documents/487fd7d9-47df-4a9a-91a9-078d625592fd.json",
+    "events/by-issue/ndrq-qa-fixture-for-hz11-nested-documents/b6df1bfe-9bf3-476e-84c7-f71240982b5f.json"
   ]
 }

@@ -1,5 +1,21 @@
 [
   {
+    "id": "8j9x-refactor-root-task-cli-onto-esther-creat",
+    "title": "Refactor root task CLI onto Esther createApp and slices",
+    "description": "Replace manual Esther event-store orchestration in the root task CLI with a createApp-based architecture, command slices, and filesystem-backed projectors/read models while preserving current CLI behavior.",
+    "status": "open",
+    "phase": "research",
+    "priority": 1,
+    "created": "2026-04-23",
+    "updated": "2026-04-23T08:29:58.556Z",
+    "refs": [],
+    "labels": [
+      "refactor",
+      "esther",
+      "cli"
+    ]
+  },
+  {
     "id": "bpoh-in-repo-append-only-event-sourced-task-s",
     "title": "In-repo append-only event-sourced task storage",
     "description": "Scope constraint: do the tracker migration work under src/ only; leave legacy top-level files untouched unless a later task explicitly says otherwise.",
@@ -17,11 +33,11 @@
     "id": "hz11-support-arbitrary-depth-store-key-paths",
     "title": "Support arbitrary-depth store key paths",
     "description": "",
-    "status": "open",
+    "status": "closed",
     "phase": "qa",
     "priority": 2,
     "created": "2026-04-21",
-    "updated": "2026-04-21T21:36:02.857Z",
+    "updated": "2026-04-22T17:30:14.087Z",
     "refs": [],
     "labels": [
       "prd"
@@ -31,11 +47,11 @@
     "id": "ndrq-qa-fixture-for-hz11-nested-documents",
     "title": "QA fixture for hz11 nested documents",
     "description": "",
-    "status": "open",
+    "status": "closed",
     "phase": "research",
     "priority": 2,
     "created": "2026-04-21",
-    "updated": "2026-04-21T14:35:38.071Z",
+    "updated": "2026-04-22T17:57:26.832Z",
     "refs": [],
     "labels": [
       "qa-fixture"

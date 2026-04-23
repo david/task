@@ -1,0 +1,19 @@
+{
+  "id": "07339920-fe18-4915-b3e9-62142237f42c",
+  "type": "IssueDocumentRevisionSaved",
+  "tags": [
+    "issue:8j9x-refactor-root-task-cli-onto-esther-creat",
+    "document:research/plan"
+  ],
+  "payload": {
+    "issueId": "8j9x-refactor-root-task-cli-onto-esther-creat",
+    "path": "research/plan",
+    "revision": 1,
+    "phase": "research",
+    "draft": true,
+    "content": "---\nkind: refactor\nstatus: approved\n---\n\n# Approved Plan\n\n## Scope\nRefactor the root `task` CLI to use Esther's app/slice architecture while preserving current command behavior, tracker semantics, and repo-local filesystem persistence.\n\n## Planned workstreams\n\n1. **Bootstrap Esther app wiring**\n   - add a root `createApp(...)` composition module\n   - wire the existing filesystem event store through the app\n   - add a CLI input adapter or one-shot dispatch binding that satisfies Esther's input-adapter contract\n\n2. **Define filesystem-backed read models and projectors**\n   - identify the current task read surfaces that need durable filesystem state\n   - express them as Esther read models / projector bindings\n   - persist projector results into `.task/issues/`, `.task/indexes/`, and related derived filesystem views through projection adapters\n\n3. **Port CLI commands to slices**\n   - move mutating command logic into `defineCommandSlice(...)`\n   - move read paths to `defineQuerySlice(...)` or projection-backed query helpers\n   - route parsed CLI input to `app.dispatch(...)`\n\n4. **Remove bespoke orchestration after parity**\n   - retire direct `eventStore.append(...)` command flows\n   - retire ad hoc fold/rebuild code that the new slice/read-model flow supersedes\n   - preserve only boundary code still needed for CLI parsing, output, and filesystem adaptation\n\n## Protected contracts\n- CLI grammar and JSON output stay stable\n- canonical `.task/events/` history stays authoritative\n- current issue, hierarchy, document, phase, and concurrency behavior stay stable\n- rebuildable projections continue to recover from canonical history\n\n## Verification Contract\n\n### Automated proof\n```bash\nbun test\nbun run lint\nbun run typecheck\nbun run /home/david/.pi/agent/skills/lint/scripts/lint.ts --diff\n```\n\n### Required focused proof\n- parser coverage for mixed switch/positional commands\n- create/show/list/search parity\n- hierarchy query parity\n- document lifecycle parity\n- projection rebuild parity\n- optimistic-concurrency parity\n\n## Out of scope\n- intentional CLI behavior redesign\n- event-schema or tracker-layout changes that require migration unless split into a follow-up issue\n- Esther work inside `packages/esther/` unless a later task explicitly scopes that package\n\nNext: /skill:taskify 8j9x --from plan\n",
+    "savedAt": "2026-04-23T08:27:29.941Z"
+  },
+  "position": "213",
+  "timestamp": "2026-04-23T08:27:30.052Z"
+}

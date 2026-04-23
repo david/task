@@ -1,0 +1,26 @@
+{
+  "id": "bde34fa7-a705-4fa1-9e06-fefd73175302",
+  "type": "IssueCreated",
+  "tags": [
+    "issue:8j9x-refactor-root-task-cli-onto-esther-creat",
+    "kind:issue"
+  ],
+  "payload": {
+    "issueId": "8j9x-refactor-root-task-cli-onto-esther-creat",
+    "title": "Refactor root task CLI onto Esther createApp and slices",
+    "description": "Replace manual Esther event-store orchestration in the root task CLI with a createApp-based architecture, command slices, and filesystem-backed projectors/read models while preserving current CLI behavior.",
+    "status": "open",
+    "phase": "research",
+    "priority": 1,
+    "created": "2026-04-23",
+    "updated": "2026-04-23T08:22:56.104Z",
+    "refs": [],
+    "labels": [
+      "refactor",
+      "esther",
+      "cli"
+    ]
+  },
+  "position": "212",
+  "timestamp": "2026-04-23T08:22:56.177Z"
+}

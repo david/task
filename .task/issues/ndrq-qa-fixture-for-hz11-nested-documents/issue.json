@@ -1,11 +1,11 @@
 {
   "title": "QA fixture for hz11 nested documents",
   "description": "",
-  "status": "open",
+  "status": "closed",
   "phase": "research",
   "priority": 2,
   "created": "2026-04-21",
-  "updated": "2026-04-21T14:35:38.071Z",
+  "updated": "2026-04-22T17:57:26.832Z",
   "refs": [],
   "labels": [
     "qa-fixture"
